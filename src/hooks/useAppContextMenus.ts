@@ -1,3 +1,4 @@
+import { useJpegMetadataReports } from './useJpegMetadataReports';
 import { rememberAppliedStyleStack } from '../utils/appliedPreset';
 import { editStack, isStackedPhoto, stackKey, toggleStack } from '../utils/photoStacks';
 import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
@@ -211,6 +212,7 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
     }),
     [],
   );
+  const { writeMetadata, undoMetadata, undoToken } = useJpegMetadataReports(props.refreshImageList);
   const { t } = useTranslation();
   const { showContextMenu } = useContextMenu();
 
@@ -1187,6 +1189,17 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
           onClick: () => importXmpAdjustmentsForImage(finalSelection[0]),
         },
         {
+          icon: FileUp,
+          label: t('jpegMetadata.write'),
+          onClick: () => void writeMetadata(finalSelection),
+        },
+        {
+          icon: Undo,
+          label: t('jpegMetadata.undo'),
+          disabled: !undoToken.current,
+          onClick: () => void undoMetadata(),
+        },
+        {
           label: t('contextMenus.editor.productivity'),
           icon: Gauge,
           submenu: [
@@ -1470,6 +1483,9 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
       handleCopyAdjustments,
       handlePasteAdjustments,
       importXmpAdjustmentsForImage,
+      writeMetadata,
+      undoMetadata,
+      undoToken,
       handleAutoAdjustments,
       handleRate,
       buildFlagMenu,

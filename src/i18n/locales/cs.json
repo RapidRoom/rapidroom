@@ -1903,7 +1903,9 @@
       "toolFocusMode": "Režim zaměření na nástroj",
       "toolFocusModeDesc": "Při rozbalení jednoho nástroje v panelu automaticky sbalí ostatní nástroje.",
       "xmpSync": "Synchronizace metadat XMP",
-      "xmpSyncDesc": "Synchronizujte hodnocení, barevné štítky a značky se standardními doprovodnými soubory XMP pro kompatibilitu s jinými editory fotografií."
+      "xmpSyncDesc": "Synchronizujte hodnocení, barevné štítky a značky se standardními doprovodnými soubory XMP pro kompatibilitu s jinými editory fotografií.",
+      "writeJpegMetadata": "Zapisovat hodnocení a štítky do souborů JPEG",
+      "writeJpegMetadataDesc": "Vloží hodnocení, barevné štítky a příznaky zamítnutí do původních souborů JPEG bez překódování pixelů. Ve výchozím nastavení vypnuto; ostatní formáty nadále používají doprovodné soubory."
     },
     "keybinds": {
       "actions": {
@@ -2416,5 +2418,18 @@
     "shifted": "{{shift}} display shift",
     "save": "Save",
     "cancel": "Cancel"
+  },
+  "jpegMetadata": {
+    "write": "Zapsat metadata do souborů",
+    "undo": "Vrátit poslední zápis metadat",
+    "written_one": "Metadata JPEG byla zapsána do {{count}} souboru.",
+    "written_few": "Metadata JPEG byla zapsána do {{count}} souborů.",
+    "written_other": "Metadata JPEG byla zapsána do {{count}} souborů.",
+    "restored_one": "Metadata byla obnovena pro {{count}} soubor.",
+    "restored_few": "Metadata byla obnovena pro {{count}} soubory.",
+    "restored_other": "Metadata byla obnovena pro {{count}} souborů.",
+    "failed": "Zápis metadat selhal: {{error}}",
+    "written_many": "Metadata JPEG byla zapsána do {{count}} souborů.",
+    "restored_many": "Metadata byla obnovena pro {{count}} souborů."
   }
 }

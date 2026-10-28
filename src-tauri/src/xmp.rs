@@ -551,7 +551,7 @@ pub(crate) fn update(
     label: Option<&str>,
     tags: &[String],
 ) -> Result<String, Error> {
-    update_values(content, Some(rating), label, tags)
+    update_values(content, Some(rating), label, Some(tags))
 }
 
 /// Merge rendered-image metadata by namespace, retaining unspecified source
@@ -615,19 +615,27 @@ pub(crate) fn update_export(
         &clean,
         rating.or(old.rating.map(i16::from)),
         label.or(old.label.as_deref()),
-        tags,
+        Some(tags),
     )
+}
+
+pub(crate) fn update_rating_label(
+    content: &str,
+    rating: Option<i16>,
+    label: Option<&str>,
+) -> Result<String, Error> {
+    update_values(content, rating, label, None)
 }
 
 fn update_values(
     content: &str,
     rating: Option<i16>,
     label: Option<&str>,
-    tags: &[String],
+    tags: Option<&[String]>,
 ) -> Result<String, Error> {
     if label
         .into_iter()
-        .chain(tags.iter().map(String::as_str))
+        .chain(tags.unwrap_or_default().iter().map(String::as_str))
         .any(|s| s.chars().any(|c| !xml_char(c)))
     {
         return Err(malformed("metadata contains invalid XML characters"));
@@ -653,15 +661,22 @@ fn update_values(
             }
         }
         for (uri, local) in [(XMP, "Rating"), (XMP, "Label"), (DC, "subject")] {
+            if uri == DC && tags.is_none() {
+                continue;
+            }
             for i in doc.children(description, uri, local) {
                 let node = &doc.nodes[i];
                 edits.push((node.start.start..node.end.end, String::new()));
             }
         }
     }
-    let mut attributes = xmp_ns;
+    let mut attributes = if rating.is_some() || label.is_some() {
+        xmp_ns
+    } else {
+        String::new()
+    };
     let mut subject = String::new();
-    if !tags.is_empty() {
+    if let Some(tags) = tags.filter(|tags| !tags.is_empty()) {
         attributes.push_str(&dc_ns);
         attributes.push_str(&rdf_ns);
         subject.push_str(&format!("<{dc}:subject><{rdf}:Bag>"));

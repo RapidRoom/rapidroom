@@ -1047,6 +1047,18 @@ export default function SettingsPanel({
                           />
                         </SettingItem>
 
+                        <SettingItem
+                          label={t('settings.general.writeJpegMetadata')}
+                          description={t('settings.general.writeJpegMetadataDesc')}
+                        >
+                          <Switch
+                            checked={appSettings?.writeJpegMetadata ?? false}
+                            id="write-jpeg-metadata-toggle"
+                            label={t('settings.general.writeJpegMetadata')}
+                            onChange={(checked) => onSettingsChange({ ...appSettings, writeJpegMetadata: checked })}
+                          />
+                        </SettingItem>
+
                         <AnimatePresence initial={false}>
                           {(appSettings?.enableXmpSync ?? true) && (
                             <motion.div

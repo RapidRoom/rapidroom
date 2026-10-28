@@ -74,6 +74,8 @@ mod image_loader;
 mod image_processing;
 mod immich;
 mod inpainting;
+mod jpeg_culling;
+mod jpeg_metadata;
 mod launch_request;
 mod lens_blur;
 mod lens_correction;
@@ -3244,6 +3246,8 @@ pub fn run() {
             storage::clear_ai_models,
             file_management::set_color_label_for_paths,
             file_management::set_rating_for_paths,
+            jpeg_culling::write_jpeg_metadata_for_paths,
+            jpeg_culling::undo_jpeg_metadata_write,
             file_management::set_flag_for_paths,
             photo_stacks::edit_photo_stack,
             photo_stacks::preview_photo_stacks,

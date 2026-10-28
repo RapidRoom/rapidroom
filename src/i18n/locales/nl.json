@@ -1949,7 +1949,9 @@
       "toolFocusMode": "Toolfocusmodus",
       "toolFocusModeDesc": "Vouw automatisch de overige gereedschappen in een paneel samen wanneer je er één uitvouwt.",
       "xmpSync": "XMP-metadatasynchronisatie",
-      "xmpSyncDesc": "Synchroniseer beoordelingen, kleurlabels en tags naar standaard XMP-sidecar-bestanden voor compatibiliteit met andere foto-editors."
+      "xmpSyncDesc": "Synchroniseer beoordelingen, kleurlabels en tags naar standaard XMP-sidecar-bestanden voor compatibiliteit met andere foto-editors.",
+      "writeJpegMetadata": "Write ratings and labels into JPEG files",
+      "writeJpegMetadataDesc": "Embed ratings, color labels and reject flags in original JPEGs without re-encoding pixels. Off by default; other formats keep using sidecars."
     },
     "keybinds": {
       "actions": {
@@ -2457,5 +2459,14 @@
     "shifted": "{{shift}} display shift",
     "save": "Save",
     "cancel": "Cancel"
+  },
+  "jpegMetadata": {
+    "write": "Write metadata to files",
+    "undo": "Undo last metadata write",
+    "written_one": "Wrote JPEG metadata to {{count}} file.",
+    "written_other": "Wrote JPEG metadata to {{count}} files.",
+    "restored_one": "Restored metadata for {{count}} file.",
+    "restored_other": "Restored metadata for {{count}} files.",
+    "failed": "Metadata write failed: {{error}}"
   }
 }
