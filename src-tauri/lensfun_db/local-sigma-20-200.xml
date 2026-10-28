@@ -1,11 +1,11 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <lensdatabase version="1">
-  <!--RapidRoom adaptation: distortion and vignetting only. Polynomial TCA is unsupported (#267) and excluded; the unchanged licensed donor XML is retained in rapidroom/lens-profiles/sigma-20-200/source. This profile is unvalidated on real files in RapidRoom.-->
+  <!--RapidRoom adaptation: distortion and vignetting only. Polynomial TCA is not included; the unchanged licensed donor XML is retained in rapidroom/lens-profiles/sigma-20-200/source. This profile is unvalidated on real files in RapidRoom.-->
   <!--Derived from Sony in-camera MakerNote correction metadata. 207 ARW frames, Sigma 20-200mm F3.5-6.3 DG DN Contemporary on ILCE-7CM2. Decoded with darktable formula; polynomial fits by sigma_lens_profile project. Coordinate convention: Sony LUTs are radial in the half-diagonal-normalised radius r_diag (r=1 at the corner). Distortion and TCA coefficients are converted to Lensfun's convention via lensfun_conventions (k1_xml = k1_sony / s^2, k2_xml = k2_sony / s^4, s^2 = 3.25 for 3:2 full frame). All distortion entries use the single poly5 model family.-->
   <lens>
     <maker>Sigma</maker>
     <model>20-200mm F3.5-6.3 DG | Contemporary 025</model>
-    <model lang="en">Sigma 20-200mm F3.5-6.3 DG DN Contemporary (TCA unsupported)</model>
+    <model lang="en">Sigma 20-200mm F3.5-6.3 DG DN Contemporary (TCA not included)</model>
     <mount>Sony E</mount>
     <cropfactor>1.0</cropfactor>
     <aspect-ratio>3:2</aspect-ratio>

@@ -2,6 +2,8 @@
 
 RapidRoom is built on other people's work. This file lists where every non-upstream change came from. Upstream's own thanks are in the [RapidRAW README](README.md#special-thanks).
 
+Filter-exit Undo is adapted from [CyberTimon’s RapidRAW commit 4eb6b2da](https://github.com/CyberTimon/RapidRAW/commit/4eb6b2da6a4d43ec2d137dda1977e6708a060336) and [the rated/rejected restoration fix 18ebf030](https://github.com/CyberTimon/RapidRAW/commit/18ebf0307336e955991a6af3356f7f8ce1f4a21b). yojen7 with Codex adapted snapshots, colour labels and Undo to RapidRoom’s ordered metadata writer and failure rollback.
+
 ## Upstream
 
 - **[RapidRAW](https://github.com/CyberTimon/RapidRAW)** by Timon Käch ([@CyberTimon](https://github.com/CyberTimon)) and its contributors. This is the base of everything here.
@@ -237,7 +239,7 @@ The AlreadyApplied photo-versus-preset policy and metadata-only pending-draft/hi
 
 ### Sigma 20–200 mm Sony E measured profile
 
-Distortion and vignetting data by [mpasson](https://github.com/mpasson/RapidRAW/commit/e8811879180122e571ad229a59997aed648dca11), measured/fitted from 207 Sony ILCE-7CM2 ARWs and distributed under [CC-BY-SA 3.0](rapidroom/LICENSES/sigma-20-200-CC-BY-SA-3.0.txt). RapidRoom's adaptation excludes unsupported polynomial TCA from the active database and labels that limit; the [unchanged licensed source](rapidroom/lens-profiles/sigma-20-200/source/local-sigma-20-200.README.md) is retained. Original native-wrapper/tests/database digests were not imported. Integration and synthetic verification use Codex; real-lens file validation remains pending.
+Distortion and vignetting data by [mpasson](https://github.com/mpasson/RapidRAW/commit/e8811879180122e571ad229a59997aed648dca11), measured/fitted from 207 Sony ILCE-7CM2 ARWs and distributed under [CC-BY-SA 3.0](rapidroom/LICENSES/sigma-20-200-CC-BY-SA-3.0.txt). RapidRoom's adaptation leaves polynomial TCA out of the active database and labels it “TCA not included”; enabling it requires separate lens validation even though the evaluator supports that format. The [unchanged licensed source](rapidroom/lens-profiles/sigma-20-200/source/local-sigma-20-200.README.md) is retained. Original native-wrapper/tests/database digests were not imported. Integration and synthetic verification use Codex; real-lens file validation remains pending.
 
 ## Public MCP reproduction package
 

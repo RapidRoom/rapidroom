@@ -1933,7 +1933,10 @@
         "orientationAndCrop": "unsupported orientation and crop",
         "virtualCopyName": "virtual-copy name (shown here only)",
         "orientationAndMasks": "masks with an unsupported orientation",
-        "brushDabParameters": "radius or flow changes within a brush stroke (all stroke points are imported)"
+        "brushDabParameters": "radius or flow changes within a brush stroke (all stroke points are imported)",
+        "maskBrushTable": "encoded brush tables",
+        "localAdjustments": "unsupported local adjustments",
+        "aiDenoise": "AI denoise settings"
       },
       "refresh": "Refresh preview",
       "catalogPreferred": "A matching XMP sidecar exists. This import uses the catalog’s develop settings and masks.",
