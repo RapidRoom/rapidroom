@@ -233,11 +233,24 @@ fn padded_packet(packet: &str, len: usize) -> Option<String> {
     let pad = len.checked_sub(front.len() + tail.len())?;
     Some(format!("{front}{}{tail}", " ".repeat(pad)))
 }
+#[derive(Clone, Copy)]
+pub(crate) enum LabelUpdate<'a> {
+    Preserve,
+    Set(&'a str),
+    Clear,
+}
+
+impl<'a> From<Option<&'a str>> for LabelUpdate<'a> {
+    fn from(label: Option<&'a str>) -> Self {
+        label.map_or(Self::Preserve, Self::Set)
+    }
+}
+
 fn xmp_segment(
     bytes: &[u8],
     old: Option<&Segment>,
     rating: i16,
-    label: Option<&str>,
+    label: LabelUpdate<'_>,
 ) -> Result<Vec<u8>> {
     if !(-1..=5).contains(&rating) {
         return Err("Rating must be -1 through 5".into());
@@ -253,6 +266,12 @@ fn xmp_segment(
     if props.contains_key("HasExtendedXMP") {
         return Err("Extended XMP is unsupported".into());
     }
+    let existing_label = crate::xmp::metadata(content).label;
+    let label = match label {
+        LabelUpdate::Preserve => existing_label.as_deref(),
+        LabelUpdate::Set(value) => Some(value),
+        LabelUpdate::Clear => None,
+    };
     let mut packet =
         crate::xmp::update_rating_label(content, Some(rating), label).map_err(|e| e.to_string())?;
     if let Some(s) = old
@@ -375,7 +394,7 @@ fn replace(bytes: &[u8], jpeg: &Jpeg, desired: &Snapshot) -> Result<Vec<u8>> {
     }
     if jpeg.auxiliary && out.len() != bytes.len() {
         return Err(
-            "Insufficient XMP padding: resizing would move auxiliary images or trailing data"
+            "JPEG has auxiliary previews or trailing data and insufficient existing XMP space. Original left unchanged; use sidecar metadata."
                 .into(),
         );
     }
@@ -676,7 +695,12 @@ fn edit(
         warning,
     })
 }
-pub(crate) fn write(path: &Path, rating: i16, label: Option<&str>) -> Result<Change> {
+pub(crate) fn write<'a>(
+    path: &Path,
+    rating: i16,
+    label: impl Into<LabelUpdate<'a>>,
+) -> Result<Change> {
+    let label = label.into();
     edit(
         path,
         |bytes, jpeg, before| {
@@ -883,6 +907,41 @@ mod tests {
         }
     }
     #[test]
+    fn rating_only_writes_keep_external_labels_in_attribute_and_element_forms() {
+        for label in ["Red", "Approved"] {
+            let element = packet().replace(
+                "<z:Label>Blue</z:Label>",
+                &format!("<z:Label>{label}</z:Label>"),
+            );
+            let attribute = packet().replace("<z:Label>Blue</z:Label>", "").replace(
+                "z:Rating=\"2\"",
+                &format!("z:Rating=\"2\" z:Label=\"{label}\""),
+            );
+            for packet in [element, attribute] {
+                let before = with_xmp(jpeg(), &packet);
+                let (_dir, path) = file(&before);
+                let change = write(&path, 4, None).unwrap();
+                let after = fs::read(&path).unwrap();
+                let metadata = crate::xmp::metadata(&xmp(&after));
+                assert_eq!(metadata.rating, Some(4));
+                assert_eq!(metadata.label.as_deref(), Some(label));
+                assert_eq!(
+                    image::load_from_memory(&before).unwrap().to_rgb8(),
+                    image::load_from_memory(&after).unwrap().to_rgb8()
+                );
+                restore(&path, &change.before, change.after_hash).unwrap();
+                assert_eq!(fs::read(&path).unwrap(), before);
+                write(&path, 4, LabelUpdate::Clear).unwrap();
+                assert!(
+                    crate::xmp::metadata(&xmp(&fs::read(&path).unwrap()))
+                        .label
+                        .is_none()
+                );
+            }
+        }
+    }
+
+    #[test]
     fn reconciles_existing_exif_ratings_both_byte_orders_reject_and_clear() {
         for little in [false, true] {
             let mut before = jpeg();
@@ -921,7 +980,10 @@ mod tests {
         app2[1] = 0xe2;
         mpf.splice(2..2, app2);
         let (_dir, path) = file(&mpf);
-        assert!(write(&path, 4, None).unwrap_err().contains("auxiliary"));
+        let refusal = write(&path, 4, None).unwrap_err();
+        assert!(refusal.contains("auxiliary"));
+        assert!(refusal.contains("Original left unchanged"));
+        assert!(refusal.contains("use sidecar metadata"));
         assert_eq!(fs::read(path).unwrap(), mpf);
     }
     #[test]
@@ -967,7 +1029,7 @@ mod tests {
             with_xmp(jpeg(), &full),
         ] {
             let (_dir, path) = file(&bytes);
-            assert!(write(&path, 3, Some(&"Label".repeat(15_000))).is_err());
+            assert!(write(&path, 3, Some("Label".repeat(15_000).as_str())).is_err());
             assert_eq!(fs::read(path).unwrap(), bytes);
         }
         assert!(segment(oversized.as_bytes()).is_err());

@@ -152,7 +152,18 @@ fn write_one(path: &str, old: &Fields) -> Result<UndoItem, String> {
                 first.to_uppercase().collect::<String>() + chars.as_str()
             })
         });
-    let jpeg = jpeg_metadata::write(&source, rating, label.as_deref())?;
+    let label = match label.as_deref() {
+        Some(value) => jpeg_metadata::LabelUpdate::Set(value),
+        None if old.tags.as_deref().unwrap_or_default().iter().any(|tag| {
+            tag.strip_prefix(crate::tagging::COLOR_TAG_PREFIX)
+                .is_some_and(|value| !value.is_empty())
+        }) =>
+        {
+            jpeg_metadata::LabelUpdate::Clear
+        }
+        None => jpeg_metadata::LabelUpdate::Preserve,
+    };
+    let jpeg = jpeg_metadata::write(&source, rating, label)?;
     Ok(UndoItem {
         path: path.to_string(),
         source,
@@ -186,8 +197,11 @@ fn restore_one_with(
     )?;
     item.restored_hash = Some(restored.after_hash);
     item.jpeg.warning = restored.warning;
-    // Re-read after the potentially long JPEG operation before merging. Ordinary
-    // develop saves share ACTION; this also retains other completed sidecar edits.
+    // Dedicated writers do not all share ACTION. Lock their read/modify/write
+    // transaction after the potentially long JPEG restore, then merge current edits.
+    let _sidecar_guard = file_management::lock_sidecar(&item.sidecar).map_err(|e| {
+        format!("JPEG restored, but sidecar lock failed: {e}. Undo retained; fix the write error and retry")
+    })?;
     metadata = exif_processing::load_sidecar(&item.sidecar);
     if Fields::from(&metadata) != item.expected {
         return Err(
@@ -197,7 +211,7 @@ fn restore_one_with(
     before_sidecar_write();
     item.before.apply(&mut metadata);
     let text = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
-    file_management::write_file_atomically(&item.sidecar, text).map_err(|e| {
+    file_management::write_sidecar_locked(&item.sidecar, text).map_err(|e| {
         format!("JPEG restored, but sidecar save failed: {e}. Undo retained; fix the write error and retry")
     })?;
     if settings.enable_xmp_sync.unwrap_or(false) {
@@ -391,7 +405,19 @@ mod tests {
         );
         metadata.adjustments = json!({"exposure":1.5});
         save(&sidecar, &metadata);
-        restore_one(&mut item, &Default::default()).unwrap();
+        restore_one_with(&mut item, &Default::default(), || {
+            let lock_path = sidecar.with_file_name(".culling.jpg.rrdata.rapidroom-lock");
+            let competing_writer = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(lock_path)
+                .unwrap();
+            assert!(matches!(
+                competing_writer.try_lock(),
+                Err(std::fs::TryLockError::WouldBlock)
+            ));
+        })
+        .unwrap();
         let actual = exif_processing::load_sidecar(&sidecar);
         assert_eq!(actual.adjustments, json!({"exposure":1.5}));
         assert_eq!(actual.flag, None);
@@ -402,6 +428,30 @@ mod tests {
             3
         );
     }
+    #[test]
+    fn culling_rating_preserves_an_external_label_but_explicit_colour_removal_clears_it() {
+        let (_dir, path, sidecar) = fixture();
+        let old = Fields::from(&ImageMetadata::default());
+        jpeg_metadata::write(std::path::Path::new(&path), 2, Some("Approved")).unwrap();
+        let mut metadata = ImageMetadata {
+            rating: 4,
+            rating_is_explicit: true,
+            ..Default::default()
+        };
+        save(&sidecar, &metadata);
+        let mut rated = write_one(&path, &old).unwrap();
+        assert!(String::from_utf8_lossy(&std::fs::read(&path).unwrap()).contains("Approved"));
+        restore_one(&mut rated, &Default::default()).unwrap();
+        metadata.tags = Some(vec!["color:red".into(), "user:x".into()]);
+        let old = Fields::from(&metadata);
+        metadata.tags = Some(vec!["user:x".into()]);
+        save(&sidecar, &metadata);
+        write_one(&path, &old).unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        assert!(!String::from_utf8_lossy(&bytes).contains("Approved"));
+        assert_eq!(exif_processing::load_sidecar(&sidecar).tags, metadata.tags);
+    }
+
     #[test]
     fn undo_refuses_later_culling_changes_and_virtual_copies_never_touch_master() {
         let (_dir, path, sidecar) = fixture();

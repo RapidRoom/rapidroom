@@ -3402,7 +3402,10 @@ fn save_metadata_and_update_thumbnail_blocking(
     let lens_db = state.lens_db.lock().unwrap().clone();
     let source_id = crate::ai_jobs::source_id(&source_path);
 
-    let settings = load_settings(app_handle.clone()).unwrap_or_default();
+    let settings = load_settings(app_handle.clone()).unwrap_or_else(|_| AppSettings {
+        enable_xmp_sync: Some(false),
+        ..Default::default()
+    });
     let exif = crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path).exif;
     let mut had_ai_work = false;
     let mut stripped_ai_results = false;
