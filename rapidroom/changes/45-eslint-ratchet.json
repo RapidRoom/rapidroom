@@ -1,0 +1,12 @@
+{
+  "id": "eslint-error-ratchet",
+  "title": "Enforce no new ESLint errors against each pull request base",
+  "category": "ci",
+  "landed": "2026-10-28",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original CI ratchet)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Compare candidate and exact-base ESLint error counts per file and rule using the installed candidate toolchain. Existing debt remains visible and reductions are allowed; new error groups or increased counts fail, as do configuration and parser failures. Main pushes compare with the previous head; manual runs use the first parent."
+}
