@@ -1,4 +1,4 @@
-import { describeHistoryChange, type HistoryDetails } from '../utils/editHistory';
+import { describeHistoryChange, sameAdjustmentValue, type HistoryDetails } from '../utils/editHistory';
 import { create } from 'zustand';
 import { Adjustments, INITIAL_ADJUSTMENTS, MaskContainer, AiPatch } from '../utils/adjustments';
 import { SelectedImage, WaveformData, BrushSettings, HistogramData } from '../components/ui/AppProperties';
@@ -42,6 +42,8 @@ interface EditorState {
   history: Adjustments[];
   historyDetails: Array<HistoryDetails | null>;
   historyIndex: number;
+  historyPath: string | null;
+  photoHistories: ReadonlyMap<string, PhotoHistory>;
 
   // Previews & Overlays
   finalPreviewUrl: string | null;
@@ -108,9 +110,34 @@ interface EditorState {
   undo: () => void;
   redo: () => void;
   resetHistory: (initialState: Adjustments) => void;
+  saveHistory: () => void;
+  restoreHistory: (initialState: Adjustments) => void;
   goToHistoryIndex: (index: number) => void;
   dispatchReferenceView: (command: ReferenceViewCommand) => void;
 }
+
+interface PhotoHistory {
+  history: Adjustments[];
+  historyDetails: Array<HistoryDetails | null>;
+  historyIndex: number;
+}
+
+const MAX_PHOTO_HISTORIES = 50;
+
+const rememberPhotoHistory = (
+  photoHistories: ReadonlyMap<string, PhotoHistory>,
+  path: string,
+  photoHistory: PhotoHistory,
+) => {
+  const next = new Map(photoHistories);
+  next.delete(path);
+  next.set(path, photoHistory);
+  if (next.size > MAX_PHOTO_HISTORIES) {
+    const oldest = next.keys().next().value;
+    if (oldest !== undefined) next.delete(oldest);
+  }
+  return next;
+};
 
 export const useEditorStore = create<EditorState>((set) => ({
   selectedImage: null,
@@ -119,6 +146,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   history: [INITIAL_ADJUSTMENTS],
   historyDetails: [null],
   historyIndex: 0,
+  historyPath: null,
+  photoHistories: new Map(),
 
   finalPreviewUrl: null,
   uncroppedAdjustedPreviewUrl: null,
@@ -228,11 +257,51 @@ export const useEditorStore = create<EditorState>((set) => ({
     }),
 
   resetHistory: (initialState) =>
-    set({
-      history: [initialState],
-      historyDetails: [null],
-      historyIndex: 0,
-      adjustments: initialState,
+    set((state) => {
+      const photoHistories = new Map(state.photoHistories);
+      if (state.selectedImage) photoHistories.delete(state.selectedImage.path);
+      return {
+        history: [initialState],
+        historyDetails: [null],
+        historyIndex: 0,
+        historyPath: state.selectedImage?.path ?? null,
+        adjustments: initialState,
+        photoHistories,
+      };
+    }),
+
+  saveHistory: () =>
+    set((state) => {
+      const path = state.selectedImage?.path;
+      if (!path || state.historyPath !== path) return state;
+      return {
+        photoHistories: rememberPhotoHistory(state.photoHistories, path, {
+          history: [...state.history],
+          historyDetails: [...state.historyDetails],
+          historyIndex: state.historyIndex,
+        }),
+      };
+    }),
+
+  restoreHistory: (initialState) =>
+    set((state) => {
+      const path = state.selectedImage?.path;
+      const saved = path ? state.photoHistories.get(path) : undefined;
+      if (path && saved && sameAdjustmentValue(saved.history[saved.historyIndex], initialState)) {
+        return {
+          ...saved,
+          historyPath: path,
+          adjustments: initialState,
+          photoHistories: rememberPhotoHistory(state.photoHistories, path, saved),
+        };
+      }
+      const fresh = { history: [initialState], historyDetails: [null], historyIndex: 0 };
+      return {
+        ...fresh,
+        historyPath: path ?? null,
+        adjustments: initialState,
+        photoHistories: path ? rememberPhotoHistory(state.photoHistories, path, fresh) : state.photoHistories,
+      };
     }),
 
   goToHistoryIndex: (index) =>
