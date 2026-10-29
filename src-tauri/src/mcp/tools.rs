@@ -180,7 +180,7 @@ pub(super) fn tool_definitions() -> Vec<Value> {
         }),
         json!({
             "name": "get_preview",
-            "description": "Render a bounded current/supplied edit or neutral original JPEG. Optional region uses 0–1 fractions of the rendered image; side_by_side returns original on the left and edited on the right without changing history. originalGeometry:edit aligns neutral tone with the edited crop/lens geometry.",
+            "description": "Render a bounded current/supplied edit or neutral original JPEG. Optional region uses 0–1 fractions of the rendered image; side_by_side returns original on the left and edited on the right without changing history. originalGeometry:edit aligns neutral tone with the edited crop/lens geometry and tone mapper. AI patches such as generative remove are not geometry, so patched areas do not line up.",
             "inputSchema": { "type": "object", "properties": {
                 "imagePath": { "type": "string" },
                 "adjustments": adjustments::adjustments_schema(),
@@ -189,7 +189,7 @@ pub(super) fn tool_definitions() -> Vec<Value> {
                 "maxDimension": { "type": "integer", "minimum": 128, "maximum": 4096, "default": 1280 },
                 "expectedRevision": { "type": "string", "description": "Advisory; render the latest edit and return its editRevision even when this revision is stale." },
                 "original": { "type": "boolean", "default": false },
-                "originalGeometry":{"type":"string","enum":["source","edit"],"default":"source","description":"With original or side_by_side, source keeps neutral source geometry; edit retains the edited crop/orientation/transform/lens geometry and tone mapper for pixel-aligned comparisons."},
+                "originalGeometry":{"type":"string","enum":["source","edit"],"default":"source","description":"source is accepted on any preview and keeps neutral source geometry. edit requires original or side_by_side and retains the edited crop/orientation/transform/lens geometry and tone mapper for pixel-aligned comparisons."},
                 "side_by_side": { "type": "boolean", "default": false },
                 "region": { "type": "object", "additionalProperties": false, "properties": {
                     "x": { "type": "number", "minimum": 0, "maximum": 1 },
@@ -684,13 +684,22 @@ fn use_aligned_original(
     let Some(value) = arguments.get("originalGeometry") else {
         return Ok(false);
     };
-    if !original && !comparison {
-        return Err("originalGeometry requires original or side_by_side".into());
-    }
     match value.as_str() {
         Some("source") => Ok(false),
-        Some("edit") => Ok(true),
+        Some("edit") if original || comparison => Ok(true),
+        Some("edit") => Err("originalGeometry:edit requires original or side_by_side".into()),
         _ => Err("originalGeometry must be source or edit".into()),
+    }
+}
+
+fn side_by_side_original_adjustments_for(
+    selected: &Value,
+    align_original: bool,
+) -> Result<Value, String> {
+    if align_original {
+        aligned_original_adjustments_for(selected)
+    } else {
+        original_adjustments_for(selected)
     }
 }
 
@@ -796,11 +805,8 @@ async fn get_preview(app_handle: &AppHandle, arguments: &Value) -> Result<Value,
         region,
     );
     let (result, labels) = if comparison {
-        let neutral_adjustments = if align_original {
-            aligned_original_adjustments_for(&adjustments)?
-        } else {
-            original_adjustments_for(&current["adjustments"])?
-        };
+        let neutral_adjustments =
+            side_by_side_original_adjustments_for(&adjustments, align_original)?;
         let neutral = crate::generate_preview_bytes_for_path(
             path.clone(),
             neutral_adjustments,
@@ -1421,6 +1427,51 @@ mod tests {
         {
             assert_eq!(&aligned[key], value, "geometry field {key}");
         }
+    }
+
+    #[test]
+    fn original_geometry_accepts_source_and_refuses_only_edit_without_a_comparison() {
+        assert!(!use_aligned_original(&json!({}), false, false).unwrap());
+        for (original, comparison) in [(false, false), (true, false), (false, true)] {
+            let arguments = json!({"originalGeometry":"source"});
+            assert!(!use_aligned_original(&arguments, original, comparison).unwrap());
+        }
+        assert!(use_aligned_original(&json!({"originalGeometry":"edit"}), true, false).unwrap());
+        assert!(use_aligned_original(&json!({"originalGeometry":"edit"}), false, true).unwrap());
+        assert!(use_aligned_original(&json!({"originalGeometry":"edit"}), false, false).is_err());
+        assert!(
+            use_aligned_original(&json!({"originalGeometry":"invalid"}), false, false).is_err()
+        );
+    }
+
+    #[test]
+    fn side_by_side_neutral_adjustments_follow_the_selected_history_edit() {
+        let defaults = original_adjustments().unwrap();
+        let mut selected = defaults.clone();
+        selected["baselineExposure"] = json!(false);
+        selected["cameraExposureCompensation"] = json!(true);
+        selected["exposure"] = json!(1.25);
+        selected["crop"] = json!({"x":500,"y":100,"width":1800,"height":2400,"unit":"px"});
+        selected["toneMapper"] = json!("linear");
+
+        let source = side_by_side_original_adjustments_for(&selected, false).unwrap();
+        assert_eq!(source["baselineExposure"], selected["baselineExposure"]);
+        assert_eq!(
+            source["cameraExposureCompensation"],
+            selected["cameraExposureCompensation"]
+        );
+        assert_eq!(source["exposure"], defaults["exposure"]);
+        assert_eq!(source["crop"], defaults["crop"]);
+
+        let aligned = side_by_side_original_adjustments_for(&selected, true).unwrap();
+        assert_eq!(aligned["baselineExposure"], selected["baselineExposure"]);
+        assert_eq!(
+            aligned["cameraExposureCompensation"],
+            selected["cameraExposureCompensation"]
+        );
+        assert_eq!(aligned["crop"], selected["crop"]);
+        assert_eq!(aligned["toneMapper"], selected["toneMapper"]);
+        assert_eq!(aligned["exposure"], defaults["exposure"]);
     }
 
     #[test]
