@@ -9,5 +9,5 @@
   "upstream_issues": [],
   "upstream_prs": [],
   "rendering_change": true,
-  "notes": "Custom RAW sidecars with both Temperature and Tint now use RapidRAW's absolute white balance when no relative conversion is possible. As Shot and rendered-source imports are unchanged; Lightroom colour parity remains uncalibrated."
+  "notes": "Custom RAW sidecars with both Temperature and Tint now use clamped absolute white balance when no relative conversion is possible. Absolute imports zero stale relative controls, relative imports clear stale absolute targets, and partially transferred custom white balance is reported. As Shot and rendered-source imports are unchanged; Lightroom colour parity remains uncalibrated."
 }

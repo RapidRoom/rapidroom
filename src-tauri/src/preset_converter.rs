@@ -7,7 +7,9 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::file_management::Preset;
-use crate::white_balance::{MIRED_PER_RELATIVE_UNIT, TINT_PER_RELATIVE_UNIT};
+use crate::white_balance::{
+    MAX_TEMPERATURE, MAX_TINT, MIN_TEMPERATURE, MIRED_PER_RELATIVE_UNIT, TINT_PER_RELATIVE_UNIT,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum XmpImageKind {
@@ -1186,11 +1188,27 @@ pub fn lightroom_settings_not_transferred_with_mask_summary(
     let custom_white_balance = attrs
         .get("WhiteBalance")
         .is_some_and(|value| !value.is_empty() && !value.eq_ignore_ascii_case("As Shot"));
-    if custom_white_balance
-        && preset.adjustments.get("temperature").is_none()
-        && preset.adjustments.get("tint").is_none()
-        && preset.adjustments.get("whiteBalance").is_none()
-    {
+    let absolute_white_balance = preset
+        .adjustments
+        .get("whiteBalance")
+        .is_some_and(|value| !value.is_null());
+    let temperature_transferred = absolute_white_balance
+        || preset
+            .adjustments
+            .get("temperature")
+            .is_some_and(|value| !value.is_null());
+    let tint_transferred = absolute_white_balance
+        || preset
+            .adjustments
+            .get("tint")
+            .is_some_and(|value| !value.is_null());
+    let missing_temperature = active_property("Temperature") && !temperature_transferred;
+    let missing_tint = active_property("Tint") && !tint_transferred;
+    let missing_custom_values = !active_property("Temperature")
+        && !active_property("Tint")
+        && !temperature_transferred
+        && !tint_transferred;
+    if custom_white_balance && (missing_temperature || missing_tint || missing_custom_values) {
         items.push("whiteBalance");
     }
 
@@ -1515,10 +1533,21 @@ fn convert_xmp_to_preset_with_crop(
             .filter(|temperature| temperature.is_finite() && *temperature > 0.0)
         && let Some(tint_val) = get_attr_as_f64(&attrs, "Tint").filter(|tint| tint.is_finite())
     {
+        adjustments.insert("temperature".to_string(), json!(0.0));
+        adjustments.insert("tint".to_string(), json!(0.0));
         adjustments.insert(
             "whiteBalance".to_string(),
-            json!({"temperature": adjusted_k, "tint": tint_val}),
+            json!({
+                "temperature": adjusted_k.clamp(MIN_TEMPERATURE, MAX_TEMPERATURE),
+                "tint": tint_val.clamp(-MAX_TINT, MAX_TINT),
+            }),
         );
+    } else if can_convert_white_balance
+        && !white_balance_is_as_shot
+        && include_crop_transform
+        && (adjustments.get("temperature").is_some() || adjustments.get("tint").is_some())
+    {
+        adjustments.insert("whiteBalance".to_string(), Value::Null);
     }
 
     let colors = [
@@ -3186,7 +3215,7 @@ mod tests {
 
         assert!((preset.adjustments["temperature"].as_f64().unwrap() - 18.6).abs() < 0.1);
         assert!((preset.adjustments["tint"].as_f64().unwrap() + 4.0).abs() < 0.01);
-        assert!(preset.adjustments.get("whiteBalance").is_none());
+        assert_eq!(preset.adjustments["whiteBalance"], Value::Null);
     }
 
     #[test]
@@ -3203,14 +3232,13 @@ mod tests {
     }
 
     #[test]
-    fn omits_custom_temperature_when_as_shot_baseline_is_unknown() {
-        let preset = convert_xmp_sidecar_to_preset(
-            r#"<rdf:Description crs:WhiteBalance="Custom" crs:Temperature="5068" />"#,
-        )
-        .unwrap();
+    fn omits_and_reports_custom_temperature_without_tint() {
+        let xmp = r#"<rdf:Description crs:WhiteBalance="Custom" crs:Temperature="5068" />"#;
+        let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
 
         assert!(preset.adjustments.get("temperature").is_none());
         assert!(preset.adjustments.get("whiteBalance").is_none());
+        assert!(not_transferred(xmp).contains(&"whiteBalance"));
     }
 
     #[test]
@@ -3223,12 +3251,67 @@ mod tests {
         )
         .unwrap();
 
-        assert!(preset.adjustments.get("temperature").is_none());
-        assert!(preset.adjustments.get("tint").is_none());
+        assert_eq!(preset.adjustments["temperature"], json!(0.0));
+        assert_eq!(preset.adjustments["tint"], json!(0.0));
         assert_eq!(
             preset.adjustments["whiteBalance"],
             json!({"temperature": 6190.0, "tint": 12.0})
         );
+    }
+
+    #[test]
+    fn clamps_absolute_sidecar_white_balance_to_renderer_limits() {
+        for (temperature, tint, expected_k, expected_tint) in [
+            ("1000", "-200", MIN_TEMPERATURE, -MAX_TINT),
+            ("100000", "200", MAX_TEMPERATURE, MAX_TINT),
+        ] {
+            let xmp = format!(
+                r#"<rdf:Description crs:WhiteBalance="Custom"
+                    crs:Temperature="{temperature}" crs:Tint="{tint}" />"#
+            );
+            let preset = convert_xmp_sidecar_to_preset(&xmp).unwrap();
+            assert_eq!(
+                preset.adjustments["whiteBalance"],
+                json!({"temperature": expected_k, "tint": expected_tint})
+            );
+            assert!(!not_transferred(&xmp).contains(&"whiteBalance"));
+        }
+    }
+
+    #[test]
+    fn rejects_nonfinite_absolute_white_balance_and_reports_it() {
+        let xmp = r#"<rdf:Description crs:WhiteBalance="Custom"
+            crs:Temperature="NaN" crs:Tint="12" />"#;
+        let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
+        assert!(preset.adjustments.get("whiteBalance").is_none());
+        assert!(not_transferred(xmp).contains(&"whiteBalance"));
+    }
+
+    #[test]
+    fn clears_absolute_target_and_reports_partial_relative_white_balance() {
+        for (xmp, temperature_imported, tint_imported) in [
+            (
+                r#"<rdf:Description crs:WhiteBalance="Custom" crs:Temperature="5068"
+                    crs:AsShotTemperature="4440" crs:Tint="-11" />"#,
+                true,
+                false,
+            ),
+            (
+                r#"<rdf:Description crs:WhiteBalance="Custom" crs:Temperature="5068"
+                    crs:Tint="-11" crs:AsShotTint="-5" />"#,
+                false,
+                true,
+            ),
+        ] {
+            let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
+            assert_eq!(
+                preset.adjustments.get("temperature").is_some(),
+                temperature_imported
+            );
+            assert_eq!(preset.adjustments.get("tint").is_some(), tint_imported);
+            assert_eq!(preset.adjustments["whiteBalance"], Value::Null);
+            assert!(not_transferred(xmp).contains(&"whiteBalance"));
+        }
     }
 
     #[test]
