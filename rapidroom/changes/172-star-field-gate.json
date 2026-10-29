@@ -1,0 +1,13 @@
+{
+  "id": "denoise-star-field-acceptance-gate",
+  "title": "Add explicit acceptance thresholds to denoise star photometry",
+  "category": "ci",
+  "landed": "2026-10-29",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "The fixed-site star-field harness can now fail on declared faint-survival, peak, flux, spread and aperture-colour thresholds. Thresholds remain explicit rather than universal; missing measurements fail the requested gate. Rendering and denoise output are unchanged."
+}

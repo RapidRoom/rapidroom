@@ -88,20 +88,56 @@ def compare(original, candidate, sites):
     }
 
 
+def acceptance_failures(report, min_faint_survival=None, min_median_peak_ratio=None,
+                        min_median_flux_ratio=None, max_median_spread_ratio=None,
+                        max_median_colour_delta=None):
+    requirements = [
+        ("faint_survival_fraction", min_faint_survival, "at least", lambda a, b: a >= b),
+        ("median_peak_ratio", min_median_peak_ratio, "at least", lambda a, b: a >= b),
+        ("median_flux_ratio", min_median_flux_ratio, "at least", lambda a, b: a >= b),
+        ("median_spread_ratio", max_median_spread_ratio, "at most", lambda a, b: a <= b),
+        ("median_aperture_colour_delta", max_median_colour_delta, "at most", lambda a, b: a <= b),
+    ]
+    failures = []
+    for metric, limit, direction, accepted in requirements:
+        if limit is None:
+            continue
+        actual = report[metric]
+        if actual is None or not accepted(actual, limit):
+            failures.append(f"{metric}={actual} (required {direction} {limit})")
+    return failures
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--original", required=True, type=Path)
     parser.add_argument("--candidate", required=True, type=Path)
     parser.add_argument("--sites", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--min-faint-survival", type=float)
+    parser.add_argument("--min-median-peak-ratio", type=float)
+    parser.add_argument("--min-median-flux-ratio", type=float)
+    parser.add_argument("--max-median-spread-ratio", type=float)
+    parser.add_argument("--max-median-colour-delta", type=float)
     args = parser.parse_args()
     try:
         report = compare(np.load(args.original, allow_pickle=False),
                          np.load(args.candidate, allow_pickle=False), json.loads(args.sites.read_text()))
     except (ValueError, KeyError, OSError) as error:
         parser.exit(2, f"{error}\n")
+    failures = acceptance_failures(
+        report, args.min_faint_survival, args.min_median_peak_ratio,
+        args.min_median_flux_ratio, args.max_median_spread_ratio,
+        args.max_median_colour_delta)
+    if any(value is not None for value in (
+            args.min_faint_survival, args.min_median_peak_ratio,
+            args.min_median_flux_ratio, args.max_median_spread_ratio,
+            args.max_median_colour_delta)):
+        report["acceptance"] = {"pass": not failures, "failures": failures}
     args.out.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
     print(json.dumps(report, allow_nan=False))
+    if failures:
+        parser.exit(1, "star-field acceptance failed\n")
 
 
 if __name__ == "__main__":
