@@ -710,10 +710,13 @@ pub struct Flight {
 }
 
 /// One pristine decode shared by every caller waiting on the same path.
+/// Flights are keyed by path, so the fingerprint says which file and raw
+/// settings this buffer actually came from.
 pub struct SharedDecode {
     pub image: Arc<DynamicImage>,
     pub exif: HashMap<String, String>,
     pub used_embedded_preview: bool,
+    pub fingerprint: Option<DecodeFingerprint>,
 }
 
 impl Flight {
@@ -1187,52 +1190,79 @@ mod tests {
 
     #[test]
     fn eviction_keeps_a_pinned_open_photo_that_is_not_last() {
-        let mut cache = DecodedImageCache::new(2);
         let fp = fingerprint();
+        let mut counted = DecodedImageCache::new(2);
         let open = solid(0.2);
-        let middle = solid(0.4);
-        cache.insert(
+        counted.insert(
             "open".to_string(),
             fp.clone(),
             Arc::clone(&open),
             HashMap::new(),
             false,
         );
-        cache.set_pinned_path(Some("open".to_string()));
-        cache.insert(
+        counted.set_pinned_path(Some("open".to_string()));
+        counted.insert(
             "middle".to_string(),
             fp.clone(),
-            Arc::clone(&middle),
+            solid(0.4),
             HashMap::new(),
             false,
         );
-        cache.insert(
+        counted.insert(
             "newest".to_string(),
             fp.clone(),
             solid(0.6),
             HashMap::new(),
             false,
         );
-        // Capacity 2 would drop the oldest unpinned entry. The open photo
-        // stays even though it is first. middle is the one that goes.
-        assert!(cache.peek_exact("middle", &fp).is_none());
+        // Capacity 2 drops the oldest unpinned entry. The open photo stays
+        // even though it is first.
+        assert!(counted.peek_exact("middle", &fp).is_none());
         assert!(Arc::ptr_eq(
-            &cache.peek_exact("open", &fp).unwrap().0,
+            &counted.peek_exact("open", &fp).unwrap().0,
             &open
         ));
-        assert!(cache.peek_exact("newest", &fp).is_some());
+        assert!(counted.peek_exact("newest", &fp).is_some());
 
-        // A shared Arc cannot be halved. The open photo is not removed to
-        // make room; a later shared entry that is not open is.
-        cache.evict_with_budget(100);
+        // Capacity stays above the entry count, so only the byte budget runs.
+        // A shared Arc cannot be halved, and the budget then removes that
+        // unpinned full image. The pinned photo and the newest entry stay.
+        let mut budgeted = DecodedImageCache::new(5);
+        let pinned = solid(0.2);
+        let removable = solid(0.4);
+        budgeted.insert(
+            "open".to_string(),
+            fp.clone(),
+            Arc::clone(&pinned),
+            HashMap::new(),
+            false,
+        );
+        budgeted.set_pinned_path(Some("open".to_string()));
+        budgeted.insert(
+            "removable".to_string(),
+            fp.clone(),
+            Arc::clone(&removable),
+            HashMap::new(),
+            false,
+        );
+        budgeted.insert(
+            "newest".to_string(),
+            fp.clone(),
+            solid(0.6),
+            HashMap::new(),
+            false,
+        );
+        assert!(budgeted.peek_exact("removable", &fp).is_some());
+        budgeted.evict_with_budget(100);
+        assert!(budgeted.peek_exact("removable", &fp).is_none());
         assert!(Arc::ptr_eq(
-            &cache.peek_exact("open", &fp).unwrap().0,
-            &open
+            &budgeted.peek_exact("open", &fp).unwrap().0,
+            &pinned
         ));
-        assert!(cache.peek_exact("middle", &fp).is_none());
-        let (_, _, _, exact) = cache.peek_exact("newest", &fp).unwrap();
+        let (_, _, _, exact) = budgeted.peek_exact("newest", &fp).unwrap();
         assert!(exact);
         drop(open);
-        drop(middle);
+        drop(pinned);
+        drop(removable);
     }
 }

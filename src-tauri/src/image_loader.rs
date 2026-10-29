@@ -1115,26 +1115,16 @@ pub fn get_or_decode_pristine(
             FlightRole::Follower(flight) => {
                 flight.wait();
                 if let Some(Ok(shared)) = flight.outcome() {
-                    if policy == PristineCachePolicy::Store
-                        && let Some(fp) = &fingerprint
-                    {
-                        let mut cache = state.decoded_image_cache.lock().unwrap();
-                        if cache.peek_exact(&path_str, fp).is_none() {
-                            cache.insert(
-                                path_str,
-                                fp.clone(),
-                                Arc::clone(&shared.image),
-                                shared.exif.clone(),
-                                shared.used_embedded_preview,
-                            );
-                        }
+                    let mut cache = state.decoded_image_cache.lock().unwrap();
+                    if let Some(hit) = shared_decode_for_fingerprint(
+                        &shared,
+                        &fingerprint,
+                        policy,
+                        &mut cache,
+                        &path_str,
+                    ) {
+                        return Ok(hit);
                     }
-                    return Ok((
-                        Arc::clone(&shared.image),
-                        shared.exif.clone(),
-                        shared.used_embedded_preview,
-                        true,
-                    ));
                 }
                 continue;
             }
@@ -1203,9 +1193,43 @@ pub fn get_or_decode_pristine(
             image: Arc::clone(&image),
             exif: exif.clone(),
             used_embedded_preview,
+            fingerprint: fingerprint.clone(),
         })));
         return Ok((image, exif, used_embedded_preview, true));
     }
+}
+
+/// A path-keyed flight can finish a decode of the previous file or the
+/// previous raw settings. The follower uses that buffer only when the
+/// fingerprint matches, and both missing counts as a match.
+fn shared_decode_for_fingerprint(
+    shared: &SharedDecode,
+    fingerprint: &Option<DecodeFingerprint>,
+    policy: PristineCachePolicy,
+    cache: &mut crate::cache_utils::DecodedImageCache,
+    path: &str,
+) -> Option<crate::cache_utils::DecodedImageCacheHit> {
+    if shared.fingerprint != *fingerprint {
+        return None;
+    }
+    if policy == PristineCachePolicy::Store
+        && let Some(fp) = fingerprint
+        && cache.peek_exact(path, fp).is_none()
+    {
+        cache.insert(
+            path.to_string(),
+            fp.clone(),
+            Arc::clone(&shared.image),
+            shared.exif.clone(),
+            shared.used_embedded_preview,
+        );
+    }
+    Some((
+        Arc::clone(&shared.image),
+        shared.exif.clone(),
+        shared.used_embedded_preview,
+        true,
+    ))
 }
 
 fn lookup_pristine(
@@ -1800,5 +1824,77 @@ mod embedded_preview_tests {
             &before
         ));
         assert!(!exact_redecode_can_replace((4, 4), (4, 4), &before, &None));
+    }
+
+    #[test]
+    fn a_flight_follower_with_a_different_fingerprint_does_not_keep_the_buffer() {
+        let dir = tempfile::tempdir().unwrap();
+        let leader_file = dir.path().join("leader.bin");
+        let follower_file = dir.path().join("follower.bin");
+        std::fs::write(&leader_file, [1u8, 2, 3]).unwrap();
+        std::fs::write(&follower_file, [1u8, 2, 3, 4]).unwrap();
+        let settings = AppSettings::default();
+        let leader_fp = DecodeFingerprint::for_file(&leader_file, &settings);
+        let follower_fp = DecodeFingerprint::for_file(&follower_file, &settings);
+        assert_ne!(leader_fp, follower_fp);
+
+        let image = std::sync::Arc::new(image::DynamicImage::ImageRgb8(image::RgbImage::new(1, 1)));
+        let shared = SharedDecode {
+            image: std::sync::Arc::clone(&image),
+            exif: std::collections::HashMap::new(),
+            used_embedded_preview: false,
+            fingerprint: leader_fp.clone(),
+        };
+        let mut cache = crate::cache_utils::DecodedImageCache::new(5);
+        assert!(
+            super::shared_decode_for_fingerprint(
+                &shared,
+                &follower_fp,
+                super::PristineCachePolicy::Store,
+                &mut cache,
+                "photo.ARW",
+            )
+            .is_none()
+        );
+        for fp in [leader_fp.as_ref().unwrap(), follower_fp.as_ref().unwrap()] {
+            assert!(cache.peek_exact("photo.ARW", fp).is_none());
+        }
+
+        let same = super::shared_decode_for_fingerprint(
+            &shared,
+            &leader_fp,
+            super::PristineCachePolicy::Store,
+            &mut cache,
+            "photo.ARW",
+        )
+        .expect("matching fingerprint");
+        assert!(std::sync::Arc::ptr_eq(&same.0, &image));
+        assert!(std::sync::Arc::ptr_eq(
+            &cache
+                .peek_exact("photo.ARW", leader_fp.as_ref().unwrap())
+                .unwrap()
+                .0,
+            &image
+        ));
+
+        let mut empty = crate::cache_utils::DecodedImageCache::new(5);
+        let missing = SharedDecode {
+            fingerprint: None,
+            ..shared
+        };
+        let hit = super::shared_decode_for_fingerprint(
+            &missing,
+            &None,
+            super::PristineCachePolicy::Store,
+            &mut empty,
+            "photo.ARW",
+        )
+        .expect("two missing fingerprints match");
+        assert!(std::sync::Arc::ptr_eq(&hit.0, &image));
+        assert!(
+            empty
+                .peek_exact("photo.ARW", leader_fp.as_ref().unwrap())
+                .is_none()
+        );
     }
 }
