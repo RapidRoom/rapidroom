@@ -909,7 +909,7 @@ fn process_preview_job(
     drop(mask_span);
 
     let parse_span = perf_trace::span("job.parse_adjustments");
-    let final_adjustments =
+    let mut final_adjustments =
         get_all_adjustments_from_json(&adjustments_clone, is_raw, loaded_image.as_shot, render);
     if soft_proof.is_some() {
         final_adjustments.global.show_clipping = 0;
@@ -1176,7 +1176,7 @@ fn run_editor_job(app_handle: &tauri::AppHandle, job: PreviewJob) {
     });
     match result {
         Ok(bytes) => {
-            let _ = responder.send(bytes);
+            let _ = responder.send(Ok(bytes));
             if job.layer == DisplayLayer::Edited && !job.is_interactive {
                 viewer_window::schedule_viewer_render(app_handle);
             }

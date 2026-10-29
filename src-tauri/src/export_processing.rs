@@ -3522,7 +3522,7 @@ mod dpi_tests {
                 format,
                 true,
                 true,
-                None,
+                &exif_processing::ExportXmp::from_metadata(&ImageMetadata::default()),
                 Some(300),
             )
             .unwrap();
