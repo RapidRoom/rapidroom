@@ -1384,7 +1384,7 @@ async fn generate_uncropped_preview(
         let settings = load_settings(app_handle.clone()).unwrap_or_default();
         let target_dim = settings.editor_preview_resolution.unwrap_or(1920);
 
-        let patched_key = patched_cache_key(&path, loaded_image.source_epoch, &adjustments_clone);
+        let patched_key = patched_cache_key(&loaded_image, &adjustments_clone);
 
         let mut hasher = DefaultHasher::new();
         patched_key.hash(&mut hasher);
@@ -2210,6 +2210,7 @@ async fn render_preview_for_path(
                     &source_path,
                     &settings,
                     cancel_token.clone(),
+                    image_loader::PristineCachePolicy::Reuse,
                 )?
                 .0,
             )
