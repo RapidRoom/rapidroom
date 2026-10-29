@@ -2210,7 +2210,7 @@ async fn render_preview_for_path(
                     &source_path,
                     &settings,
                     cancel_token.clone(),
-                    image_loader::PristineCachePolicy::Reuse,
+                    image_loader::PristineCachePolicy::Store,
                 )?
                 .0,
             )
