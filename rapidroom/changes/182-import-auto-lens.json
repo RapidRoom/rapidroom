@@ -1,0 +1,14 @@
+{
+  "id": "import-auto-lens-before-first-preview",
+  "title": "Resolve supported Auto lenses from source EXIF during Lightroom import",
+  "category": "fix",
+  "landed": "2026-10-28",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "rapidroom_only": true,
+  "notes": "A fresh Lightroom import used to store Auto lens correction with no parameters, because resolution ran before the sidecar had source EXIF. Supported lenses now resolve with the same native Auto path during import, before the first preview or export. Imported enable flags and amounts stay as imported. A lens the database does not support stays without a maker, model, or parameter object unless the raw file has embedded camera correction, which resolves the same way as explicit Auto. A distortion-only profile does not claim vignetting. Open and export do not upgrade a version-absent or version-0 Auto recipe; the sidecar has no marker that separates a pre-fix Lightroom import from a deliberate legacy recipe, so those photos need a re-import. Re-importing keeps a stored Auto profile, including on the single-photo path."
+}

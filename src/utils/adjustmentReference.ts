@@ -39,8 +39,8 @@ export interface SliderRange {
   maskMin?: number;
 }
 
-// A slider's `value` prop, mapped to the adjustment path it shows. `<band>`, `<channel>` and
-// `<primary>` stand for each HSL band, curve channel and calibration primary.
+// A slider's `value` prop, mapped to the adjustment path it shows. `<band>`, `<channel>`,
+// `<primary>` and `<tone>` stand for each HSL band, curve channel, calibration primary and toning tone.
 const VALUE_PATHS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^adjustments\.([\wé]+)$/, (m) => m[1]],
   [/^activeLight\.(\w+)$/, (m) => `relightLights.<light>.${m[1]}`],
@@ -54,6 +54,12 @@ const VALUE_PATHS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^exposureValue$/, () => 'exposure'],
   [/^displayRotation$/, () => 'rotation'],
   [/^lutIntensity$/, () => 'lutIntensity'],
+  [/^filterHue$/, () => 'monochromeFilterHue'],
+  [/^filterStrength$/, () => 'monochromeFilterStrength'],
+  [/^values\[name\]$/, () => 'monochromeMix.<band>'],
+  [/^toning\[hueKey\]$/, () => 'monochromeToning.<tone>Hue'],
+  [/^toning\[saturationKey\]$/, () => 'monochromeToning.<tone>Saturation'],
+  [/^toning\.balance$/, () => 'monochromeToning.balance'],
 ];
 
 const readBalanced = (source: string, start: number): number => {
@@ -154,7 +160,11 @@ export const collectSliderRanges = (sources: Record<string, string>) => {
       const paths =
         path === 'hsl.<band>.<property>'
           ? ['hue', 'saturation', 'luminance'].map((property) => `hsl.<band>.${property}`)
-          : [path];
+          : path === 'monochromeMix.<band>'
+            ? Object.keys(INITIAL_ADJUSTMENTS.monochromeMix).map((band) => `monochromeMix.${band}`)
+            : path.includes('<tone>')
+              ? ['highlight', 'shadow'].map((tone) => path.replace('<tone>', tone))
+              : [path];
       for (const key of paths) {
         const existing = ranges[key];
         if (existing && JSON.stringify(existing) !== JSON.stringify(range)) {

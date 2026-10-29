@@ -94,6 +94,7 @@ interface TauriEventPayloads {
   };
   'thumbnail-generation-complete': boolean;
   'thumbnail-progress': Progress;
+  'viewer-closed': null;
   'wgpu-frame-ready': { path: string; loadGeneration: number };
 }
 
@@ -564,6 +565,11 @@ export function useTauriListeners({
             })),
           },
         }));
+      }),
+      listen('viewer-closed', () => {
+        if (isEffectActive) {
+          useUIStore.getState().setUI({ isViewerOpen: false });
+        }
       }),
       listen('wgpu-frame-ready', (event) => {
         const selected = useEditorStore.getState().selectedImage;

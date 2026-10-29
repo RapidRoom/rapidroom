@@ -30,6 +30,7 @@ import {
 import EditorToolbar from './editor/EditorToolbar';
 import EmbeddedPreviewWarning from './EmbeddedPreviewWarning';
 import ImageCanvas from './editor/ImageCanvas';
+import { canvasBackgroundRgb, resolveEditorCanvasBackground } from '../../utils/editorCanvasBackground';
 import ReferencePane from './editor/ReferencePane';
 import { Mask, SubMask } from './right/Masks';
 import { Panel, TransformState, Invokes } from '../ui/AppProperties';
@@ -53,6 +54,7 @@ import {
 import { useDevicePixelRatio } from '../../hooks/useDevicePixelRatio';
 import { getReferenceLabel, isReferenceViewActive } from '../../utils/referenceView';
 import { originalComparisonAdjustments } from '../../utils/originalAdjustments';
+import { interpretWheel, movedBeyondClick } from '../../utils/canvasControls';
 
 const parseRgb = (rgbStr: string): [number, number, number, number] => {
   const match = rgbStr.match(/[\d.]+/g);
@@ -61,8 +63,6 @@ const parseRgb = (rgbStr: string): [number, number, number, number] => {
   }
   return [0, 0, 0, 1.0];
 };
-
-const NEUTRAL_GREY_RGB: [number, number, number, number] = [128 / 255, 128 / 255, 128 / 255, 1.0];
 
 const checkCropValid = (pixelCrop: Partial<Crop>, imageW: number, imageH: number, rotation: number) => {
   if (pixelCrop.x === undefined || pixelCrop.y === undefined || !pixelCrop.width || !pixelCrop.height) {
@@ -878,24 +878,15 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         return;
       }
 
-      const isPinch = e.ctrlKey;
-      const isTrackpad = appSettings?.canvasInputMode === 'trackpad';
-      let zoomSpeedMult = appSettings?.zoomSpeedMultiplier ?? 1.0;
+      const gesture = interpretWheel(e, appSettings?.zoomSpeedMultiplier, appSettings?.canvasInputMode);
 
-      if (isTrackpad) {
-        zoomSpeedMult *= 5;
-      }
-
-      const isZoomIntent = isPinch || (!isTrackpad && !e.shiftKey && !e.altKey);
-
-      if (isZoomIntent) {
+      if (gesture.kind === 'zoom') {
         const rect = container.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
+        const isTrackpad = appSettings?.canvasInputMode === 'trackpad';
         const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
-        const zoomSensitivity = 0.002 * zoomSpeedMult;
-        const exponent = delta * zoomSensitivity;
 
         const renderScale = imageRenderSizeRef.current.scale;
         const fit = renderScale * getDpr();
@@ -907,7 +898,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
                 renderScale,
                 getDpr(),
               )
-            : transformStateRef.current.scale * Math.exp(-exponent);
+            : transformStateRef.current.scale * gesture.factor;
         newScale = Math.max(minScaleRef.current, Math.min(maxScaleRef.current, newScale));
 
         const ratio = newScale / transformStateRef.current.scale;
@@ -922,24 +913,8 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         const { positionX: curX, positionY: curY, scale } = transformStateRef.current;
         const bounds = getTransformBounds(scale);
 
-        let dx = e.deltaX;
-        let dy = e.deltaY;
-
-        if (!isTrackpad) {
-          if (e.shiftKey && e.altKey) {
-            dx = e.deltaY !== 0 ? e.deltaY : e.deltaX;
-            dy = dx;
-          } else if (e.shiftKey) {
-            dx = e.deltaY !== 0 ? e.deltaY : e.deltaX;
-            dy = 0;
-          } else if (e.altKey) {
-            dx = 0;
-            dy = e.deltaY !== 0 ? e.deltaY : e.deltaX;
-          }
-        }
-
-        let newX = curX - dx;
-        let newY = curY - dy;
+        let newX = curX - gesture.dx;
+        let newY = curY - gesture.dy;
 
         const resistance = 0.5;
 
@@ -1292,11 +1267,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         return;
       if (isPanningDisabled || wasPanningDisabledOnDown.current) return;
 
-      if (mouseDownPos.current) {
-        const dx = Math.abs(e.clientX - mouseDownPos.current.x);
-        const dy = Math.abs(e.clientY - mouseDownPos.current.y);
-        if (dx > 5 || dy > 5) return;
-      }
+      if (mouseDownPos.current && movedBeyondClick(mouseDownPos.current, e.clientX, e.clientY)) return;
 
       const currentScale = transformStateRef.current.scale;
 
@@ -1530,7 +1501,10 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     const rootStyle = getComputedStyle(document.documentElement);
     const bgPrimaryStr = rootStyle.getPropertyValue('--app-bg-primary') || 'rgb(24, 24, 24)';
     const bgSecondaryStr = rootStyle.getPropertyValue('--app-bg-secondary') || 'rgb(35, 35, 35)';
-    const isNeutralGrey = appSettings?.editorNeutralGreyBg ?? false;
+    const editorCanvasBackground = resolveEditorCanvasBackground(
+      appSettings?.editorCanvasBackground,
+      appSettings?.editorNeutralGreyBg,
+    );
 
     wgpuStateRef.current = {
       useWgpuRenderer: appSettings?.useWgpuRenderer,
@@ -1540,11 +1514,12 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       uncroppedAdjustedPreviewUrl,
       showOriginal,
       bgPrimary: isLightsOut ? [0, 0, 0, 1] : parseRgb(bgPrimaryStr),
-      bgSecondary: isLightsOut ? [0, 0, 0, 1] : isNeutralGrey ? NEUTRAL_GREY_RGB : parseRgb(bgSecondaryStr),
+      bgSecondary: isLightsOut ? [0, 0, 0, 1] : canvasBackgroundRgb(editorCanvasBackground, parseRgb(bgSecondaryStr)),
     };
   }, [
     appSettings?.useWgpuRenderer,
     appSettings?.editorNeutralGreyBg,
+    appSettings?.editorCanvasBackground,
     selectedImage?.isReady,
     hasRenderedFirstFrame,
     isCropping,
@@ -1560,6 +1535,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   }, [
     appSettings?.useWgpuRenderer,
     appSettings?.editorNeutralGreyBg,
+    appSettings?.editorCanvasBackground,
     isLightsOut,
     selectedImage?.isReady,
     hasRenderedFirstFrame,
@@ -2415,6 +2391,10 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   const isWgpuActive = appSettings?.useWgpuRenderer !== false && hasRenderedFirstFrame;
   const hasRenderedAnyPreview = hasRenderedFirstFrame || !!finalPreviewUrl;
+  const editorCanvasBackground = resolveEditorCanvasBackground(
+    appSettings?.editorCanvasBackground,
+    appSettings?.editorNeutralGreyBg,
+  );
 
   return (
     <div
@@ -2495,9 +2475,28 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
               'rounded-none',
               appSettings?.useWgpuRenderer !== false &&
                 !isFullScreen &&
-                clsx('ring-[9999px]', isLightsOut ? 'ring-black' : 'ring-bg-secondary'),
+                clsx(
+                  'ring-[9999px]',
+                  isLightsOut
+                    ? 'ring-black'
+                    : {
+                        black: 'ring-black',
+                        'dark-grey': 'ring-[#303030]',
+                        'mid-grey': 'ring-[#808080]',
+                        theme: 'ring-bg-secondary',
+                        white: 'ring-white',
+                      }[editorCanvasBackground],
+                ),
               !isWgpuActive &&
-                (isLightsOut ? 'bg-black' : appSettings?.editorNeutralGreyBg ? 'bg-[#808080]' : 'bg-bg-secondary'),
+                (isLightsOut
+                  ? 'bg-black'
+                  : {
+                      black: 'bg-black',
+                      'dark-grey': 'bg-[#303030]',
+                      'mid-grey': 'bg-[#808080]',
+                      theme: 'bg-bg-secondary',
+                      white: 'bg-white',
+                    }[editorCanvasBackground]),
             )}
             style={{ cursor: cursorStyle }}
             onContextMenu={onContextMenu}

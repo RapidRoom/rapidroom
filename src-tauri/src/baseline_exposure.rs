@@ -57,7 +57,7 @@ impl RawExposure {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BaselineOptions {
     pub baseline_exposure: Option<f32>,
     pub compensate_highlight_preservation: bool,

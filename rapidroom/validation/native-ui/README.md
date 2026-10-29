@@ -117,7 +117,7 @@ Client configuration is supplied per invocation, with unrelated servers and user
 
 ## Optional shared MCP history scenario
 
-Build with `--mcp-clients`, then run `smoke.py --mcp-history` with that pinned engine. It uses the same private fixture and existing client logins. Claude Code makes exactly three Exposure edits, reads labelled history, undoes twice and requests original/comparison/region previews. The harness checks the actual GUI history menu and slider, generated schema resource, bounded JPEG dimensions and unchanged state/revision/history after read-only calls. Codex independently reads context, history and a comparison preview. This opt-in scenario makes real model requests; it does not change global client configuration. It is automated native evidence, and does not satisfy issue #115's separate human live check.
+Build with `--mcp-clients`, then run `smoke.py --mcp-history` with that pinned engine. It uses the same private fixture and existing client logins. Claude Code makes exactly three Exposure edits, reads labelled history, undoes twice and requests original/comparison/region previews. The harness checks the actual GUI history menu and slider, generated schema resource, bounded JPEG dimensions and unchanged state/revision/history after read-only calls. Codex independently reads context, history and a comparison preview. A cropped-edit fixture then checks that `originalGeometry: "edit"` gives direct and side-by-side neutral previews the same geometry as original-stage region measurement, preserves the source-geometry default and refuses invalid combinations before restoring the prior edit. This opt-in scenario makes real model requests; it does not change global client configuration. It is automated native evidence, and does not satisfy issue #115's separate human live check.
 
 [`mcp-history-evidence.json`](mcp-history-evidence.json) records the 11-step Linux pass. The native app/adapter were built from clean `fedd5e28`, with harness source/hashes recorded separately. Actual Claude Code 2.1.289 made three Exposure edits and undid twice to 0.2; the painted GUI menu shows three AI labels, with the first active and two undone. Codex 0.160.0 read context/history/comparison without changing state. Application code is unchanged through the evidence commit. The required human live check remains pending.
 
@@ -403,7 +403,6 @@ The request and its real temp-file IPC are counted and bounded; no external
 image is downloaded. Search/navigation and the final frontend/native error
 checks remain real and unfiltered.
 
-
 ## Ordered Styles (#378)
 
 Build with the `mcp,native-ui-test` features and run `smoke.py --style-stack`.
@@ -414,3 +413,15 @@ fourth-Style refusal without history changes, manual Exposure/Contrast through
 middle removal, the surviving editable mask, shared Undo/Redo, a fresh frontend
 reload from the actual paired sidecar, and exact preview restoration. Captures
 and per-step receipts remain in the owned output directory.
+
+## Culling precision regression (#406/#474)
+
+Add `--culling-precision` to the standard smoke command to compare real ordinary
+and Culling IPC renders of the CC0 Sony RAW with automatic Sony lens correction.
+The run requires identical JPEG bytes, decoded RGB pixels and dimensions before
+and after loading four other photos, exceeding the three-photo f32 cache window
+while retaining the five-entry decode cache. It records all five renders and
+the resolved lens payload in `culling-precision.json`, then restores the normal
+UI selection and completes the standard smoke. Sources and sidecars are owned
+fixture copies. On the shared machine, wrap native runs with
+`flock ~/code/.cache/rapidroom-gpu.lock`; keep compiles outside that GPU lock.

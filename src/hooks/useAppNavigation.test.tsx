@@ -58,6 +58,14 @@ function cacheImage(path: string, usedEmbeddedPreview: boolean) {
   });
 }
 
+function mockCachedImageLoads() {
+  mockCommand('is_image_cached', () => true);
+  mockCommand(Invokes.LoadImage, () => ({ width: 640, height: 480, used_embedded_preview: false }));
+  mockCommand(Invokes.LoadMetadata, ({ path } = {}) => ({
+    adjustments: globalImageCache.get(path as string)?.adjustments ?? INITIAL_ADJUSTMENTS,
+  }));
+}
+
 function createRefs(): AppNavigationProps['refs'] {
   return {
     transformWrapperRef: { current: null },
@@ -146,6 +154,93 @@ describe('useAppNavigation cached image refresh', () => {
 
       expect(useEditorStore.getState().selectedImage?.path).toBe(pathB);
       expect(useEditorStore.getState().selectedImage?.usedEmbeddedPreview).toBeUndefined();
+    } finally {
+      await unmount();
+    }
+  });
+});
+
+describe('per-photo edit history', () => {
+  it('restores the history and index when switching away and back', async () => {
+    const pathA = '/photos/history-a.NEF';
+    const pathB = '/photos/history-b.NEF';
+    cacheImage(pathA, false);
+    cacheImage(pathB, false);
+    mockCachedImageLoads();
+    const editedA = { ...INITIAL_ADJUSTMENTS, exposure: 1 };
+    const editedB = { ...INITIAL_ADJUSTMENTS, exposure: -1 };
+    const { navigation, unmount } = await mountNavigation(createRefs());
+    try {
+      await act(async () => navigation.handleImageSelect(pathA));
+      await act(async () => useEditorStore.getState().pushHistory(editedA, 'Exposure +1'));
+      globalImageCache.set(pathA, { ...globalImageCache.get(pathA)!, adjustments: editedA });
+
+      await act(async () => navigation.handleImageSelect(pathB));
+      await act(async () => useEditorStore.getState().pushHistory(editedB, 'Exposure -1'));
+      await act(async () => navigation.handleImageSelect(pathA));
+
+      expect(useEditorStore.getState().history).toEqual([INITIAL_ADJUSTMENTS, editedA]);
+      expect(useEditorStore.getState().historyIndex).toBe(1);
+      expect(useEditorStore.getState().historyDetails[1]?.label).toBe('Exposure +1');
+      await act(async () => useEditorStore.getState().undo());
+      expect(useEditorStore.getState().adjustments).toEqual(INITIAL_ADJUSTMENTS);
+      await act(async () => useEditorStore.getState().redo());
+      expect(useEditorStore.getState().adjustments).toEqual(editedA);
+    } finally {
+      await unmount();
+    }
+  });
+
+  it('keeps the saved stack when stale cache adjustments are followed by matching metadata', async () => {
+    const pathA = '/photos/stale-cache-a.NEF';
+    const pathB = '/photos/stale-cache-b.NEF';
+    cacheImage(pathA, false);
+    cacheImage(pathB, false);
+    mockCachedImageLoads();
+    const editedA = { ...INITIAL_ADJUSTMENTS, exposure: 1 };
+    const { navigation, unmount } = await mountNavigation(createRefs());
+    try {
+      await act(async () => navigation.handleImageSelect(pathA));
+      await act(async () => useEditorStore.getState().pushHistory(editedA, 'Exposure +1'));
+      await act(async () => navigation.handleImageSelect(pathB));
+
+      mockCommand(Invokes.LoadMetadata, ({ path } = {}) => ({
+        adjustments: path === pathA ? editedA : INITIAL_ADJUSTMENTS,
+      }));
+      await act(async () => navigation.handleImageSelect(pathA));
+      await waitUntil(() => useEditorStore.getState().history.length === 2);
+
+      expect(useEditorStore.getState().history).toEqual([INITIAL_ADJUSTMENTS, editedA]);
+      expect(useEditorStore.getState().historyIndex).toBe(1);
+      expect(useEditorStore.getState().historyDetails[1]?.label).toBe('Exposure +1');
+    } finally {
+      await unmount();
+    }
+  });
+
+  it('starts fresh when the loaded adjustments differ from the saved current step', async () => {
+    const pathA = '/photos/external-a.NEF';
+    const pathB = '/photos/external-b.NEF';
+    cacheImage(pathA, false);
+    cacheImage(pathB, false);
+    mockCachedImageLoads();
+    const editedA = { ...INITIAL_ADJUSTMENTS, exposure: 1 };
+    const external = { ...INITIAL_ADJUSTMENTS, exposure: 2 };
+    const { navigation, unmount } = await mountNavigation(createRefs());
+    try {
+      await act(async () => navigation.handleImageSelect(pathA));
+      await act(async () => useEditorStore.getState().pushHistory(editedA, 'Exposure +1'));
+      globalImageCache.set(pathA, { ...globalImageCache.get(pathA)!, adjustments: editedA });
+      await act(async () => navigation.handleImageSelect(pathB));
+
+      mockCommand(Invokes.LoadMetadata, () => ({ adjustments: external }));
+      await act(async () => navigation.handleImageSelect(pathA));
+      await waitUntil(
+        () => useEditorStore.getState().history.length === 1 && useEditorStore.getState().adjustments.exposure === 2,
+      );
+      expect(useEditorStore.getState().history).toEqual([external]);
+      expect(useEditorStore.getState().historyIndex).toBe(0);
+      expect(useEditorStore.getState().photoHistories.get(pathA)?.history).toEqual([external]);
     } finally {
       await unmount();
     }

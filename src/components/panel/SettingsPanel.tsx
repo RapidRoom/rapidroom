@@ -1,3 +1,4 @@
+import { resolveEditorCanvasBackground } from '../../utils/editorCanvasBackground';
 import { useCallback, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react';
 import { useDevicePixelRatio } from '../../hooks/useDevicePixelRatio';
 import {
@@ -1017,6 +1018,7 @@ export default function SettingsPanel({
                             { value: 'pl', label: 'Polski' },
                             { value: 'pt', label: 'Português' },
                             { value: 'ru', label: 'Русский' },
+                            { value: 'uk', label: 'Українська' },
                             { value: 'ja', label: '日本語' },
                             { value: 'ko', label: '한국어' },
                             { value: 'cs', label: 'Čeština' },
@@ -1044,6 +1046,18 @@ export default function SettingsPanel({
                               }
                               onSettingsChange(newSettings);
                             }}
+                          />
+                        </SettingItem>
+
+                        <SettingItem
+                          label={t('settings.general.writeJpegMetadata')}
+                          description={t('settings.general.writeJpegMetadataDesc')}
+                        >
+                          <Switch
+                            checked={appSettings?.writeJpegMetadata ?? false}
+                            id="write-jpeg-metadata-toggle"
+                            label={t('settings.general.writeJpegMetadata')}
+                            onChange={(checked) => onSettingsChange({ ...appSettings, writeJpegMetadata: checked })}
                           />
                         </SettingItem>
 
@@ -1089,14 +1103,28 @@ export default function SettingsPanel({
                       </SettingItem>
 
                       <SettingItem
-                        label={t('settings.general.neutralGreyCanvas')}
-                        description={t('settings.general.neutralGreyCanvasDesc')}
+                        label={t('settings.general.canvasBackground')}
+                        description={t('settings.general.canvasBackgroundDesc')}
                       >
-                        <Switch
-                          checked={appSettings?.editorNeutralGreyBg ?? false}
-                          id="neutral-grey-bg-toggle"
-                          label={t('settings.general.enableNeutralGreyCanvas')}
-                          onChange={(checked) => onSettingsChange({ ...appSettings, editorNeutralGreyBg: checked })}
+                        <Dropdown
+                          onChange={(value: string) =>
+                            onSettingsChange({
+                              ...appSettings,
+                              editorCanvasBackground: resolveEditorCanvasBackground(value, false),
+                              editorNeutralGreyBg: value === 'mid-grey',
+                            })
+                          }
+                          options={[
+                            { value: 'theme', label: t('settings.general.canvasBackgroundTheme') },
+                            { value: 'black', label: t('settings.general.canvasBackgroundBlack') },
+                            { value: 'dark-grey', label: t('settings.general.canvasBackgroundDarkGrey') },
+                            { value: 'mid-grey', label: t('settings.general.canvasBackgroundMidGrey') },
+                            { value: 'white', label: t('settings.general.canvasBackgroundWhite') },
+                          ]}
+                          value={
+                            appSettings?.editorCanvasBackground ||
+                            (appSettings?.editorNeutralGreyBg ? 'mid-grey' : 'theme')
+                          }
                         />
                       </SettingItem>
 
@@ -1159,6 +1187,18 @@ export default function SettingsPanel({
                           id="auto-advance-toggle"
                           label={t('settings.general.enableAutoAdvance')}
                           onChange={(checked) => onSettingsChange({ ...appSettings, autoAdvanceOnRate: checked })}
+                        />
+                      </SettingItem>
+
+                      <SettingItem
+                        label={t('settings.general.hideCollapsedPanels')}
+                        description={t('settings.general.hideCollapsedPanelsDesc')}
+                      >
+                        <Switch
+                          checked={appSettings?.hideCollapsedPanels ?? false}
+                          id="hide-collapsed-panels-toggle"
+                          label={t('settings.general.hideCollapsedPanels')}
+                          onChange={(checked) => onSettingsChange({ ...appSettings, hideCollapsedPanels: checked })}
                         />
                       </SettingItem>
 

@@ -143,6 +143,12 @@ pub fn all_available_adjustments() -> HashSet<String> {
         "hue",
         "colorGrading",
         "colorCalibration",
+        "monochromeEnabled",
+        "monochromeFilm",
+        "monochromeFilterHue",
+        "monochromeFilterStrength",
+        "monochromeMix",
+        "monochromeToning",
         "clarity",
         "structure",
         "dehaze",
@@ -654,6 +660,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub create_xmp_if_missing: Option<bool>,
     #[serde(default)]
+    pub write_jpeg_metadata: Option<bool>,
+    #[serde(default)]
     pub is_waveform_visible: Option<bool>,
     #[serde(default)]
     pub waveform_height: Option<u32>,
@@ -663,6 +671,8 @@ pub struct AppSettings {
     pub use_wgpu_renderer: Option<bool>,
     #[serde(default)]
     pub editor_neutral_grey_bg: Option<bool>,
+    #[serde(default)]
+    pub editor_canvas_background: Option<String>,
     #[serde(default)]
     pub canvas_input_mode: Option<String>,
     #[serde(default)]
@@ -707,6 +717,7 @@ pub struct AppSettings {
     pub enable_tool_focus_mode: Option<bool>,
     #[serde(default)]
     pub auto_advance_on_rate: Option<bool>,
+    pub hide_collapsed_panels: Option<bool>,
     #[serde(default)]
     pub folder_icons: Option<HashMap<String, String>>,
     #[serde(default)]
@@ -761,6 +772,13 @@ pub struct AppSettings {
     pub mcp_enabled: bool,
     #[serde(default)]
     pub immich: crate::immich::ImmichSettings,
+}
+
+impl AppSettings {
+    pub fn wgpu_renderer_enabled(&self) -> bool {
+        cfg!(not(any(target_os = "linux", target_os = "android")))
+            && self.use_wgpu_renderer.unwrap_or(true)
+    }
 }
 
 impl Default for AppSettings {
@@ -821,6 +839,7 @@ impl Default for AppSettings {
             linear_raw_mode: default_linear_raw_mode(),
             enable_xmp_sync: Some(true),
             create_xmp_if_missing: Some(false),
+            write_jpeg_metadata: Some(false),
             is_waveform_visible: Some(false),
             waveform_height: Some(220),
             active_waveform_channel: Some("luma".to_string()),
@@ -829,6 +848,7 @@ impl Default for AppSettings {
             #[cfg(not(any(target_os = "linux", target_os = "android")))]
             use_wgpu_renderer: Some(true),
             editor_neutral_grey_bg: Some(false),
+            editor_canvas_background: None,
             canvas_input_mode: Some("mouse".to_string()),
             compare_mode: None,
             white_balance_mode: None,
@@ -857,6 +877,7 @@ impl Default for AppSettings {
             enable_focus_mode: Some(false),
             enable_tool_focus_mode: Some(false),
             auto_advance_on_rate: Some(false),
+            hide_collapsed_panels: Some(false),
             folder_icons: Some(HashMap::new()),
             folder_capture_time_shift_minutes: Some(HashMap::new()),
             raw_preprocessing_color_nr: Some(0.5),
@@ -1067,5 +1088,18 @@ mod tests {
 
         let reloaded: AppSettings = serde_json::from_value(saved).unwrap();
         assert_eq!(reloaded.adjustment_density.as_deref(), Some("compact"));
+    }
+
+    #[test]
+    fn editor_canvas_background_round_trips() {
+        let mut saved = serde_json::to_value(AppSettings::default()).unwrap();
+        saved["editorCanvasBackground"] = serde_json::json!("white");
+
+        let reloaded: AppSettings = serde_json::from_value(saved).unwrap();
+        assert_eq!(reloaded.editor_canvas_background.as_deref(), Some("white"));
+        assert_eq!(
+            serde_json::to_value(reloaded).unwrap()["editorCanvasBackground"],
+            "white"
+        );
     }
 }

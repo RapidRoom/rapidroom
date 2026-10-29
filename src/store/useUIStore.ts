@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
+import i18n from 'i18next';
+import { toast } from 'react-toastify';
 import {
+  Invokes,
   ImageFile,
   Panel,
   UiVisibility,
@@ -8,7 +11,6 @@ import {
   PanelRegion,
   WorkspaceState,
   CollapsibleSectionsState,
-  Invokes,
 } from '../components/ui/AppProperties';
 import { useEditorStore } from './useEditorStore';
 import { clampDockHeight, DEFAULT_DOCK_HEIGHT } from '../utils/dockHeight';
@@ -118,6 +120,10 @@ export const WORKSPACE_LAYOUT_VERSION = 1;
 export const DEFAULT_PANEL_WIDTH = 350;
 export const DEFAULT_PANEL_SECTION_HEIGHT = 450;
 export const DEFAULT_BOTTOM_PANEL_HEIGHT = 144;
+const MIN_REOPENED_PANEL_WIDTH = 250;
+
+export const getReopenedPanelWidth = (width: number) =>
+  width < MIN_REOPENED_PANEL_WIDTH ? DEFAULT_PANEL_WIDTH : width;
 
 export interface NormalizedWorkspace extends WorkspaceState {
   panelLayout: Record<PanelRegion, Panel[]>;
@@ -264,6 +270,7 @@ export interface UIState {
   activeView: string;
   isFullScreen: boolean;
   isWindowFullScreen: boolean;
+  isViewerOpen: boolean;
   isInstantTransition: boolean;
   isLayoutReady: boolean;
   uiVisibility: UiVisibility;
@@ -339,6 +346,7 @@ export interface UIState {
   requestSearchFocus: () => void;
   cycleLightsOut: (direction?: 1 | -1) => void;
   toggleFullScreen: () => void;
+  toggleViewerWindow: () => void;
   resetWorkspaceLayout: (isTetheringSupported?: boolean) => WorkspaceState;
 }
 
@@ -346,6 +354,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   activeView: 'library',
   isFullScreen: false,
   isWindowFullScreen: false,
+  isViewerOpen: false,
   isInstantTransition: false,
   isLayoutReady: false,
   uiVisibility: { filmstrip: true, leftPanel: true, rightPanel: true, quickFilter: false },
@@ -631,6 +640,17 @@ export const useUIStore = create<UIState>((set, get) => ({
     if (isNotFitToScreen) {
       setTimeout(() => set({ isInstantTransition: false }), 100);
     }
+  },
+
+  toggleViewerWindow: () => {
+    if (get().isViewerOpen) {
+      set({ isViewerOpen: false });
+      invoke(Invokes.CloseViewerWindow).catch(console.error);
+      return;
+    }
+    invoke(Invokes.OpenViewerWindow, { title: i18n.t('editor.viewer.windowTitle') })
+      .then(() => set({ isViewerOpen: true }))
+      .catch((err) => toast.error(i18n.t('editor.viewer.openFailed', { error: String(err) })));
   },
 
   resetWorkspaceLayout: (isTetheringSupported = false) => {

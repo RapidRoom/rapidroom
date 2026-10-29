@@ -1,8 +1,8 @@
 use crate::Cursor;
 use crate::app_settings::{AppSettings, load_settings};
-use crate::app_state::{AppState, LoadedImage};
+use crate::app_state::{AppState, LoadedImage, PreviewTarget};
 use crate::baseline_exposure::BaselineOptions;
-use crate::cache_utils::{DecodeFingerprint, FlightRole};
+use crate::cache_utils::{DecodeFingerprint, FlightRole, SharedDecode, clear_preview_slot};
 use crate::exif_processing;
 use crate::file_management::{parse_virtual_path, read_file_mapped};
 use crate::formats::{has_non_raw_image_signature, is_raw_file};
@@ -25,14 +25,14 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
 use std::panic;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
 };
 use std::time::Instant;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 #[derive(serde::Serialize)]
 pub struct LoadImageResult {
@@ -44,6 +44,9 @@ pub struct LoadImageResult {
     pub is_raw: bool,
     pub as_shot_white_balance: WhiteBalance,
     pub used_embedded_preview: bool,
+    /// False when the returned buffer was expanded from an f16 cache entry.
+    /// A later `decoded-source-ready` event carries the full decode.
+    pub source_exact: bool,
 }
 
 struct BaseImageLoad {
@@ -1065,10 +1068,30 @@ fn composite_patches_cow<'a>(
     Ok(Cow::Owned(composited_image))
 }
 
+/// A background re-decode may replace the open photo only when it is still
+/// the same file. Tethering reuses paths, so the size and the fingerprint
+/// both have to agree with the provisional buffer.
+fn exact_redecode_can_replace(
+    current_dimensions: (u32, u32),
+    decoded_dimensions: (u32, u32),
+    fingerprint_before: &Option<DecodeFingerprint>,
+    fingerprint_after: &Option<DecodeFingerprint>,
+) -> bool {
+    current_dimensions == decoded_dimensions && fingerprint_before == fingerprint_after
+}
+
 fn is_cancelled(cancel_token: &Option<(Arc<AtomicUsize>, usize)>) -> bool {
     cancel_token
         .as_ref()
         .is_some_and(|(tracker, generation)| tracker.load(Ordering::SeqCst) != *generation)
+}
+
+/// Editor opens store a full-precision entry. Background work may reuse one,
+/// or join a decode that is already running, without entering the window.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PristineCachePolicy {
+    Store,
+    Reuse,
 }
 
 pub fn get_or_decode_pristine(
@@ -1076,21 +1099,34 @@ pub fn get_or_decode_pristine(
     source_path: &Path,
     settings: &AppSettings,
     cancel_token: Option<(Arc<AtomicUsize>, usize)>,
+    policy: PristineCachePolicy,
 ) -> Result<crate::cache_utils::DecodedImageCacheHit, String> {
     let path_str = source_path.to_string_lossy().to_string();
     let fingerprint = DecodeFingerprint::for_file(source_path, settings);
     loop {
         if let Some(fp) = &fingerprint
-            && let Some(hit) = state.decoded_image_cache.lock().unwrap().get(&path_str, fp)
+            && let Some(hit) = lookup_pristine(state, &path_str, fp, policy)
         {
             return Ok(hit);
         }
         if is_cancelled(&cancel_token) {
             return Err("Load cancelled".to_string());
         }
-        let _flight = match state.decode_flights.begin(&path_str) {
+        let flight = match state.decode_flights.begin(&path_str) {
             FlightRole::Follower(flight) => {
                 flight.wait();
+                if let Some(Ok(shared)) = flight.outcome() {
+                    let mut cache = state.decoded_image_cache.lock().unwrap();
+                    if let Some(hit) = shared_decode_for_fingerprint(
+                        &shared,
+                        &fingerprint,
+                        policy,
+                        &mut cache,
+                        &path_str,
+                    ) {
+                        return Ok(hit);
+                    }
+                }
                 continue;
             }
             FlightRole::Leader(guard) => guard,
@@ -1139,16 +1175,76 @@ pub fn get_or_decode_pristine(
         };
 
         let image = Arc::new(image);
-        if let Some(fp) = fingerprint {
+        // A flip during demosaic used to throw this buffer away. The caller
+        // still refuses to install it once the generation has moved, and the
+        // next visit can reuse it. Background jobs keep that buffer to
+        // themselves so they do not push viewed photos out of the window.
+        if policy == PristineCachePolicy::Store
+            && let Some(fp) = fingerprint.clone()
+        {
             state.decoded_image_cache.lock().unwrap().insert(
-                path_str,
+                path_str.clone(),
                 fp,
                 Arc::clone(&image),
                 exif.clone(),
                 used_embedded_preview,
             );
         }
-        return Ok((image, exif, used_embedded_preview));
+        flight.publish(Ok(Arc::new(SharedDecode {
+            image: Arc::clone(&image),
+            exif: exif.clone(),
+            used_embedded_preview,
+            fingerprint: fingerprint.clone(),
+        })));
+        return Ok((image, exif, used_embedded_preview, true));
+    }
+}
+
+/// A path-keyed flight can finish a decode of the previous file or the
+/// previous raw settings. The follower uses that buffer only when the
+/// fingerprint matches, and both missing counts as a match.
+fn shared_decode_for_fingerprint(
+    shared: &SharedDecode,
+    fingerprint: &Option<DecodeFingerprint>,
+    policy: PristineCachePolicy,
+    cache: &mut crate::cache_utils::DecodedImageCache,
+    path: &str,
+) -> Option<crate::cache_utils::DecodedImageCacheHit> {
+    if shared.fingerprint != *fingerprint {
+        return None;
+    }
+    if policy == PristineCachePolicy::Store
+        && let Some(fp) = fingerprint
+        && cache.peek_exact(path, fp).is_none()
+    {
+        cache.insert(
+            path.to_string(),
+            fp.clone(),
+            Arc::clone(&shared.image),
+            shared.exif.clone(),
+            shared.used_embedded_preview,
+        );
+    }
+    Some((
+        Arc::clone(&shared.image),
+        shared.exif.clone(),
+        shared.used_embedded_preview,
+        true,
+    ))
+}
+
+fn lookup_pristine(
+    state: &AppState,
+    path: &str,
+    fingerprint: &DecodeFingerprint,
+    policy: PristineCachePolicy,
+) -> Option<crate::cache_utils::DecodedImageCacheHit> {
+    let mut cache = state.decoded_image_cache.lock().unwrap();
+    match policy {
+        // The editor is opening this photo, so it becomes the newest entry.
+        PristineCachePolicy::Store => cache.get_exact(path, fingerprint),
+        // A background hit must not move the entry to the end of the window.
+        PristineCachePolicy::Reuse => cache.peek_exact(path, fingerprint),
     }
 }
 
@@ -1188,14 +1284,14 @@ pub async fn load_image(
     let cancel_token = Some((state.load_image_generation.clone(), my_generation));
 
     {
-        *state
-            .cached_preview
+        state
+            .decoded_image_cache
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) = None;
-        *state
-            .gpu_image_cache
-            .lock()
-            .unwrap_or_else(|e| e.into_inner()) = None;
+            .unwrap()
+            .set_pinned_path(None);
+        for target in PreviewTarget::ALL {
+            clear_preview_slot(&state, target);
+        }
         *state
             .full_warped_cache
             .lock()
@@ -1242,15 +1338,18 @@ pub async fn load_image(
         .unwrap()
         .compact_except(&source_path_str);
 
-    let cached = DecodeFingerprint::for_file(&source_path, &settings).and_then(|fingerprint| {
+    // Kept for the background re-decode. A fingerprint taken after the permit
+    // wait can already describe a tethered replacement of this path.
+    let lookup_fingerprint = DecodeFingerprint::for_file(&source_path, &settings);
+    let cached = lookup_fingerprint.as_ref().and_then(|fingerprint| {
         state
             .decoded_image_cache
             .lock()
             .unwrap()
-            .get(&source_path_str, &fingerprint)
+            .get(&source_path_str, fingerprint)
     });
 
-    let (pristine_arc, exif_data, used_embedded_preview) = if let Some(hit) = cached {
+    let (pristine_arc, exif_data, used_embedded_preview, source_exact) = if let Some(hit) = cached {
         hit
     } else {
         // Serialise full-resolution decodes and skip superseded waiters.
@@ -1270,7 +1369,13 @@ pub async fn load_image(
         tokio::task::spawn_blocking(move || {
             let _decode_permit = decode_permit;
             let state = app_handle.state::<AppState>();
-            get_or_decode_pristine(&state, &source_path, &settings, cancel_token)
+            get_or_decode_pristine(
+                &state,
+                &source_path,
+                &settings,
+                cancel_token,
+                PristineCachePolicy::Store,
+            )
         })
         .await
         .map_err(|e| e.to_string())??
@@ -1311,7 +1416,26 @@ pub async fn load_image(
         image: pristine_arc,
         is_raw,
         as_shot,
+        source_epoch: state.decoded_source_epoch.load(Ordering::SeqCst),
     });
+    state
+        .decoded_image_cache
+        .lock()
+        .unwrap()
+        .set_pinned_path(Some(source_path_str.clone()));
+
+    if !source_exact {
+        // The flip already has the expanded f16 buffer. Re-decode off the
+        // navigation path and swap the preview once the original pixels are back.
+        spawn_exact_redecode(
+            app_handle.clone(),
+            source_path,
+            path.clone(),
+            my_generation,
+            settings,
+            lookup_fingerprint,
+        );
+    }
 
     drop(image);
     crate::ai_jobs::prioritize(&app_handle, &path);
@@ -1325,7 +1449,124 @@ pub async fn load_image(
         is_raw,
         as_shot_white_balance: as_shot.white_balance,
         used_embedded_preview,
+        source_exact,
     })
+}
+
+fn spawn_exact_redecode(
+    app_handle: tauri::AppHandle,
+    source_path: PathBuf,
+    virtual_path: String,
+    my_generation: usize,
+    settings: AppSettings,
+    fingerprint_before: Option<DecodeFingerprint>,
+) {
+    tauri::async_runtime::spawn(async move {
+        let state = app_handle.state::<AppState>();
+        if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
+            return;
+        }
+        // Take the decode slot only after the generation check, and drop it
+        // before doing any further work if this photo is no longer current.
+        // A cold open of the next photo must not wait out this re-decode.
+        let Ok(decode_permit) = state.decode_permit.clone().acquire_owned().await else {
+            return;
+        };
+        if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
+            return;
+        }
+
+        let started = Instant::now();
+        let app_for_decode = app_handle.clone();
+        let path_for_decode = source_path.clone();
+        let settings_for_decode = settings.clone();
+        let generation = state.load_image_generation.clone();
+        let decoded = tauri::async_runtime::spawn_blocking(move || {
+            let _decode_permit = decode_permit;
+            let state = app_for_decode.state::<AppState>();
+            get_or_decode_pristine(
+                &state,
+                &path_for_decode,
+                &settings_for_decode,
+                Some((generation, my_generation)),
+                PristineCachePolicy::Store,
+            )
+        })
+        .await;
+
+        let Ok(Ok((image, _, _, exact))) = decoded else {
+            return;
+        };
+        if !exact || state.load_image_generation.load(Ordering::SeqCst) != my_generation {
+            return;
+        }
+        // Tethering reuses the path. A changed file must not replace the open photo.
+        let fingerprint_after = DecodeFingerprint::for_file(&source_path, &settings);
+        let decoded_dimensions = image.dimensions();
+
+        let epoch = {
+            let mut loaded = state
+                .original_image
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
+                return;
+            }
+            let Some(current) = loaded.as_mut() else {
+                return;
+            };
+            if current.path != virtual_path
+                || !exact_redecode_can_replace(
+                    current.image.dimensions(),
+                    decoded_dimensions,
+                    &fingerprint_before,
+                    &fingerprint_after,
+                )
+            {
+                return;
+            }
+            let epoch = state.decoded_source_epoch.fetch_add(1, Ordering::SeqCst) + 1;
+            current.image = image;
+            current.source_epoch = epoch;
+            epoch
+        };
+
+        for target in PreviewTarget::ALL {
+            clear_preview_slot(&state, target);
+        }
+        *state
+            .full_warped_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        crate::cache_utils::clear_preview_stage_caches(&state);
+        state
+            .mask_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+        // patch_cache holds AI masks, patch pixels and effect maps. Those are
+        // not derived from this buffer, and the frontend will not send them
+        // again until the photo changes. Leave them in place.
+        state
+            .geometry_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+
+        if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
+            return;
+        }
+
+        log::info!(
+            "Exact re-decode for '{}' finished in {:?} (source epoch {epoch})",
+            virtual_path,
+            started.elapsed()
+        );
+        let _ = app_handle.emit(
+            "decoded-source-ready",
+            serde_json::json!({ "path": virtual_path }),
+        );
+    });
 }
 
 #[cfg(test)]
@@ -1572,5 +1813,103 @@ mod embedded_preview_tests {
             let result = panic::catch_unwind(|| embedded_preview(&case, Some(100)));
             assert!(result.is_ok(), "{name} panicked");
         }
+    }
+
+    #[test]
+    fn exact_redecode_requires_matching_dimensions_and_fingerprint() {
+        assert!(exact_redecode_can_replace((8, 8), (8, 8), &None, &None));
+        assert!(!exact_redecode_can_replace((8, 8), (7, 8), &None, &None));
+
+        let dir = tempfile::tempdir().unwrap();
+        let first = dir.path().join("same-name.ARW");
+        let second = dir.path().join("other-name.ARW");
+        std::fs::write(&first, [1u8, 2, 3, 4]).unwrap();
+        std::fs::write(&second, [1u8, 2, 3, 4, 5]).unwrap();
+        let settings = AppSettings::default();
+        let before = DecodeFingerprint::for_file(&first, &settings);
+        let after = DecodeFingerprint::for_file(&second, &settings);
+        assert!(before.is_some());
+        assert_ne!(before, after);
+        assert!(exact_redecode_can_replace((4, 4), (4, 4), &before, &before));
+        assert!(!exact_redecode_can_replace((4, 4), (4, 4), &before, &after));
+        assert!(!exact_redecode_can_replace(
+            (4, 4),
+            (5, 4),
+            &before,
+            &before
+        ));
+        assert!(!exact_redecode_can_replace((4, 4), (4, 4), &before, &None));
+    }
+
+    #[test]
+    fn a_flight_follower_with_a_different_fingerprint_does_not_keep_the_buffer() {
+        let dir = tempfile::tempdir().unwrap();
+        let leader_file = dir.path().join("leader.bin");
+        let follower_file = dir.path().join("follower.bin");
+        std::fs::write(&leader_file, [1u8, 2, 3]).unwrap();
+        std::fs::write(&follower_file, [1u8, 2, 3, 4]).unwrap();
+        let settings = AppSettings::default();
+        let leader_fp = DecodeFingerprint::for_file(&leader_file, &settings);
+        let follower_fp = DecodeFingerprint::for_file(&follower_file, &settings);
+        assert_ne!(leader_fp, follower_fp);
+
+        let image = std::sync::Arc::new(image::DynamicImage::ImageRgb8(image::RgbImage::new(1, 1)));
+        let shared = SharedDecode {
+            image: std::sync::Arc::clone(&image),
+            exif: std::collections::HashMap::new(),
+            used_embedded_preview: false,
+            fingerprint: leader_fp.clone(),
+        };
+        let mut cache = crate::cache_utils::DecodedImageCache::new(5);
+        assert!(
+            super::shared_decode_for_fingerprint(
+                &shared,
+                &follower_fp,
+                super::PristineCachePolicy::Store,
+                &mut cache,
+                "photo.ARW",
+            )
+            .is_none()
+        );
+        for fp in [leader_fp.as_ref().unwrap(), follower_fp.as_ref().unwrap()] {
+            assert!(cache.peek_exact("photo.ARW", fp).is_none());
+        }
+
+        let same = super::shared_decode_for_fingerprint(
+            &shared,
+            &leader_fp,
+            super::PristineCachePolicy::Store,
+            &mut cache,
+            "photo.ARW",
+        )
+        .expect("matching fingerprint");
+        assert!(std::sync::Arc::ptr_eq(&same.0, &image));
+        assert!(std::sync::Arc::ptr_eq(
+            &cache
+                .peek_exact("photo.ARW", leader_fp.as_ref().unwrap())
+                .unwrap()
+                .0,
+            &image
+        ));
+
+        let mut empty = crate::cache_utils::DecodedImageCache::new(5);
+        let missing = SharedDecode {
+            fingerprint: None,
+            ..shared
+        };
+        let hit = super::shared_decode_for_fingerprint(
+            &missing,
+            &None,
+            super::PristineCachePolicy::Store,
+            &mut empty,
+            "photo.ARW",
+        )
+        .expect("two missing fingerprints match");
+        assert!(std::sync::Arc::ptr_eq(&hit.0, &image));
+        assert!(
+            empty
+                .peek_exact("photo.ARW", leader_fp.as_ref().unwrap())
+                .is_none()
+        );
     }
 }

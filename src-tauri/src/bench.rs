@@ -261,6 +261,8 @@ pub async fn run_headless_bench(
             false,
             None,
             None,
+            None,
+            crate::PreviewTarget::Editor,
         )
     };
 
