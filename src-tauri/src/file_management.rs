@@ -8376,6 +8376,63 @@ mod tests {
     }
 
     #[test]
+    fn white_balance_reimport_replaces_stale_relative_and_absolute_controls() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("photo.ARW");
+        let sidecar = dir.path().join("photo.ARW.rrdata");
+        let xmp = dir.path().join("photo.xmp");
+        fs::write(&source, b"untouched raw").unwrap();
+        let existing = ImageMetadata {
+            adjustments: serde_json::json!({
+                "exposure": 0.5,
+                "temperature": 15,
+                "tint": -12,
+                "whiteBalance": {"temperature": 4400, "tint": 7},
+            }),
+            ..ImageMetadata::default()
+        };
+        fs::write(&sidecar, serde_json::to_string(&existing).unwrap()).unwrap();
+        fs::write(
+            &xmp,
+            r#"<rdf:Description crs:WhiteBalance="Custom"
+                crs:Temperature="3771" crs:Tint="+20" />"#,
+        )
+        .unwrap();
+
+        let absolute =
+            import_xmp_adjustments_to_sidecar(source.to_str().unwrap(), &xmp, None).unwrap();
+        assert_eq!(absolute.metadata.adjustments["temperature"], 0.0);
+        assert_eq!(absolute.metadata.adjustments["tint"], 0.0);
+        assert_eq!(
+            absolute.metadata.adjustments["whiteBalance"],
+            serde_json::json!({"temperature": 3771.0, "tint": 20.0})
+        );
+        assert_eq!(absolute.metadata.adjustments["exposure"], 0.5);
+        assert!(!absolute.not_transferred.contains(&"whiteBalance"));
+
+        fs::write(
+            &xmp,
+            r#"<rdf:Description crs:WhiteBalance="Custom"
+                crs:Temperature="5068" crs:AsShotTemperature="4440"
+                crs:Tint="-11" crs:AsShotTint="-5" />"#,
+        )
+        .unwrap();
+        let relative =
+            import_xmp_adjustments_to_sidecar(source.to_str().unwrap(), &xmp, None).unwrap();
+        assert!(
+            (relative.metadata.adjustments["temperature"]
+                .as_f64()
+                .unwrap()
+                - 18.6)
+                .abs()
+                < 0.1
+        );
+        assert_eq!(relative.metadata.adjustments["tint"], -4.0);
+        assert_eq!(relative.metadata.adjustments["whiteBalance"], Value::Null);
+        assert!(!relative.not_transferred.contains(&"whiteBalance"));
+    }
+
+    #[test]
     fn treats_default_only_lightroom_xmp_as_unchanged() {
         let test_directory =
             std::env::temp_dir().join(format!("rapidraw-xmp-unchanged-{}", Uuid::new_v4()));
