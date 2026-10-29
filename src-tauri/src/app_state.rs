@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Condvar, Mutex};
 
@@ -164,6 +164,10 @@ pub struct LoadedImage {
     pub image: Arc<DynamicImage>,
     pub is_raw: bool,
     pub as_shot: AsShot,
+    /// Bumps when a provisional f16 buffer is replaced by a full decode of the
+    /// same path. Preview caches key on this so the replacement cannot reuse
+    /// pixels rendered from the half buffer.
+    pub source_epoch: u64,
 }
 
 #[derive(Clone)]
@@ -356,6 +360,9 @@ pub struct AppState {
     pub thumbnail_geometry_cache: Mutex<HashMap<String, ThumbnailGeometryEntry>>,
     pub lens_db: Mutex<Option<Arc<LensDatabase>>>,
     pub load_image_generation: Arc<AtomicUsize>,
+    /// Paired with `LoadedImage::source_epoch`. Incremented only when the
+    /// loaded buffer is replaced in place by an exact re-decode.
+    pub decoded_source_epoch: AtomicU64,
     pub wgpu_presented_generation: AtomicUsize,
     pub full_warped_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
     pub full_warped_build_lock: Mutex<()>,

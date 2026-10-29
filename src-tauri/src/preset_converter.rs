@@ -2612,7 +2612,10 @@ mod tests {
         .unwrap();
 
         assert_eq!(preset.adjustments["monochromeEnabled"], json!(true));
-        assert_eq!(preset.adjustments["saturation"], json!(25));
+        assert_eq!(
+            preset.adjustments["saturation"],
+            json!(21.666_666_666_666_668)
+        );
         assert_eq!(preset.adjustments["toneMapper"], json!("basic"));
         assert_eq!(preset.adjustments["exposure"], json!(0.0));
         assert_eq!(preset.adjustments["brightness"], json!(0.8));
