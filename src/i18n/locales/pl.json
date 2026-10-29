@@ -1095,7 +1095,7 @@
     "embeddedPreviewWarning": "Wywołanie RAW nie powiodło się; wyświetlany jest osadzony podgląd.",
     "viewer": {
       "openFailed": "Nie można otworzyć drugiego okna: {{error}}",
-      "windowTitle": "Przeglądarka RapidRAW"
+      "windowTitle": "Przeglądarka RapidRoom"
     }
   },
   "export": {

@@ -969,7 +969,7 @@
     },
     "viewer": {
       "openFailed": "Не вдалося відкрити друге вікно: {{error}}",
-      "windowTitle": "Переглядач RapidRAW"
+      "windowTitle": "Переглядач RapidRoom"
     }
   },
   "export": {

@@ -1038,7 +1038,7 @@
     "embeddedPreviewWarning": "RAW 顯影失敗；目前顯示內嵌預覽。",
     "viewer": {
       "openFailed": "無法開啟第二視窗：{{error}}",
-      "windowTitle": "RapidRAW 檢視器"
+      "windowTitle": "RapidRoom 檢視器"
     }
   },
   "export": {

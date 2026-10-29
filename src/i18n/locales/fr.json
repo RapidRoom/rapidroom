@@ -1069,7 +1069,7 @@
     "embeddedPreviewWarning": "Le développement RAW a échoué ; l’aperçu intégré est affiché à la place.",
     "viewer": {
       "openFailed": "Impossible d'ouvrir la seconde fenêtre : {{error}}",
-      "windowTitle": "Visionneuse RapidRAW"
+      "windowTitle": "Visionneuse RapidRoom"
     }
   },
   "export": {

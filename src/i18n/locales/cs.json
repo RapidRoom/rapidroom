@@ -974,7 +974,7 @@
     },
     "viewer": {
       "openFailed": "Druhé okno nelze otevřít: {{error}}",
-      "windowTitle": "Prohlížeč RapidRAW"
+      "windowTitle": "Prohlížeč RapidRoom"
     }
   },
   "export": {

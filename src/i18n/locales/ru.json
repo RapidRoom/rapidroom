@@ -1095,7 +1095,7 @@
     "embeddedPreviewWarning": "Обработка RAW не удалась; вместо неё показан встроенный предварительный просмотр.",
     "viewer": {
       "openFailed": "Не удалось открыть второе окно: {{error}}",
-      "windowTitle": "Просмотр RapidRAW"
+      "windowTitle": "Просмотр RapidRoom"
     }
   },
   "export": {
