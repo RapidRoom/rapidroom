@@ -680,6 +680,9 @@ async fn sample_point_color_input(
     radius: f32,
     app_handle: tauri::AppHandle,
 ) -> Result<point_color::Sample, String> {
+    if adjustments["monochromeEnabled"].as_bool().unwrap_or(false) {
+        return Err("Point Color sampling is unavailable in Black & White mode".into());
+    }
     if ![x, y, radius].iter().all(|value| value.is_finite())
         || !(0.0..=1.0).contains(&x)
         || !(0.0..=1.0).contains(&y)
@@ -730,7 +733,7 @@ async fn sample_point_color_input(
             let index = active_masks
                 .iter()
                 .position(|mask| mask.id == id)
-                .unwrap_or(active_masks.len());
+                .ok_or("Selected mask is hidden, empty, or unavailable")?;
             parsed.global.point_color_input = index as u32 + 2;
         }
         let output = crate::gpu_processing::render_point_color_input(

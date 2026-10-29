@@ -2,8 +2,8 @@
 //!
 //! Original implementation from the RapidRoom #160 / Redlamp design. A smooth
 //! trapezoid has |w'| <= 1.5 / fade_width. Limiting each active swatch's
-//! displacement to fade_width / (2 * active_count) therefore leaves every
-//! same-axis mapping slope >= 0.25, including overlapping swatches.
+//! displacement to fade_width / (2 * overlapping_swatch_count) therefore leaves
+//! every same-axis mapping slope >= 0.25, including overlapping swatches.
 use bytemuck::{Pod, Zeroable};
 use serde_json::Value;
 
@@ -22,6 +22,13 @@ fn number(value: &Value, key: &str, default: f32, min: f32, max: f32) -> f32 {
         .as_f64()
         .filter(|n| n.is_finite())
         .map_or(default, |n| n.clamp(f64::from(min), f64::from(max)) as f32)
+}
+
+fn supports_overlap(a: &GpuPointColor, b: &GpuPointColor) -> bool {
+    let hue_distance = (a.color[2] - b.color[2]).rem_euclid(360.0);
+    hue_distance.min(360.0 - hue_distance) <= a.range[0] + b.range[0]
+        && (a.color[1] - b.color[1]).abs() <= a.range[1] + b.range[1]
+        && (a.color[0] - b.color[0]).abs() <= a.range[2] + b.range[2]
 }
 
 pub fn parse(value: &Value) -> [GpuPointColor; MAX_POINTS] {
@@ -60,7 +67,15 @@ pub fn parse(value: &Value) -> [GpuPointColor; MAX_POINTS] {
             };
         }
     }
-    points[0].color[3] = points.iter().map(|point| point.shift[3]).sum();
+    for index in 0..MAX_POINTS {
+        let point = points[index];
+        if point.shift[3] != 0.0 {
+            points[index].color[3] = points
+                .iter()
+                .filter(|other| other.shift[3] != 0.0 && supports_overlap(&point, other))
+                .count() as f32;
+        }
+    }
     points
 }
 
@@ -103,6 +118,26 @@ mod tests {
                 .iter()
                 .all(|p| p.shift[0] == 1.0 && p.shift[3] == 1.0 && p.range[3] == 0.1)
         );
+    }
+
+    #[test]
+    fn disjoint_swatches_have_independent_displacement_budgets() {
+        let skin = json!({"color":{"lightness":0.7,"chroma":0.15,"hue":350},"hueShift":100});
+        let sky = json!({"color":{"lightness":0.2,"chroma":0.1,"hue":170},"hueShift":100});
+        let alone = parse(&json!([skin.clone()]));
+        let disjoint = parse(&json!([skin.clone(), sky]));
+        assert_eq!(
+            bytemuck::bytes_of(&alone[0]),
+            bytemuck::bytes_of(&disjoint[0])
+        );
+        assert_eq!(disjoint[0].color[3], 1.0);
+        assert_eq!(disjoint[1].color[3], 1.0);
+
+        let overlapping =
+            json!({"color":{"lightness":0.7,"chroma":0.15,"hue":10},"saturationShift":50});
+        let overlapping = parse(&json!([skin, overlapping]));
+        assert_eq!(overlapping[0].color[3], 2.0);
+        assert_eq!(overlapping[1].color[3], 2.0);
     }
 
     #[test]

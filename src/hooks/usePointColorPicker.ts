@@ -42,6 +42,7 @@ export function usePointColorPicker({ getCanvasPointer, imageRenderSize, zoomSca
   const relight = useEditorStore((state) => state.isRelightPickerActive);
   const selectedMask = useEditorStore((state) => state.activeMaskContainerId);
   const scope = useEditorStore((state) => state.pointColorPickerMaskId);
+  const monochrome = useEditorStore((state) => state.adjustments.monochromeEnabled);
   const view = useUIStore((state) => state.activeView);
   const panelVisible = useUIStore((state) => scopeVisible(scope, state));
   const visibility = useEditorStore(
@@ -86,13 +87,14 @@ export function usePointColorPicker({ getCanvasPointer, imageRenderSize, zoomSca
       (wb ||
         mixer ||
         relight ||
+        monochrome ||
         view !== 'editor' ||
         !panelVisible ||
         !visibility ||
         (scope !== null && selectedMask !== scope))
     )
       useEditorStore.getState().setEditor({ isPointColorPickerActive: false });
-  }, [active, wb, mixer, relight, selectedMask, scope, view, panelVisible, visibility]);
+  }, [active, wb, mixer, relight, monochrome, selectedMask, scope, view, panelVisible, visibility]);
   useEffect(
     () => () => {
       useEditorStore.getState().setEditor({ isPointColorPickerActive: false });

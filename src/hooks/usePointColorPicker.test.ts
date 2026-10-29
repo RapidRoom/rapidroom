@@ -134,6 +134,14 @@ it('ends when the Relight picker starts', async () => {
   await act(async () => useEditorStore.getState().setEditor({ isRelightPickerActive: true }));
   expect(useEditorStore.getState().isPointColorPickerActive).toBe(false);
 });
+it('ends when Black & White turns on', async () => {
+  await act(async () =>
+    useEditorStore.getState().setEditor({
+      adjustments: { ...INITIAL_ADJUSTMENTS, monochromeEnabled: true },
+    }),
+  );
+  expect(useEditorStore.getState().isPointColorPickerActive).toBe(false);
+});
 it('keeps picking from a visible Adjustments dock when another dock is active', async () => {
   await act(async () =>
     useUIStore.getState().setUI({

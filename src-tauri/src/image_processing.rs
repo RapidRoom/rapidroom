@@ -2116,7 +2116,7 @@ pub struct GlobalAdjustments {
     pub green_curve_count: u32,
     pub blue_curve_count: u32,
     pub point_color_input: u32,
-    _pad_end2: f32,
+    pub point_color_active: u32,
     _pad_end3: f32,
     _pad_end4: f32,
 
@@ -3210,7 +3210,7 @@ fn get_global_adjustments_from_json(
         green_curve_count: green_points.len() as u32,
         blue_curve_count: blue_points.len() as u32,
         point_color_input: 0,
-        _pad_end2: 0.0,
+        point_color_active: 0,
         _pad_end3: 0.0,
         _pad_end4: 0.0,
 
@@ -3419,7 +3419,7 @@ pub fn get_all_adjustments_from_json(
     } else {
         as_shot.white_balance
     };
-    let global = get_global_adjustments_from_json(
+    let mut global = get_global_adjustments_from_json(
         js_adjustments,
         is_raw,
         white_balance::adaptation_log_gains(as_shot.white_balance, target_white_balance),
@@ -3442,6 +3442,17 @@ pub fn get_all_adjustments_from_json(
             get_mask_adjustments_from_json(&mask_def.adjustments, target_white_balance);
         mask_count += 1;
     }
+    global.point_color_active = u32::from(
+        global
+            .point_color
+            .iter()
+            .chain(
+                mask_adjustments
+                    .iter()
+                    .flat_map(|mask| mask.point_color.iter()),
+            )
+            .any(|point| point.shift[3] != 0.0),
+    );
 
     AllAdjustments {
         global,

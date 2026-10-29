@@ -233,4 +233,12 @@ fn production_shader_noop_wrap_and_monotonic_shifts() {
     for (left, right) in near_wrap[0][..3].iter().zip(&near_wrap[1][..3]) {
         assert!((left - right).abs() < 0.0001);
     }
+
+    let skin = json!({"color":{"lightness":0.7,"chroma":0.15,"hue":60},"hueShift":100});
+    let sky = json!({"color":{"lightness":0.2,"chroma":0.1,"hue":240},"saturationShift":100});
+    let independent = run(&[
+        case(lab_to_rgb(0.7, 0.15, 60.0), parse(&json!([skin.clone()]))),
+        case(lab_to_rgb(0.7, 0.15, 60.0), parse(&json!([skin, sky]))),
+    ]);
+    assert_eq!(independent[0], independent[1]);
 }

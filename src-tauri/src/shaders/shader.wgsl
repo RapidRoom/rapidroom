@@ -132,7 +132,7 @@ struct GlobalAdjustments {
     green_curve_count: u32,
     blue_curve_count: u32,
     point_color_input: u32,
-    _pad_end2: f32,
+    point_color_active: u32,
     _pad_end3: f32,
     _pad_end4: f32,
 
@@ -862,8 +862,11 @@ fn point_encode_sample(rgb: vec3<f32>) -> vec4<f32> {
 }
 
 fn apply_point_color(rgb: vec3<f32>, points: array<PointColor, 8>) -> vec3<f32> {
-    let count = points[0].color.w;
-    if (count == 0.0) { return rgb; }
+    var any_active = false;
+    for (var i = 0u; i < 8u; i++) {
+        any_active = any_active || points[i].shift.w != 0.0;
+    }
+    if (!any_active) { return rgb; }
     let lab = point_rgb_to_lab(rgb);
     let chroma = length(lab.yz);
     if (chroma < 0.00001) { return rgb; }
@@ -876,18 +879,18 @@ fn apply_point_color(rgb: vec3<f32>, points: array<PointColor, 8>) -> vec3<f32> 
         let w = smoothstep(0.0, 0.03, chroma) * point_axis_weight(distance.x, p.range.x, p.range.w)
             * point_axis_weight(distance.y, p.range.y, p.range.w)
             * point_axis_weight(distance.z, p.range.z, p.range.w);
-        // |w'| <= 1.5/fade. Divide the displacement budget between every
-        // active swatch so their sum still has a same-axis slope >= .25.
-        var limit = p.range.xyz * p.range.w / (2.0 * count);
+        // At any pixel, all contributing swatches overlap one another. Their
+        // CPU-computed overlap counts preserve the same-axis slope >= .25.
+        var limit = p.range.xyz * p.range.w / (2.0 * p.color.w);
         // The near-grey gate has derivative <= 50; include it in chroma
         // displacement so near-greys remain ordered and grey stays grey.
-        limit.y = 0.75 / (count * (1.5 / (p.range.y * p.range.w) + 50.0));
+        limit.y = 0.75 / (p.color.w * (1.5 / (p.range.y * p.range.w) + 50.0));
         displacement += p.shift.xyz * min(limit, vec3<f32>(60.0, 0.2, 0.25)) * w;
     }
     if (all(displacement == vec3<f32>(0.0))) { return rgb; }
     let shifted_hue = (hue + displacement.x) * 0.01745329252;
     let shifted_chroma = max(0.0, chroma + displacement.y);
-    return point_lab_to_rgb(vec3<f32>(lab.x + displacement.z,
+    return point_lab_to_rgb(vec3<f32>(max(0.0, lab.x + displacement.z),
         shifted_chroma * cos(shifted_hue), shifted_chroma * sin(shifted_hue)));
 }
 
@@ -2157,23 +2160,25 @@ fn main(
             textureStore(output_texture, id.xy, point_encode_sample(composite_rgb_linear));
             return;
         }
-        composite_rgb_linear = apply_point_color(composite_rgb_linear, adjustments.global.point_color);
-        for (var i = 0u; i < adjustments.mask_count; i++) {
-            if (adjustments.global.point_color_input == i + 2u) {
+        if (adjustments.global.point_color_active != 0u || adjustments.global.point_color_input != 0u) {
+            composite_rgb_linear = apply_point_color(composite_rgb_linear, adjustments.global.point_color);
+            for (var i = 0u; i < adjustments.mask_count; i++) {
+                if (adjustments.global.point_color_input == i + 2u) {
+                    textureStore(output_texture, id.xy, point_encode_sample(composite_rgb_linear));
+                    return;
+                }
+                let influence = get_mask_influence(i, absolute_coord);
+                if (influence > 0.0) {
+                    let shifted = apply_point_color(composite_rgb_linear, adjustments.mask_adjustments[i].point_color);
+                    if (any(shifted != composite_rgb_linear)) {
+                        composite_rgb_linear = mix(composite_rgb_linear, shifted, influence);
+                    }
+                }
+            }
+            if (adjustments.global.point_color_input >= 2u) {
                 textureStore(output_texture, id.xy, point_encode_sample(composite_rgb_linear));
                 return;
             }
-            let influence = get_mask_influence(i, absolute_coord);
-            if (influence > 0.0) {
-                let shifted = apply_point_color(composite_rgb_linear, adjustments.mask_adjustments[i].point_color);
-                if (any(shifted != composite_rgb_linear)) {
-                    composite_rgb_linear = mix(composite_rgb_linear, shifted, influence);
-                }
-            }
-        }
-        if (adjustments.global.point_color_input >= 2u) {
-            textureStore(output_texture, id.xy, point_encode_sample(composite_rgb_linear));
-            return;
         }
         composite_rgb_linear = apply_hue_shift(composite_rgb_linear, t_hue);
         composite_rgb_linear = apply_creative_color(composite_rgb_linear, t_saturation, t_vibrance);
