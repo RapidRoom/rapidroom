@@ -1,0 +1,13 @@
+{
+  "id": "locale-overlays",
+  "title": "Keep RapidRoom translations separate from upstream catalogs",
+  "category": "ci",
+  "landed": "2026-10-28",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Upstream locale files remain byte-identical; RapidRoom additions and overrides deep-merge from separate overlays. Effective strings are unchanged in all 16 languages. Extraction, runtime validation and sync instructions respect the split."
+}
