@@ -1175,6 +1175,18 @@ export default function SettingsPanel({
                         />
                       </SettingItem>
 
+                      <SettingItem
+                        label={t('settings.general.hideCollapsedPanels')}
+                        description={t('settings.general.hideCollapsedPanelsDesc')}
+                      >
+                        <Switch
+                          checked={appSettings?.hideCollapsedPanels ?? false}
+                          id="hide-collapsed-panels-toggle"
+                          label={t('settings.general.hideCollapsedPanels')}
+                          onChange={(checked) => onSettingsChange({ ...appSettings, hideCollapsedPanels: checked })}
+                        />
+                      </SettingItem>
+
                       <McpControlSettings />
 
                       <SettingItem label={t('settings.general.font')} description={t('settings.general.fontDesc')}>
