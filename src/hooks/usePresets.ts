@@ -140,9 +140,10 @@ export function usePresets(currentAdjustments: Adjustments) {
       presetType,
     };
 
+    const currentPresets = presetsRef.current;
     let updatedPresets: Array<UserPreset>;
     if (folderId) {
-      updatedPresets = presets.map((item: UserPreset) => {
+      updatedPresets = currentPresets.map((item: UserPreset) => {
         if (item.folder && item.folder.id === folderId) {
           return {
             folder: {
@@ -154,7 +155,7 @@ export function usePresets(currentAdjustments: Adjustments) {
         return item;
       });
     } else {
-      updatedPresets = [...presets, { preset: newPresetData }];
+      updatedPresets = [...currentPresets, { preset: newPresetData }];
     }
 
     setPresets(updatedPresets);
@@ -164,7 +165,7 @@ export function usePresets(currentAdjustments: Adjustments) {
 
   const addCurvePreset = async (name: string) => {
     const capture = await captureCurrent(false, false, true, CURVE_ADJUSTMENT_KEYS);
-    if (!capture?.isCurrent()) return null;
+    if (!capture?.isCurrent() || Object.keys(capture.adjustments).length === 0) return null;
     const newPresetData: Preset = {
       adjustments: capture.adjustments,
       id: crypto.randomUUID(),
@@ -174,7 +175,7 @@ export function usePresets(currentAdjustments: Adjustments) {
       presetType: 'tool',
       curvePreset: true,
     };
-    const updatedPresets = [...presets, { preset: newPresetData }];
+    const updatedPresets = [...presetsRef.current, { preset: newPresetData }];
     setPresets(updatedPresets);
     savePresetsToBackend(updatedPresets);
     return newPresetData;

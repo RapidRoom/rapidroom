@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Edit, Save, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import { usePresets, type UserPreset } from '../../hooks/usePresets';
 import { debouncedSetHistory } from '../../hooks/useEditorActions';
 import { useEditorStore } from '../../store/useEditorStore';
-import type { Adjustments } from '../../utils/adjustments';
+import { CURVE_ADJUSTMENT_KEYS, type Adjustments } from '../../utils/adjustments';
+import { sameAdjustmentValue } from '../../utils/editHistory';
 import { commitPresetApplication, preparePresetApplication } from '../../utils/presetApplication';
 import type { Preset } from '../ui/AppProperties';
 import Dropdown from '../ui/Dropdown';
@@ -34,6 +35,18 @@ export default function CurvePresetControl({ adjustments, setAdjustments }: Curv
     [presets],
   );
   const selectedPreset = curvePresets.find((preset) => preset.id === selectedPresetId) ?? null;
+
+  useEffect(() => {
+    if (!selectedPreset) return;
+    const curveChanged = CURVE_ADJUSTMENT_KEYS.some((key) => {
+      const curveKey = key as keyof Adjustments;
+      return (
+        Object.prototype.hasOwnProperty.call(selectedPreset.adjustments, curveKey) &&
+        !sameAdjustmentValue(adjustments[curveKey], selectedPreset.adjustments[curveKey])
+      );
+    });
+    if (curveChanged) setSelectedPresetId(null);
+  }, [adjustments, selectedPreset]);
 
   const applyPreset = (preset: Preset) => {
     debouncedSetHistory.flush();

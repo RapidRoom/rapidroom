@@ -117,7 +117,7 @@ it('Reset RAW → curve-only Tool create and overwrite capture only curves, even
   await act(async () => {
     preset = await presets.addPreset('Named curve', null, true, true, 'tool');
   });
-  expect(Object.keys(preset!.adjustments)).toEqual(['curves']);
+  expect(Object.keys(preset!.adjustments)).toEqual(['curves', 'pointCurves', 'parametricCurve', 'curveMode']);
   const target = {
     ...INITIAL_ADJUSTMENTS,
     baselineExposure: false,
@@ -137,7 +137,12 @@ it('Reset RAW → curve-only Tool create and overwrite capture only curves, even
   await act(async () => {
     preset = await presets.overwritePreset(preset!.id);
   });
-  expect(preset!.adjustments).toEqual({ curves: curve(155) });
+  expect(preset!.adjustments).toEqual({
+    curves: curve(155),
+    pointCurves: INITIAL_ADJUSTMENTS.pointCurves,
+    parametricCurve: INITIAL_ADJUSTMENTS.parametricCurve,
+    curveMode: 'point',
+  });
   await act(async () => {
     await vi.advanceTimersByTimeAsync(501);
   });
@@ -186,6 +191,68 @@ it('Curve presets capture and overwrite the complete curve state without unrelat
   expect(preset!.adjustments.exposure).toBeUndefined();
 });
 
+it('a point curve preset replaces the mode and inactive curves of a parametric target', async () => {
+  await resetAndCurve();
+  let preset!: Preset | null;
+  await act(async () => {
+    preset = await presets.addCurvePreset('Point look');
+  });
+  const target = {
+    ...INITIAL_ADJUSTMENTS,
+    curveMode: 'parametric',
+    curves: curve(90),
+    pointCurves: curve(80),
+    parametricCurve: {
+      ...INITIAL_ADJUSTMENTS.parametricCurve!,
+      luma: { ...INITIAL_ADJUSTMENTS.parametricCurve!.luma, highlights: 65 },
+    },
+  } as Adjustments;
+  const mixed = mixAdjustments(preset!.adjustments, 100, target);
+  expect(mixed).toMatchObject({
+    curveMode: 'point',
+    curves: curve(145),
+    pointCurves: INITIAL_ADJUSTMENTS.pointCurves,
+    parametricCurve: INITIAL_ADJUSTMENTS.parametricCurve,
+  });
+});
+
+it('a curve preset captures RGB-only changes with the complete curve state', async () => {
+  await resetAndCurve();
+  const rgbCurves = {
+    ...INITIAL_ADJUSTMENTS.curves,
+    red: [
+      { x: 0, y: 0 },
+      { x: 128, y: 150 },
+      { x: 255, y: 255 },
+    ],
+  };
+  await act(async () => actions.setAdjustments((before) => ({ ...before, curves: rgbCurves })));
+  let preset!: Preset | null;
+  await act(async () => {
+    preset = await presets.addCurvePreset('RGB look');
+  });
+  expect(preset!.adjustments).toEqual({
+    curves: rgbCurves,
+    pointCurves: INITIAL_ADJUSTMENTS.pointCurves,
+    parametricCurve: INITIAL_ADJUSTMENTS.parametricCurve,
+    curveMode: 'point',
+  });
+});
+
+it('refuses to save an empty curve capture', async () => {
+  useEditorStore.setState({
+    selectedImage: image('/linear.ARW'),
+    adjustments: { ...INITIAL_ADJUSTMENTS },
+  });
+  await mount();
+  let preset: Preset | null = null;
+  await act(async () => {
+    preset = await presets.addCurvePreset('Empty look');
+  });
+  expect(preset).toBeNull();
+  expect(presets.presets).toHaveLength(0);
+});
+
 it('Merge uses the copied source defaults after navigation/settings changes and preserves a differently configured target', async () => {
   await resetAndCurve();
   await act(async () => {
@@ -225,7 +292,12 @@ it('Merge uses the copied source defaults after navigation/settings changes and 
     });
     actions.handlePasteAdjustments(['/target.ARW']);
   });
-  expect(applied.at(-1)?.adjustments).toEqual({ curves: curve(145) });
+  expect(applied.at(-1)?.adjustments).toEqual({
+    curves: curve(145),
+    pointCurves: INITIAL_ADJUSTMENTS.pointCurves,
+    parametricCurve: INITIAL_ADJUSTMENTS.parametricCurve,
+    curveMode: 'point',
+  });
   expect(useEditorStore.getState().adjustments).toMatchObject({
     baselineExposure: false,
     cameraExposureCompensation: false,
@@ -272,7 +344,13 @@ it.each([0, 1.5])(
       });
       actions.handlePasteAdjustments(['/target.ARW']);
     });
-    expect(applied.at(-1)?.adjustments).toEqual({ curves: curve(145), ...(aspectRatio === 0 ? {} : { aspectRatio }) });
+    expect(applied.at(-1)?.adjustments).toEqual({
+      curves: curve(145),
+      pointCurves: INITIAL_ADJUSTMENTS.pointCurves,
+      parametricCurve: INITIAL_ADJUSTMENTS.parametricCurve,
+      curveMode: 'point',
+      ...(aspectRatio === 0 ? {} : { aspectRatio }),
+    });
     expect(useEditorStore.getState().adjustments.lensDistortionParams?.k1).toBe(0.25);
   },
 );

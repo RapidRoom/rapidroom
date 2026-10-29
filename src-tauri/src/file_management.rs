@@ -5271,12 +5271,15 @@ pub fn load_presets(app_handle: AppHandle) -> Result<Vec<PresetItem>, String> {
     load_presets_at(&get_presets_path(&app_handle)?)
 }
 
+fn save_presets_at(path: &Path, presets: &[PresetItem]) -> Result<(), String> {
+    let _guard = PRESET_LIBRARY_LOCK.lock().map_err(|e| e.to_string())?;
+    let json_string = serde_json::to_string_pretty(presets).map_err(|e| e.to_string())?;
+    write_file_atomically(path, json_string).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn save_presets(presets: Vec<PresetItem>, app_handle: AppHandle) -> Result<(), String> {
-    let path = get_presets_path(&app_handle)?;
-    let _guard = PRESET_LIBRARY_LOCK.lock().map_err(|e| e.to_string())?;
-    let json_string = serde_json::to_string_pretty(&presets).map_err(|e| e.to_string())?;
-    write_file_atomically(path, json_string).map_err(|e| e.to_string())
+    save_presets_at(&get_presets_path(&app_handle)?, &presets)
 }
 
 fn get_internal_library_root_path(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
@@ -9949,6 +9952,64 @@ mod photo_stack_virtual_copy_tests {
             assert_eq!(meta.rating, 4);
             assert_eq!(meta.flag, Some(ImageFlag::Reject));
         }
+    }
+}
+
+#[cfg(test)]
+mod curve_preset_serde_tests {
+    use super::*;
+
+    fn assert_curve_preset(items: &[PresetItem]) {
+        assert_eq!(items.len(), 1);
+        let PresetItem::Preset(preset) = &items[0] else {
+            panic!("expected a curve preset");
+        };
+        assert_eq!(preset.curve_preset, Some(true));
+        assert_eq!(preset.preset_type.as_deref(), Some("tool"));
+        assert_eq!(preset.adjustments["curveMode"], "point");
+        assert_eq!(preset.adjustments["pointCurves"]["red"][1]["y"], 150);
+    }
+
+    #[test]
+    fn curve_preset_survives_catalog_save_and_rrpreset_export_import() {
+        let item = PresetItem::Preset(Preset {
+            id: "signature".into(),
+            name: "Signature".into(),
+            description: None,
+            adjustments: serde_json::json!({
+                "curveMode": "point",
+                "curves": {"red": [{"x": 0, "y": 0}, {"x": 128, "y": 150}]},
+                "pointCurves": {"red": [{"x": 0, "y": 0}, {"x": 128, "y": 150}]},
+                "parametricCurve": {}
+            }),
+            include_masks: Some(false),
+            include_crop_transform: Some(false),
+            preset_type: Some("tool".into()),
+            curve_preset: Some(true),
+            favorite: None,
+            camera_model_restriction: None,
+            unavailable_reason: None,
+        });
+        let directory = tempfile::tempdir().unwrap();
+        let catalog = directory.path().join("presets.json");
+        save_presets_at(&catalog, &[item]).unwrap();
+        for marker in [
+            ".rapidroom-styles-v1",
+            ".rapidroom-styles-replacement-v1",
+            ".rapidroom-styles-replacement-v2",
+        ] {
+            fs::write(catalog.with_file_name(marker), "1\n").unwrap();
+        }
+        let saved = load_presets_at(&catalog).unwrap();
+        assert_curve_preset(&saved);
+
+        let export = directory.path().join("curves.rrpreset");
+        handle_export_presets_to_file(saved, export.to_string_lossy().into_owned()).unwrap();
+        let exported: Value = serde_json::from_slice(&fs::read(&export).unwrap()).unwrap();
+        assert_eq!(exported["presets"][0]["preset"]["curvePreset"], true);
+        let (imported, warnings) = parse_preset_file(export.to_str().unwrap()).unwrap();
+        assert!(warnings.is_empty());
+        assert_curve_preset(&imported);
     }
 }
 

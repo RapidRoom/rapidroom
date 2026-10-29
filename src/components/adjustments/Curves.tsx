@@ -193,7 +193,7 @@ const MIN_POINT_GAP_X = 1;
 const hasFineAdjustmentModifier = (event: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent) =>
   'shiftKey' in event && (event.shiftKey || event.altKey);
 
-function CurveGraph({ adjustments, setAdjustments, histogram, theme, onDragStateChange }: CurveGraphProps) {
+function CurveGraph({ adjustments, setAdjustments, histogram, isForMask, theme, onDragStateChange }: CurveGraphProps) {
   const { t } = useTranslation();
   const { showContextMenu } = useContextMenu();
   const [curveMode, setCurveMode] = useState<'point' | 'parametric'>(adjustments.curveMode || 'point');
@@ -754,7 +754,7 @@ function CurveGraph({ adjustments, setAdjustments, histogram, theme, onDragState
 
   return (
     <div className="select-none touch-none" ref={containerRef}>
-      <CurvePresetControl adjustments={adjustments} setAdjustments={setAdjustments} />
+      {!isForMask && <CurvePresetControl adjustments={adjustments} setAdjustments={setAdjustments} />}
       <div className="flex items-center justify-between gap-2 mb-2 mt-2">
         <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-secondary shrink-0">
           <button
