@@ -36,10 +36,13 @@ export default function DenoiseQueue() {
   const aiFree = useSettingsStore((s) => s.appSettings?.aiProvider === 'ai-free');
   const [method, setMethod] = useState(aiFree ? 'bm3d' : 'best');
   useEffect(() => {
-    if (aiFree && ['best', 'fast', 'nind'].includes(method)) setMethod('bm3d');
+    if (aiFree && ['best', 'fast', 'nind'].includes(method)) {
+      setMethod('bm3d');
+      setStrength(50);
+    }
   }, [aiFree, method]);
   const [sharpen, setSharpen] = useState(false);
-  const [strength, setStrength] = useState(50);
+  const [strength, setStrength] = useState(aiFree ? 50 : 71);
   const [recursive, setRecursive] = useState(false);
   const lastStatusPaths = useRef<string | null>(null);
   useEffect(() => {
@@ -118,7 +121,11 @@ export default function DenoiseQueue() {
                   aria-label={t('denoiseQueue.method')}
                   className={`${controlClass} appearance-none pr-7 text-text-primary`}
                   value={method}
-                  onChange={(e) => setMethod(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setMethod(next);
+                    setStrength(next === 'best' || next === 'fast' ? 71 : 50);
+                  }}
                 >
                   {(['best', 'fast', 'nind', 'bm3d', 'raw9'] as const)
                     .filter((value) => value !== 'raw9' || platform() === 'macos')
@@ -140,23 +147,22 @@ export default function DenoiseQueue() {
                 />
               </span>
             </label>
-            {method === 'best' || method === 'fast' ? (
+            <label className="flex justify-between">
+              {t('denoiseQueue.strength')}
+              <input
+                aria-label={t('denoiseQueue.strength')}
+                className={controlClass}
+                type="number"
+                min={method === 'best' || method === 'fast' ? '1' : '0'}
+                max="100"
+                value={strength}
+                onChange={(e) => setStrength(Number(e.target.value))}
+              />
+            </label>
+            {(method === 'best' || method === 'fast') && (
               <label>
                 <input type="checkbox" checked={sharpen} onChange={(e) => setSharpen(e.target.checked)} />{' '}
                 {t('denoiseQueue.sharpen')}
-              </label>
-            ) : (
-              <label className="flex justify-between">
-                {t('denoiseQueue.strength')}
-                <input
-                  aria-label={t('denoiseQueue.strength')}
-                  className={controlClass}
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={strength}
-                  onChange={(e) => setStrength(Number(e.target.value))}
-                />
               </label>
             )}
             <label>

@@ -862,6 +862,7 @@ fn denoise_image_with_settings(
             app_handle,
             *fast,
             *sharpen,
+            intensity,
             sessions,
             job,
         )
