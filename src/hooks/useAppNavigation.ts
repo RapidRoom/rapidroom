@@ -346,7 +346,7 @@ export function useAppNavigation({ clearThumbnailQueue, refs }: AppNavigationPro
         });
 
         setEditor({ adjustments: cached.adjustments });
-        restoreHistory(cached.adjustments);
+        restoreHistory(cached.adjustments, { keepSavedOnMismatch: true });
         prevAdjustmentsRef.current = { path, adjustments: cached.adjustments };
 
         setLibrary({ isViewLoading: false });

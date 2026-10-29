@@ -111,7 +111,7 @@ interface EditorState {
   redo: () => void;
   resetHistory: (initialState: Adjustments) => void;
   saveHistory: () => void;
-  restoreHistory: (initialState: Adjustments) => void;
+  restoreHistory: (initialState: Adjustments, options?: { keepSavedOnMismatch?: boolean }) => void;
   goToHistoryIndex: (index: number) => void;
   dispatchReferenceView: (command: ReferenceViewCommand) => void;
 }
@@ -283,7 +283,7 @@ export const useEditorStore = create<EditorState>((set) => ({
       };
     }),
 
-  restoreHistory: (initialState) =>
+  restoreHistory: (initialState, { keepSavedOnMismatch = false } = {}) =>
     set((state) => {
       const path = state.selectedImage?.path;
       const saved = path ? state.photoHistories.get(path) : undefined;
@@ -300,7 +300,8 @@ export const useEditorStore = create<EditorState>((set) => ({
         ...fresh,
         historyPath: path ?? null,
         adjustments: initialState,
-        photoHistories: path ? rememberPhotoHistory(state.photoHistories, path, fresh) : state.photoHistories,
+        photoHistories:
+          path && !keepSavedOnMismatch ? rememberPhotoHistory(state.photoHistories, path, fresh) : state.photoHistories,
       };
     }),
 
