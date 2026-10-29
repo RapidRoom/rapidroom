@@ -1,0 +1,15 @@
+{
+  "id": "return-preview-exact",
+  "title": "Returning to a photo shows the same editor preview as the first visit",
+  "category": "fix",
+  "landed": "2026-10-28",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "rapidroom_only": true,
+  "highlight": "Going back to a photo keeps the preview from the first visit.",
+  "notes": "Decoded-cache entries outside the three most recently opened photos stay half-float. A return inside that window is the original full-precision buffer, so it costs no extra decode. A return outside it shows the expanded half-float preview immediately, then a cancellable background decode replaces it and bumps the preview-cache epoch so the final preview matches the first visit. Treating every half entry as a miss was rejected: warm editor decodes (bytes already in memory, cargo test profile, otherwise idle 8-core machine) took 353/433/338 ms on a 15MP ARW, 1280/1104/1070 ms on a 26MP RAF, and 787/901/816 ms on a 33MP ARW. Keeping only neighbours full was rejected because a later return would stay lossy."
+}

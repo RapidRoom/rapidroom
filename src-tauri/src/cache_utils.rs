@@ -290,10 +290,17 @@ pub fn calculate_thumbnail_base_hash(adjustments: &serde_json::Value) -> u64 {
     hasher.finish()
 }
 
-pub fn calculate_image_cache_hash(image_path: &str, adjustment_hash: u64) -> u64 {
+pub fn calculate_image_cache_hash(
+    image_path: &str,
+    adjustment_hash: u64,
+    source_epoch: u64,
+) -> u64 {
     let mut hasher = DefaultHasher::new();
     image_path.hash(&mut hasher);
     adjustment_hash.hash(&mut hasher);
+    // A half-float hit is replaced by a full decode without changing the path.
+    // Preview stages key only on this hash, so the epoch has to move with the buffer.
+    source_epoch.hash(&mut hasher);
     hasher.finish()
 }
 
@@ -345,7 +352,15 @@ pub fn calculate_full_job_hash(path: &str, adjustments: &serde_json::Value) -> u
     hasher.finish()
 }
 
-pub type DecodedImageCacheHit = (Arc<DynamicImage>, HashMap<String, String>, bool);
+/// Image, exif, embedded-preview marker, and whether the buffer is the original
+/// f32 decode. The fourth flag is false when the image was expanded from f16.
+/// Callers that only read `.0` still compile; a destructure must take the flag
+/// so a lossy hit is not treated as the first-visit pixels.
+pub type DecodedImageCacheHit = (Arc<DynamicImage>, HashMap<String, String>, bool, bool);
+
+/// The open photo and the two opened before it stay at full precision. That
+/// covers a three-photo cull with no extra decode. Older entries are f16.
+pub(crate) const FULL_PRECISION_WINDOW: usize = 3;
 
 const HALF_CONVERSION_CHUNK: usize = 64 * 1024;
 
@@ -514,14 +529,14 @@ impl DecodedImageCache {
         if entry.fingerprint != *fingerprint {
             return None;
         }
+        let exact = matches!(entry.image, CachedImage::Full(_));
         let image = entry.image.expand();
         let exif = entry.exif.clone();
         let used_embedded_preview = entry.used_embedded_preview;
-        self.items.push(DecodedEntry {
-            image: CachedImage::Full(Arc::clone(&image)),
-            ..entry
-        });
-        Some((image, exif, used_embedded_preview))
+        // Put the same entry back. An expanded half buffer is not the first-visit
+        // decode; storing it as Full made every later preview repeat the loss.
+        self.items.push(entry);
+        Some((image, exif, used_embedded_preview, exact))
     }
 
     pub fn compact_except(&mut self, keep_path: &str) {
@@ -529,11 +544,10 @@ impl DecodedImageCache {
             let item = self.items.remove(pos);
             self.items.push(item);
         }
-        for item in self.items.iter_mut() {
-            if item.path != keep_path {
-                let cached = std::mem::replace(&mut item.image, CachedImage::Full(Arc::default()));
-                item.image = cached.compact();
-            }
+        let compact_until = self.items.len().saturating_sub(FULL_PRECISION_WINDOW);
+        for item in self.items.iter_mut().take(compact_until) {
+            let cached = std::mem::replace(&mut item.image, CachedImage::Full(Arc::default()));
+            item.image = cached.compact();
         }
         self.evict();
     }
@@ -849,9 +863,9 @@ mod tests {
     fn virtual_copies_have_distinct_renderer_cache_identity() {
         let transform_hash = 42;
         let first_copy =
-            calculate_image_cache_hash("/synthetic/image.jpg?vc=123abc", transform_hash);
+            calculate_image_cache_hash("/synthetic/image.jpg?vc=123abc", transform_hash, 0);
         let second_copy =
-            calculate_image_cache_hash("/synthetic/image.jpg?vc=abcdef", transform_hash);
+            calculate_image_cache_hash("/synthetic/image.jpg?vc=abcdef", transform_hash, 0);
 
         assert_ne!(first_copy, second_copy);
     }
@@ -872,7 +886,93 @@ mod tests {
             true,
         );
 
-        let (_, _, used_embedded_preview) = cache.get("fallback.NEF", &fingerprint).unwrap();
+        let (_, _, used_embedded_preview, exact) = cache.get("fallback.NEF", &fingerprint).unwrap();
         assert!(used_embedded_preview);
+        assert!(exact);
+    }
+
+    fn solid(value: f32) -> Arc<DynamicImage> {
+        Arc::new(DynamicImage::ImageRgb32F(image::Rgb32FImage::from_pixel(
+            4,
+            4,
+            image::Rgb([value, value, value]),
+        )))
+    }
+
+    fn fingerprint() -> DecodeFingerprint {
+        DecodeFingerprint {
+            len: 1,
+            modified: None,
+            settings_hash: 0,
+        }
+    }
+
+    /// Fit-preview bytes from the CPU steps that sit on the editor path and
+    /// turn an f16 rounding error into a different 8-bit value.
+    fn editor_preview_bytes(image: &DynamicImage) -> Vec<u8> {
+        let mut scaled = crate::image_processing::downscale_f32_image(image, 2, 2);
+        crate::image_processing::apply_cpu_default_raw_processing(&mut scaled);
+        let srgb = crate::image_processing::apply_linear_to_srgb(scaled);
+        srgb.into_rgb8().into_raw()
+    }
+
+    #[test]
+    fn return_preview_matches_the_first_visit_and_a_half_hit_does_not() {
+        let value = f32::from_bits(0x3ba9_9000);
+        let original = solid(value);
+        let first_visit = editor_preview_bytes(&original);
+        let fp = fingerprint();
+        let mut cache = DecodedImageCache::new(5);
+
+        let open = |cache: &mut DecodedImageCache, path: &str, image: Arc<DynamicImage>| {
+            cache.compact_except(path);
+            cache.insert(path.to_string(), fp.clone(), image, HashMap::new(), false);
+        };
+
+        open(&mut cache, "A", Arc::clone(&original));
+        open(&mut cache, "B", solid(0.2));
+        open(&mut cache, "C", solid(0.4));
+        cache.compact_except("A");
+        let (returned, _, _, exact) = cache.get("A", &fp).unwrap();
+        assert!(exact);
+        assert!(Arc::ptr_eq(&returned, &original));
+        assert_eq!(editor_preview_bytes(&returned), first_visit);
+        drop(returned);
+
+        // The kept Arc would block compaction. A real visit drops it on the way out.
+        drop(original);
+        open(&mut cache, "D", solid(0.6));
+        open(&mut cache, "E", solid(0.8));
+        open(&mut cache, "F", solid(0.15));
+        open(&mut cache, "G", solid(0.55));
+        cache.compact_except("A");
+        let (provisional, _, _, exact) = cache.get("A", &fp).unwrap();
+        assert!(!exact);
+        assert_ne!(
+            editor_preview_bytes(&provisional),
+            first_visit,
+            "f16 expansion must not be treated as the first-visit preview"
+        );
+        drop(provisional);
+
+        // Reading the half entry must not launder the lossy buffer into a full one.
+        let (still_half, _, _, exact) = cache.get("A", &fp).unwrap();
+        assert!(!exact);
+        drop(still_half);
+
+        cache.insert(
+            "A".to_string(),
+            fp.clone(),
+            solid(value),
+            HashMap::new(),
+            false,
+        );
+        let (restored, _, _, exact) = cache.get("A", &fp).unwrap();
+        assert!(exact);
+        assert_eq!(editor_preview_bytes(&restored), first_visit);
+        assert_ne!(
+            calculate_image_cache_hash("A", 1, 0),
+            calculate_image_cache_hash("A", 1, 1)
+        );
     }
 }

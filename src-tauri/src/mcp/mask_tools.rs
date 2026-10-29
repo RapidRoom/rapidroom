@@ -465,6 +465,7 @@ mod tests {
             ))),
             is_raw: true,
             as_shot: crate::as_shot::AsShot::reference(),
+            source_epoch: 0,
         };
         let edit = json!({"orientationSteps":1,"crop":{"x":4,"y":8,"width":16,"height":32}});
         assert_eq!(

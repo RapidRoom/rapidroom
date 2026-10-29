@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import debounce from 'lodash.debounce';
 import throttle from 'lodash.throttle';
 import { useEditorStore } from '../store/useEditorStore';
@@ -325,6 +326,27 @@ export function useImageProcessing(
       originalSize.width > 0 && originalSize.height > 0 ? Math.max(originalSize.width, originalSize.height) : 0;
     return calculateTargetResolution(appSettings, displayMax, appSettings?.useFullDpiRendering ? dpr : 1, originalMax);
   }, [appSettings, displaySize.width, displaySize.height, originalSize]);
+
+  useEffect(() => {
+    let active = true;
+    let unlisten: (() => void) | undefined;
+    listen<{ path: string }>('decoded-source-ready', (event) => {
+      if (!active) return;
+      const path = event.payload?.path;
+      const editor = useEditorStore.getState();
+      if (!path || editor.selectedImage?.path !== path || !editor.selectedImage.isReady) return;
+      const targetRes = calculateTargetRes();
+      currentResRef.current = targetRes;
+      applyAdjustments(editor.previewOverride ?? editor.adjustments, false, targetRes);
+    }).then((stop) => {
+      if (active) unlisten = stop;
+      else stop();
+    });
+    return () => {
+      active = false;
+      unlisten?.();
+    };
+  }, [applyAdjustments, calculateTargetRes, currentResRef]);
 
   const requestHiFiZoom = useMemo(
     () =>
