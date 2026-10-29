@@ -43,6 +43,7 @@
         "shadows": "阴影"
       },
       "hue": "色相",
+      "kelvinModeTooltip": "以开尔文显示色温",
       "localHue": "局部色调",
       "luminance": "亮度",
       "mixerColors": {
@@ -104,18 +105,15 @@
           "split": "分离色调"
         }
       },
-      "mixerPickerTooltip": "颜色混合器吸管：在照片上按住并上下拖动",
       "presence": "质感",
       "saturation": "饱和度",
       "temperature": "色温",
       "tint": "色调",
-      "toggleMixerExpanded": "展开颜色混合器",
       "toggleSliders": "切换滑块",
       "vibrance": "鲜艳度",
       "wbPickerTooltip": "白平衡选取器",
       "wbPickerWgpuDisabled": "白平衡选取器：请在设置中禁用 WGPU。",
-      "whiteBalance": "白平衡",
-      "kelvinModeTooltip": "以开尔文显示色温"
+      "whiteBalance": "白平衡"
     },
     "curves": {
       "channelTitle": "{{channel}} 通道",
@@ -150,7 +148,6 @@
       "aiDenoise": "AI 降噪",
       "classicDenoise": "经典降噪",
       "aiDenoiseDetail": "细节",
-      "aiDenoiseHint": "For high-ISO RAW photos, use AI Denoise from the photo menu. These sliders are for light touch-ups.",
       "blueYellow": "蓝/黄",
       "centre": "居中",
       "chromaticAberration": "色差",
@@ -167,7 +164,6 @@
       "negativeRed": "红色",
       "noiseReduction": "降噪",
       "presence": "质感",
-      "quickNoiseReduction": "Quick noise reduction (basic)",
       "redCyan": "红/青",
       "sharpening": "锐化",
       "sharpness": "锐度",
@@ -253,17 +249,13 @@
       "confirmDeleteGroupNested": "确认删除组及所有嵌套相册",
       "deleteAlbum": "删除相册",
       "deleteGroup": "删除组",
-      "importLightroom": "Import Lightroom Collections…",
-      "lightroomCatalog": "Lightroom Catalog",
       "moveHere": "移动至此",
       "moveTo": "移动到...",
       "newAlbum": "新建相册",
       "newGroup": "新建组",
-      "relinkLightroom": "Relink Lightroom Folders…",
       "renameAlbum": "重命名相册",
       "renameGroup": "重命名组",
-      "rootDir": "根目录",
-      "selectLightroomCatalog": "Select Lightroom Catalog"
+      "rootDir": "根目录"
     },
     "autoAdjustModes": {
       "normal": "标准",
@@ -278,10 +270,6 @@
       "purple": "紫色",
       "red": "红色",
       "yellow": "黄色"
-    },
-    "dialogs": {
-      "importXmpAdjustmentsTitle": "Import XMP Adjustments",
-      "xmpSidecar": "XMP Sidecar"
     },
     "editor": {
       "autoAdjust": "自动调整",
@@ -302,7 +290,6 @@
       "flagPick": "留用",
       "flagReject": "已拒绝",
       "frameImage": "边框编辑器",
-      "importXmpAdjustments": "Import XMP Adjustments",
       "mergeHdr": "合并为 HDR",
       "noLabel": "无标签",
       "noRating": "无评分",
@@ -329,7 +316,6 @@
       "copyHere_other": "复制 {{count}} 张图像至此",
       "deleteFolder": "删除文件夹",
       "importImages": "导入图像",
-      "importMatchingXmpSidecars": "Import XMP Adjustments",
       "moveHere_one": "移动图像至此",
       "moveHere_other": "移动 {{count}} 张图像至此",
       "newFolder": "新建文件夹",
@@ -384,7 +370,6 @@
       "enable": "启用",
       "exportImage_one": "导出图像",
       "exportImage_other": "导出 {{count}} 张图像",
-      "importXmpAdjustments": "Import XMP Adjustments",
       "noAlbums": "无可用相册",
       "pasteAdjustments_one": "粘贴调整",
       "pasteAdjustments_other": "粘贴调整到 {{count}} 张图像",
@@ -399,81 +384,7 @@
       "showExplorer": "在文件资源管理器中显示",
       "virtualCopy": "虚拟副本"
     },
-    "xmpImportReport": {
-      "calibrationWarning": "Lightroom import is uncalibrated: global adjustments and masks are not ready for real use until full import calibration (#31 and #133) is complete.",
-      "available": "XMP import report: {{unchanged}} unchanged, {{failed}} failed. Click to view details.",
-      "copied": "Import report copied.",
-      "copy": "Copy Report",
-      "failed": "Failed ({{total}})",
-      "folder": "Folder: {{folder}}",
-      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
-      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
-      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
-      "notTransferredItems": {
-        "maskBrushTable": "未导入的画笔表",
-        "aiDenoise": "AI Denoise",
-        "aiMasks": "AI masks (subject, sky, people, objects)",
-        "localAdjustments": "local adjustments RapidRAW has no slider for (such as moiré, defringe or colour tint)",
-        "masks": "masks of a kind RapidRAW can't import",
-        "pointColor": "Point Color",
-        "profileLook": "profile look (colour table)",
-        "unsupportedDevelopSettings": "RapidRoom 不支持的 Lightroom 显影设置",
-        "unsupportedProcessVersion": "无法识别 Lightroom 处理版本（不推断默认值）",
-        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
-      },
-      "title": "XMP Import Report",
-      "unchanged": "Not imported — no supported changes ({{total}})",
-      "settings": {
-        "summary": "Lightroom settings: {{mapped}} mapped, {{approximated}} approximated, {{ignored}} ignored.",
-        "detail": "{{field}} — {{outcome}}: {{reason}}",
-        "omitted": "{{count}} additional settings omitted.",
-        "outcomes": {
-          "mapped": "mapped",
-          "approximated": "approximated",
-          "ignored": "ignored"
-        },
-        "reasons": {
-          "sharpenCompanion": "Lightroom sharpening radius/detail has no matching operator",
-          "noiseCompanion": "Lightroom noise detail/contrast/smoothness has no matching operator",
-          "calibration": "Camera calibration primaries and shadow tint are not supported",
-          "perspective": "Lightroom perspective/Upright transforms are not imported",
-          "defringe": "Lightroom defringe controls are not supported",
-          "manualLens": "Manual Adobe lens corrections are not imported",
-          "vignetteCompanion": "Lightroom vignette style/highlights has no matching operator",
-          "retouch": "Lightroom retouch/spot removal is not imported",
-          "parametricCurve": "Lightroom parametric curves are not imported",
-          "cameraProfile": "Adobe camera profiles are not available in the engine",
-          "aiEnhancement": "AI enhancement is not recreated; enhanced pixels may already contain it",
-          "pointColor": "Lightroom Point Color is not imported",
-          "invalidValue": "Invalid or non-finite setting value",
-          "whiteBalanceBaseline": "White balance was not converted; source baseline or supported mapping is missing",
-          "cropUnavailable": "Crop was not imported; geometry is unavailable or not included in presets",
-          "lensUnavailable": "Lens correction was not enabled or is not included in presets",
-          "notConverted": "No corresponding adjustment was produced by the converter",
-          "sharpnessScale": "Amount is scaled from 0-150 to 0-100; the sharpening operator differs",
-          "sharpenMasking": "Masking is approximated by the native sharpening threshold",
-          "hueScale": "Hue is scaled by 0.75; engine colour response differs",
-          "monochrome": "Monochrome is approximated with desaturation and HSL luminance",
-          "curveInterpolation": "Curve points are transferred; engine interpolation differs",
-          "lensfun": "Lensfun substitutes for the Adobe lens profile when a matching lens is available",
-          "nativeResponse": "Transferred to native controls; Lightroom rendering and units may differ",
-          "asShot": "The source requests as-shot white balance; no native override is imported",
-          "disabled": "The source disables this feature; no native adjustment is applied",
-          "cropGeometry": "Converted to native crop geometry",
-          "unsupported": "No supported mapping for this CRS setting",
-          "superseded": "The newer process-version setting takes precedence",
-          "inactive": "This setting is inactive in the source conversion mode",
-          "alreadyApplied": "The photo marks development settings AlreadyApplied; existing native edits are preserved"
-        }
-      },
-      "alreadyAppliedPhoto": "Development settings skipped: the photo packet marks them AlreadyApplied. Existing RapidRoom edits are preserved.",
-      "metadataOnly": "XMP checked; no development settings applied. Existing RapidRoom edits are preserved.",
-      "concurrentEditsPreserved": "Newer editor changes made during import were preserved.",
-      "brushTableGroup": "画笔组“{{name}}”：{{reason}}",
-      "unchangedForImage": "已保留现有编辑；未导入受支持的调整。"
-    },
     "toasts": {
-      "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
       "couldNotShowExplorer": "无法在文件资源管理器中显示文件：{{err}}",
       "couldNotShowFolder": "无法显示文件夹：{{err}}",
       "failedAddToAlbum": "添加到相册失败：{{err}}",
@@ -484,20 +395,10 @@
       "failedDelete": "删除失败：{{err}}",
       "failedDeleteFolder": "删除文件夹失败：{{err}}",
       "failedDuplicate": "复制文件失败：{{err}}",
-      "failedImportLightroomCollections": "Failed to import Lightroom collections: {{err}}",
-      "failedImportMatchingXmpSidecars": "Failed to import matching XMP sidecars: {{err}}",
-      "failedImportXmpAdjustments": "Failed to import XMP adjustments: {{err}}",
-      "failedMatchingXmpSidecars_other": "Matching XMP sidecars failed to import: {{count}}.",
       "failedMove": "移动文件失败：{{err}}",
       "failedMoveError": "移动失败：{{err}}",
       "failedMoveInvalid": "移动失败：未找到目标组或目标组无效。",
-      "failedRemoveImages": "移除图像失败：{{err}}",
-      "importedLightroomCollections": "Imported Lightroom collections from {{name}}.",
-      "importedMatchingXmpSidecars_other": "Imported matching XMP sidecars: {{count}}.",
-      "importedXmpAdjustments": "Imported XMP adjustments.",
-      "importingMatchingXmpSidecars": "Importing matching XMP sidecars…",
-      "noMatchingXmpSidecars": "No matching XMP sidecars found.",
-      "unchangedMatchingXmpSidecars": "Skipped matching XMP sidecars with no importable changes: {{count}}."
+      "failedRemoveImages": "移除图像失败：{{err}}"
     }
   },
   "editor": {
@@ -950,7 +851,6 @@
         "presetFile": "预设文件",
         "rapidRawPreset": "RapidRAW 预设"
       },
-      "favorites": "收藏",
       "menu": {
         "configurePreset": "配置预设",
         "deleteFolder": "删除文件夹",
@@ -978,31 +878,15 @@
       "tooltips": {
         "explore": "探索社区预设",
         "export": "将所有预设导出为 .rrpreset 文件",
-        "favorite": "添加到收藏",
         "import": "从 .rrpreset 文件导入预设",
-        "saveNew": "保存为新预设",
-        "unfavorite": "从收藏中移除"
+        "saveNew": "保存为新预设"
       },
       "types": {
         "folder": "文件夹",
         "preset": "预设",
         "style": "风格",
         "tool": "工具"
-      },
-      "appliedFolder": "已应用",
-      "bakedIn": "已固化",
-      "bakedInNotice": "此前已应用并固化到编辑结果中。移除后仍会保留编辑效果。"
-    },
-    "referenceView": {
-      "active": "当前",
-      "cancel": "取消",
-      "chooseHint": "在胶片带中点击一张照片，将其用作参考。",
-      "clear": "清除参考",
-      "close": "关闭参考视图",
-      "readOnly": "只读",
-      "reference": "参考",
-      "replace": "选择其他参考",
-      "unavailable": "参考图像不可用"
+      }
     },
     "switcher": {
       "tooltips": {
@@ -1027,18 +911,14 @@
         "fullscreen": "切换全屏（F）",
         "iso": "ISO",
         "redo": "重做（Ctrl+Y）或历史记录（右键单击）",
-        "referenceView": "参考视图 (Shift+R)",
-        "showEdited": "显示编辑后（B）",
-        "showOriginal": "显示原始（B）",
         "shutterSpeed": "快门速度",
         "undo": "撤销（Ctrl+Z）或历史记录（右键单击）"
       },
       "vc": "VC"
     },
-    "embeddedPreviewWarning": "RAW 显影失败；当前显示嵌入式预览。",
     "viewer": {
       "openFailed": "无法打开第二窗口：{{error}}",
-      "windowTitle": "RapidRoom 查看器"
+      "windowTitle": "RapidRAW 查看器"
     }
   },
   "export": {
@@ -1167,11 +1047,6 @@
       "scale": "缩放",
       "spacing": "间距",
       "watermarkImage": "水印图像"
-    },
-    "overwrite": {
-      "label": "Replace existing exports",
-      "title": "Replace existing exports?",
-      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
     }
   },
   "immich": {
@@ -1325,27 +1200,20 @@
         "all": "所有图像",
         "excludeRejected": "隐藏已拒绝",
         "picked": "留用",
-        "rejected": "已拒绝",
-        "unflagged": "未标记"
+        "rejected": "已拒绝"
       },
       "noMatch": "未找到匹配过滤条件的图像。",
       "rating": {
         "all": "显示全部",
+        "andDownSuffix": "及以下",
         "andUpSuffix": "及以上",
         "fiveOnly": "仅 5 星",
         "fourAndUp": "4 星及以上",
-        "fourOnly": "仅 4 星",
-        "matchAtLeastTooltip": "正在显示此评分及以上。点击仅显示此评分。",
-        "matchExactlyTooltip": "正在仅显示此评分。点击以包含更高评分。",
         "oneAndUp": "1 星及以上",
-        "oneOnly": "仅 1 星",
         "onlySuffix": "仅",
         "threeAndUp": "3 星及以上",
-        "threeOnly": "仅 3 星",
         "twoAndUp": "2 星及以上",
-        "twoOnly": "仅 2 星",
-        "unrated": "仅未评分",
-        "andDownSuffix": "及以下"
+        "unrated": "仅未评分"
       },
       "raw": {
         "all": "所有类型",
@@ -1422,6 +1290,11 @@
         "filterByFileType": "按文件类型过滤",
         "filterByFlag": "按标记过滤",
         "filterByRating": "按评分过滤",
+        "ratingOperator": {
+          "eq": "仅此评分",
+          "gte": "此评分及以上",
+          "lte": "此评分及以下"
+        },
         "groupEditedFiles": "Include edited files in groups",
         "groupIgnoreMetadata": "Ignore mismatched EXIF dates",
         "groupOff": "Off",
@@ -1439,18 +1312,8 @@
         "sortDescending": "降序排列",
         "thumbnailFit": "缩略图适应",
         "thumbnailSize": "缩略图大小",
-        "title": "视图选项",
-        "ratingOperator": {
-          "eq": "仅此评分",
-          "gte": "此评分及以上",
-          "lte": "此评分及以下"
-        }
+        "title": "视图选项"
       }
-    },
-    "import": {
-      "complete": "导入完成！",
-      "failed": "导入失败！",
-      "progress": "导入中...（{{current}}/{{total}}）"
     },
     "items": {
       "cloudPlaceholder": "存储在 iCloud 中 — 未下载",
@@ -1516,7 +1379,7 @@
     },
     "splash": {
       "addFolder": "添加文件夹",
-      "brand": "RapidRoom",
+      "brand": "RapidRAW",
       "continueSession": "继续会话",
       "contribute": "在 GitHub 上贡献",
       "descriptionAndroid": "一款极速、GPU 加速的 RAW 图像编辑器。打开图库以开始。",
@@ -1562,25 +1425,6 @@
       "culling": "筛选视图",
       "grid": "网格视图",
       "list": "列表视图"
-    },
-    "photoCounts": {
-      "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
-      "emptyFolder": "No photos directly in this folder.",
-      "descendants_one": "{{count}} photo in subfolders.",
-      "descendants_other": "{{count}} photos in subfolders.",
-      "descendantsPartial_one": "At least {{count}} photo in subfolders.",
-      "descendantsPartial_other": "At least {{count}} photos in subfolders.",
-      "checking": "Checking subfolders…",
-      "scanLimited": "This folder is large. Open subfolders to see all photos.",
-      "showSubfolders": "Show photos in subfolders",
-      "total_one": "{{count}} photo",
-      "total_other": "{{count}} photos",
-      "filtered_one": "{{count}} of {{total}} photos",
-      "filtered_other": "{{count}} of {{total}} photos",
-      "recursive": "(incl. subfolders)",
-      "albumCountsLabel": "Album image counts",
-      "albumCountsDesc": "Show image totals next to albums. Folder photo counts are always shown.",
-      "checkFailed": "Could not check subfolders. Refresh the folder to try again."
     }
   },
   "masks": {
@@ -1670,7 +1514,6 @@
         "cropAspectRatio": "裁剪与宽高比",
         "curves": "曲线",
         "fog": "雾",
-        "exposureToneMapper": "曝光与色调映射",
         "grain": "颗粒",
         "guidedPerspective": "引导透视",
         "halationGlow": "光晕与发光",
@@ -1684,7 +1527,6 @@
         "presence": "质感",
         "relight": "重新打光",
         "sharpness": "锐度",
-        "tone": "色调",
         "transformRotation": "变换与旋转",
         "vignette": "暗角",
         "whiteBalance": "白平衡"
@@ -1742,44 +1584,6 @@
       "starting": "启动中...",
       "title": "筛选图像"
     },
-    "denoise": {
-      "batchProgressText": "降噪中 {{current}} / {{total}}...",
-      "btnBatchDenoise": "批量降噪并保存",
-      "btnRetry": "重试",
-      "btnSave": "保存",
-      "btnStart": "开始",
-      "cancel": "取消",
-      "close": "关闭",
-      "denoised": "已降噪",
-      "denoisingProgress": "降噪进行中",
-      "description": "使用 AI 驱动或传统降噪技术去除图像中的噪声。",
-      "downloadingText": "下载中 {{status}}...",
-      "fewerMethods": "Fewer methods",
-      "gpuWarningTooltip": "由于依赖项限制，NIND 降噪尚不支持 GPU 加速。",
-      "initializing": "初始化中...",
-      "legacyAi": "NIND (legacy AI)",
-      "methodAi": "NIND（AI - 最适合 RAW）",
-      "methodBm3d": "BM3D（传统 - 所有格式）",
-      "methodLabel": "方法",
-      "methodRaw9": "Apple RAW 9 (Neural Engine)",
-      "moreMethods": "More methods",
-      "openInEditor": "在编辑器中打开",
-      "original": "原始",
-      "panZoomEnabled": "平移和缩放已启用",
-      "presetBest": "Best",
-      "presetFast": "Fast",
-      "processingFailed": "处理失败",
-      "qualityTileSizeLabel": "质量 / 分块大小",
-      "rawHint": "Denoise the original Bayer RAW. Save creates an editable DNG. Models download on first use.",
-      "rawSpeedTooltip": "Processing runs locally and may take several minutes. The saved DNG can be edited without running AI again.",
-      "reset": "重置",
-      "saveSuccess": "图像保存成功！",
-      "sharpen": "Sharpen",
-      "speedNotice": "这可能需要几分钟，具体取决于图像大小和所选方法。",
-      "strengthLabel": "强度",
-      "titleBatch": "降噪图像",
-      "titleSingle": "降噪图像"
-    },
     "focusStack": {
       "cancel": "取消",
       "close": "关闭",
@@ -1830,13 +1634,6 @@
       "title": "导入设置"
     },
     "lensCorrection": {
-      "sourceApplied": "已应用：{{source}}",
-      "sourceAvailable": "可用：{{source}}",
-      "sourceCameraData": "相机数据",
-      "sourceExistingRecipe": "已保存的编辑设置",
-      "sourceNoData": "无校正数据",
-      "sourceUnavailable": "无法获取校正来源",
-      "sourceChecking": "正在检查校正来源…",
       "amount": "数量",
       "apply": "应用",
       "autoDetectLens": "自动检测镜头",
@@ -1869,36 +1666,6 @@
       "zoomInTooltip": "放大",
       "zoomOutTooltip": "缩小"
     },
-    "lightroomImport": {
-      "addRootFolders": "Also add the found root folders to Folders",
-      "besideCatalog": "Found next to the catalog",
-      "collectionSets": "Collection sets",
-      "collections": "Collections",
-      "copied": "List copied.",
-      "copyList": "Copy List",
-      "found": "Found",
-      "imagesFound": "Images found",
-      "imagesMissing": "Images missing",
-      "import": "Import",
-      "importing": "Importing…",
-      "missingFiles": "Missing files: {{total}}",
-      "missingFilesHint": "Missing files stay in their albums and show up again once their folder is found or relinked.",
-      "missingFilesMore": "…and {{total}} more",
-      "missingRoots": "Root folders not found: {{total}}. Their images are imported as missing until you relink them.",
-      "notFound": "Not found",
-      "nothingToImport": "This catalog has no collections to import.",
-      "reading": "Reading the catalog…",
-      "relink": "Relink…",
-      "relinkTitle": "Find the folder for {{path}}",
-      "relinked": "Relinked",
-      "replacesPrevious": "This catalog was imported before. Importing again refreshes its albums where you put them; your other albums stay as they are.",
-      "rootFolders": "Root folders",
-      "rootFoldersHint": "Where the catalog's folders are on this computer. Relink a folder that moved or comes from another computer. The catalog itself is only read, never changed.",
-      "rootImages": "Images: {{images}}, missing: {{missing}}",
-      "skippedOther": "Books, slideshows, prints and web galleries, not imported: {{total}}",
-      "smartCollections": "Smart collections, not imported: {{total}}",
-      "title": "Import Lightroom Collections"
-    },
     "panorama": {
       "cancel": "取消",
       "close": "关闭",
@@ -1922,32 +1689,14 @@
     },
     "renameFile": {
       "cancel": "取消",
-      "conflictExisting": "名称已存在",
-      "conflictInBatch": "名称重复",
-      "conflicts_one": "{{count}} 个文件名冲突，请修改模板。",
-      "conflicts_other": "{{count}} 个文件名冲突，请修改模板。",
       "fileNamingTemplate": "文件命名模板",
-      "groupAuto": "自动：间隔不超过",
-      "groupSeconds": "同组照片之间的秒数",
-      "groupSelection": "整个选择为一组",
-      "groups": "{group} 和 {member} 的分组",
       "newName": "新名称",
       "notUniqueWarning": "如果不包含 {original_filename}、{original_filename_number} 或 {sequence}，文件可能会重名。此时不会重命名任何文件。",
-      "preview": "预览",
-      "renamed_one": "已重命名 {{count}} 个文件",
-      "renamed_other": "已重命名 {{count}} 个文件",
       "save": "保存",
-      "seconds": "秒的照片",
-      "summary": "照片：{{photos}} · 文件：{{files}}",
       "titleMultiple": "重命名 {{count}} 张图像",
       "titleMultiple_one": "重命名 {{count}} 张图像",
       "titleMultiple_other": "重命名 {{count}} 张图像",
-      "titleSingle": "重命名图像",
-      "undo": "撤销",
-      "undoFailed": "无法撤销重命名：{{err}}",
-      "undoLast_one": "撤销上次重命名（{{count}} 张照片）",
-      "undoLast_other": "撤销上次重命名（{{count}} 张照片）",
-      "undone": "已撤销重命名"
+      "titleSingle": "重命名图像"
     },
     "renameFolder": {
       "cancel": "取消",
@@ -2023,21 +1772,6 @@
       "deleteEditsDesc": "删除所有根文件夹中的 .rrdata 附属文件（你的编辑）。此操作无法撤销。",
       "libraryAndWorkspace": "图库与工作区",
       "limit": "上限",
-      "clearAiDenoise": "清除 AI 降噪缓存",
-      "clearAiDenoiseButton": "清除",
-      "clearAiDenoiseDesc": "删除已缓存的 AI 降噪结果（{{size}}）。启用了 AI 降噪的图像会在下次打开时重新计算。",
-      "clearSidecars": "清除所有附属文件",
-      "clearSidecarsButton": "清除",
-      "clearSidecarsDesc": "这将删除您的根文件夹中的所有 .rrdata 文件（包含您的编辑数据）：",
-      "clearThumbnail": "清除缩略图缓存",
-      "clearThumbnailButton": "清除",
-      "clearThumbnailDesc": "这将删除所有缓存的缩略图。在您浏览图库时，它们会自动重新生成。",
-      "cacheUsage": "缩略图和预览：{{size}} · 文件数：{{files}}",
-      "cacheUsageError": "无法读取缓存用量。",
-      "loading": "加载中...",
-      "logs": "查看应用日志",
-      "logsButton": "打开",
-      "logsDesc": "查看应用程序的日志文件以进行故障排除。日志文件位于：",
       "modals": {
         "aiDenoiseMessage": "确定要清除 AI 降噪缓存吗？\n\n启用了 AI 降噪的图像需要重新降噪，每张图像可能需要几分钟。",
         "aiMapsMessage": "确定要清除深度与法线贴图吗？\n\n使用镜头模糊、雾效或重新打光的图像会在下次打开时重新生成贴图。",
@@ -2046,11 +1780,9 @@
         "cacheMessage": "您确定要清除缩略图缓存吗？\n\n所有缩略图将需要重新生成，对于大型文件夹可能会很慢。",
         "confirmAiTitle": "确认删除 AI 标签",
         "confirmAllTitle": "确认删除所有标签",
-        "confirmCacheTitle": "确认删除缓存",
         "confirmClear": "清除",
         "confirmClearAi": "清除 AI 标签",
         "confirmClearAll": "清除所有标签",
-        "confirmClearCache": "清除缓存",
         "confirmDeleteAllEdits": "删除所有编辑",
         "confirmResetLayout": "重置布局",
         "confirmResetLayoutTitle": "重置工作区布局",
@@ -2064,7 +1796,6 @@
       "noFolders": "未选择文件夹",
       "refresh": "刷新",
       "reset": "重置",
-      "resetLayoutButton": "重置布局",
       "resetLayoutDesc": "将面板停靠区、侧边分割条、高度和面板切换器恢复为默认布局。",
       "resetLayoutTitle": "重置工作区布局",
       "show": "显示",
@@ -2078,15 +1809,7 @@
         "allSuccess_other": "{{count}} 个文件已更新。所有非颜色标签已移除。",
         "cacheSuccess": "缩略图缓存已成功清除。",
         "cleared": "已成功清除。",
-        "clearingAi": "正在从所有附属文件中清除 AI 标签...",
-        "clearingAiDenoise": "正在清除 AI 降噪缓存...",
-        "clearingAll": "正在从附属文件中清除所有标签...",
-        "clearingCache": "正在清除缩略图缓存...",
-        "deleting": "正在删除附属文件，请稍候...",
-        "failedToGetPath": "无法获取日志文件路径。",
         "layoutResetSuccess": "工作区布局已重置为默认值。",
-        "processing": "处理中...",
-        "resettingLayout": "正在重置工作区...",
         "sidecarSuccess": "{{count}} 个附属文件已成功删除。",
         "sidecarSuccess_one": "{{count}} 个附属文件已成功删除。",
         "sidecarSuccess_other": "{{count}} 个附属文件已成功删除。"
@@ -2112,17 +1835,11 @@
       "totalUsed": "RapidRAW 在此设备上占用了 {{size}}。"
     },
     "general": {
-      "autoAdvance": "评分后自动前进",
-      "autoAdvanceDesc": "使用键盘快捷键为单张图像评分后，自动转到下一张图像。",
-      "compactAdjustments": "紧凑调整滑块",
-      "compactAdjustmentsDesc": "将每个编辑滑块排成一行，标签和数值位于滑轨两侧，在小屏幕上可显示更多控件。",
       "createXmp": "创建缺失的 XMP 文件",
       "createXmpDesc": "如果图像没有对应的 XMP 附属文件，则自动创建一个。",
       "createXmpMissing": "缺失时创建 XMP",
       "displayEditIcon": "显示编辑图标",
       "displayEditIconDesc": "在已编辑的缩略图上显示一个小滑块图标。",
-      "enableAutoAdvance": "启用自动前进",
-      "enableCompactAdjustments": "启用紧凑滑块",
       "enableFocusMode": "启用专注模式",
       "enableNeutralGreyCanvas": "启用中性灰背景",
       "enableOsTitlebar": "启用系统标题栏",
@@ -2149,9 +1866,7 @@
       "toolFocusMode": "工具专注模式",
       "toolFocusModeDesc": "展开某个工具时，自动折叠同一面板中的其他工具。",
       "xmpSync": "XMP 元数据同步",
-      "xmpSyncDesc": "将评分、颜色标签和标签同步到标准 XMP 附属文件，以便与其他照片编辑器兼容。",
-      "writeJpegMetadata": "Write ratings and labels into JPEG files",
-      "writeJpegMetadataDesc": "Embed ratings, color labels and reject flags in original JPEGs without re-encoding pixels. Off by default; other formats keep using sidecars."
+      "xmpSyncDesc": "将评分、颜色标签和标签同步到标准 XMP 附属文件，以便与其他照片编辑器兼容。"
     },
     "keybinds": {
       "actions": {
@@ -2170,8 +1885,6 @@
         "cycle_zoom": "循环缩放（适应、2倍适应、100%）",
         "delete_rejected": "删除已拒绝的文件",
         "delete_selected": "删除选中的文件",
-        "flag_pick": "标记为留用",
-        "flag_reject": "标记为拒绝",
         "focus_search": "聚焦搜索框",
         "open_image": "打开选中的图像",
         "open_settings": "打开设置",
@@ -2200,14 +1913,13 @@
         "toggle_export": "切换导出面板",
         "toggle_folder_tree": "切换文件夹树面板",
         "toggle_fullscreen": "切换全屏",
-        "cycle_lights_out": "循环切换熄灯模式",
-        "cycle_lights_out_reverse": "反向循环切换熄灯模式",
         "toggle_left_panel": "切换左侧面板",
         "toggle_library_exif": "切换 EXIF 叠加",
         "toggle_masks": "切换蒙版面板",
         "toggle_metadata": "切换元数据面板",
+        "toggle_pick": "切换留用标记",
         "toggle_presets": "切换预设面板",
-        "toggle_reference_view": "切换参考视图",
+        "toggle_reject": "切换拒绝标记",
         "toggle_right_panel": "切换右侧面板",
         "toggle_viewer_window": "切换第二窗口",
         "undo": "撤销调整",
@@ -2217,10 +1929,7 @@
         "zoom_in": "放大",
         "zoom_in_step": "放大（步进）",
         "zoom_out": "缩小",
-        "zoom_out_step": "缩小（步进）",
-        "toggle_pick": "切换留用标记",
-        "toggle_reject": "切换拒绝标记",
-        "toggle_denoise_mark": "Toggle denoise mark"
+        "zoom_out_step": "缩小（步进）"
       },
       "sections": {
         "editing": "编辑",
@@ -2355,9 +2064,6 @@
       },
       "nativeDpi": "以原生 DPI 渲染",
       "preprocessing": {
-        "autoLensCorrection": "新 RAW 的自动镜头校正",
-        "autoLensCorrectionDesc": "首次打开或重置 RAW 照片时应用可用的镜头校正。已保存的编辑设置保持不变。",
-        "enableAutoLensCorrection": "默认使用自动镜头校正",
         "appleRaw9": "Apple RAW 9 引擎",
         "appleRaw9Desc": "使用 Apple 的 Core Image RAW 9 解码器冲洗 RAW 文件。它在神经网络引擎 (Neural Engine) 上一步完成去马赛克和降噪。需要 macOS 27 或更高版本以及支持的相机；不支持的文件将自动使用内置解码器。比默认解码器慢。缩略图不受影响。",
         "applyPreprocessing": "对非 RAW 图像应用预处理",
@@ -2365,7 +2071,7 @@
         "baselineExposure": "基础曝光",
         "baselineExposureAmount": "基础量",
         "baselineExposureAmountDesc": "添加到 RAW 文件的曝光量。darktable 使用 +0.7 EV。",
-        "baselineExposureDesc": "为使用基础曝光的旧编辑增加固定曝光量。新建或重置的 RAW 编辑改用相机或 DNG 曝光补偿，不再使用此固定增量。",
+        "baselineExposureDesc": "将所有 RAW 文件提亮一个固定值（与 darktable 场景参考模式的默认值相同），如有 DNG BaselineExposure 标签也会一并加上。在此选项推出之前编辑的图像不受影响。",
         "colorNr": "基础颜色降噪",
         "colorNrDesc": "在管线早期应用交叉双边滤波器以去除彩色噪点。值越高 = 降噪越强。",
         "defaultNonRawTonemapper": "默认非 RAW 色调映射",
@@ -2436,11 +2142,6 @@
       "aiTaggingDesc": "使用 AI（CLIP）模型启用自动图像标签。这将下载额外的模型，并在浏览文件夹时影响性能。标签用于搜索文件夹。",
       "amount": "数量",
       "automaticAiTagging": "自动 AI 标签",
-      "clearAiTagsButton": "清除",
-      "clearAiTagsDesc": "这将从所有活动根文件夹中的 .rrdata 文件中移除所有 AI 生成的标签。用户添加的标签将被保留。",
-      "clearAiTagsTitle": "清除 AI 标签",
-      "clearAllTagsDesc": "这将从所有活动根文件夹中的 .rrdata 文件中移除所有 AI 生成和用户添加的标签。颜色标签将被保留。",
-      "clearAllTagsTitle": "清除所有标签",
       "clearCustomTooltip": "清除 AI 标签列表",
       "clearShortcutsTooltip": "清除快捷方式标签列表",
       "customList": "自定义 AI 标签列表",
@@ -2471,7 +2172,6 @@
         "rawler": "为优秀的 Rust 库提供支持，构成了本项目 RAW 文件处理的基础。",
         "sam2": "为提供基础模型，用于 AI 主体检测功能。",
         "spektrafilm": "感谢 Andrea Volpato 提供基于光谱的胶片模拟 LUT，为 RapidRAW 的内置胶片模拟提供支持。采用 CC BY-SA 4.0 许可。",
-        "u2net": "为提供稳健的架构，用于 AI 天空和前景检测功能。",
         "you": "感谢您使用和支持 RapidRAW。您的关注使本项目持续发展。",
         "youLabel": "您"
       },
@@ -2632,68 +2332,5 @@
         "vectorscope": "矢量示波器"
       }
     }
-  },
-  "denoiseQueue": {
-    "title": "Denoise marked photos…",
-    "marked": "Marked for denoise",
-    "done": "Denoised",
-    "mark": "Mark for denoise",
-    "unmark": "Remove denoise mark",
-    "toggle": "Toggle denoise mark",
-    "filter": "Denoise status",
-    "all": "All photos",
-    "chooseFolder": "Choose a library folder first.",
-    "method": "Method",
-    "methods": {
-      "best": "Best · sensor DNG",
-      "fast": "Fast · sensor DNG",
-      "nind": "NIND · TIFF / PNG",
-      "bm3d": "Basic · TIFF / PNG",
-      "raw9": "Apple RAW 9 · TIFF"
-    },
-    "sharpen": "Sharpen (optional)",
-    "strength": "Strength / quality",
-    "recursive": "Include subfolders",
-    "hint": "Runs one photo at a time in the background and skips valid results. Fast/Best retain RAW edits; other methods require unedited RAWs. Install AI models in the Denoise dialog first.",
-    "close": "Close",
-    "start": "Start queue",
-    "cancel": "Cancel",
-    "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
-    "cancelled": "Cancelled. Run the queue again to resume.",
-    "errors": "Errors"
-  },
-  "captureTime": {
-    "folderShift": "Folder display time shift…",
-    "description": "Shift displayed capture times for photos directly in this folder. Original files, capture-time sorting and auto-stack stay unchanged. Enter 0 to reset.",
-    "hours": "Hours to add",
-    "example": "Hawaii camera clock in Japan: +19 hours. Half and quarter hours are supported.",
-    "cameraZone": "Camera zone: {{zone}}",
-    "shifted": "{{shift}} display shift",
-    "save": "Save",
-    "cancel": "Cancel"
-  },
-  "jpegMetadata": {
-    "write": "Write metadata to files",
-    "undo": "Undo last metadata write",
-    "written_one": "Wrote JPEG metadata to {{count}} file.",
-    "written_other": "Wrote JPEG metadata to {{count}} files.",
-    "restored_one": "Restored metadata for {{count}} file.",
-    "restored_other": "Restored metadata for {{count}} files.",
-    "failed": "Metadata write failed: {{error}}"
-  },
-  "printProof": {
-    "title": "Soft proof",
-    "enabled": "Preview printer/paper colours",
-    "exportEnabled": "Convert to chosen ICC profile",
-    "chooseProfile": "Choose a local ICC profile…",
-    "intent": "Rendering intent",
-    "relative": "Relative colorimetric",
-    "perceptual": "Perceptual",
-    "bpc": "Black point compensation",
-    "displayAssumption": "View only. Assumes an sRGB monitor; does not simulate paper white.",
-    "exportFormats": "RGB profiles only. JPEG, PNG and TIFF; the selected profile is embedded even with metadata off.",
-    "exportTitle": "Output colour profile",
-    "profilePath": "ICC profile path",
-    "useProfile": "Use profile"
   }
 }

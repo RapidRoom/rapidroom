@@ -25,6 +25,12 @@ When a session is started with "take the next cloud issue":
 - Drop changes the harvest doesn't need (the fork's own changelog, tests for code RapidRoom doesn't have) and say so in the commit message.
 - Add the source to `CREDITS.md`.
 
+## Locale ownership
+
+- Keep `src/i18n/locales/<lang>.json` byte-identical to upstream. During upstream syncs, take these files from upstream as is.
+- Add RapidRoom keys and overrides (including branding and completed plural forms) only in `src/i18n/locales/rapidroom/<lang>.json`. The overlay deep-merges over upstream; overlay values win.
+- `npm run i18n:extract` compares complete merged catalogs in temporary files and writes only the RapidRoom differences. Run `npm run i18n:check` and `npm run i18n:runtime-check` after changing strings. Do not format or hand-edit upstream catalogs.
+
 ## Every PR
 
 - **Lockfile:** if you change dependencies, regenerate `package-lock.json` with **npm 11 or newer**. npm 10 drops the existing `libc` fields from the lockfile.

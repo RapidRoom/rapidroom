@@ -111,3 +111,7 @@ jobs:
       - name: Run the binary for failing exports
         working-directory: src-tauri
         run: xvfb-run -a cargo test --test headless_exit_code
+
+      - name: Run library tests
+        working-directory: src-tauri
+        run: cargo test --lib
