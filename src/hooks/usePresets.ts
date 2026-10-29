@@ -7,7 +7,13 @@ import {
   loadPresetCatalog,
   flushCatalogWrites,
 } from '../store/usePresetCatalog';
-import { Adjustments, COPYABLE_ADJUSTMENT_KEYS, ADJUSTMENT_GROUPS, INITIAL_ADJUSTMENTS } from '../utils/adjustments';
+import {
+  Adjustments,
+  COPYABLE_ADJUSTMENT_KEYS,
+  CURVE_ADJUSTMENT_KEYS,
+  ADJUSTMENT_GROUPS,
+  INITIAL_ADJUSTMENTS,
+} from '../utils/adjustments';
 import { Folder, Invokes, Preset } from '../components/ui/AppProperties';
 import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
 import { captureAdjustments } from '../utils/adjustmentCapture';
@@ -56,7 +62,12 @@ export function usePresets(currentAdjustments: Adjustments) {
   presetsRef.current = presets;
   const captureRequest = useRef(0);
 
-  const captureCurrent = async (includeMasks: boolean, includeCropTransform: boolean, tool: boolean) => {
+  const captureCurrent = async (
+    includeMasks: boolean,
+    includeCropTransform: boolean,
+    tool: boolean,
+    includedKeys: string[] = COPYABLE_ADJUSTMENT_KEYS,
+  ) => {
     const request = ++captureRequest.current;
     const image = useEditorStore.getState().selectedImage;
     const settings = useSettingsStore.getState().appSettings;
@@ -86,7 +97,7 @@ export function usePresets(currentAdjustments: Adjustments) {
     }
     const geometry = ADJUSTMENT_GROUPS.geometry.flatMap((group) => group.keys);
     const masks = ADJUSTMENT_GROUPS.masks.flatMap((group) => group.keys);
-    const keys = COPYABLE_ADJUSTMENT_KEYS.filter(
+    const keys = includedKeys.filter(
       (key) => (includeMasks || !masks.includes(key)) && (includeCropTransform || !geometry.includes(key)),
     );
     return { adjustments: captureAdjustments(snapshot, keys, defaults), isCurrent };
@@ -146,6 +157,24 @@ export function usePresets(currentAdjustments: Adjustments) {
       updatedPresets = [...presets, { preset: newPresetData }];
     }
 
+    setPresets(updatedPresets);
+    savePresetsToBackend(updatedPresets);
+    return newPresetData;
+  };
+
+  const addCurvePreset = async (name: string) => {
+    const capture = await captureCurrent(false, false, true, CURVE_ADJUSTMENT_KEYS);
+    if (!capture?.isCurrent()) return null;
+    const newPresetData: Preset = {
+      adjustments: capture.adjustments,
+      id: crypto.randomUUID(),
+      name,
+      includeMasks: false,
+      includeCropTransform: false,
+      presetType: 'tool',
+      curvePreset: true,
+    };
+    const updatedPresets = [...presets, { preset: newPresetData }];
     setPresets(updatedPresets);
     savePresetsToBackend(updatedPresets);
     return newPresetData;
@@ -310,6 +339,7 @@ export function usePresets(currentAdjustments: Adjustments) {
           includeMasks,
           includeCropTransform,
           presetType,
+          curvePreset: presetType === 'tool' ? existingPreset.curvePreset : undefined,
         };
         return { preset: updatedPreset };
       }
@@ -325,6 +355,7 @@ export function usePresets(currentAdjustments: Adjustments) {
               includeMasks,
               includeCropTransform,
               presetType,
+              curvePreset: presetType === 'tool' ? existingPreset.curvePreset : undefined,
             };
             return updatedPreset;
           }
@@ -373,7 +404,12 @@ export function usePresets(currentAdjustments: Adjustments) {
       false;
     const presetType = existingPreset.presetType || 'style';
 
-    const capture = await captureCurrent(includeMasks, includeCropTransform, presetType === 'tool');
+    const capture = await captureCurrent(
+      includeMasks,
+      includeCropTransform,
+      presetType === 'tool',
+      existingPreset.curvePreset ? CURVE_ADJUSTMENT_KEYS : COPYABLE_ADJUSTMENT_KEYS,
+    );
     if (!capture?.isCurrent()) return null;
     const presetAdjustments = capture.adjustments;
 
@@ -453,6 +489,7 @@ export function usePresets(currentAdjustments: Adjustments) {
         includeMasks: presetToDuplicate.includeMasks,
         includeCropTransform: presetToDuplicate.includeCropTransform,
         presetType: presetToDuplicate.presetType || 'style',
+        curvePreset: presetToDuplicate.curvePreset,
       };
 
       let updatedPresets;
@@ -687,6 +724,7 @@ export function usePresets(currentAdjustments: Adjustments) {
   }, []);
 
   return {
+    addCurvePreset,
     addFolder,
     addPreset,
     configurePreset,

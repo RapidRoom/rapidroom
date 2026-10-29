@@ -960,6 +960,8 @@ export const MONOCHROME_ADJUSTMENT_KEYS = [
   'monochromeToning',
 ] as const;
 
+export const CURVE_ADJUSTMENT_KEYS = ['curves', 'pointCurves', 'parametricCurve', 'curveMode'];
+
 export interface AdjustmentGroup {
   label: ParseKeys;
   keys: string[];

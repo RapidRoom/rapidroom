@@ -1782,6 +1782,7 @@ fn preset_from_xmp_fields(
         include_masks: Some(false),
         include_crop_transform: Some(include_crop_transform),
         preset_type: Some("style".to_string()),
+        curve_preset: None,
         favorite: None,
         camera_model_restriction: attrs
             .get("CameraModelRestriction")

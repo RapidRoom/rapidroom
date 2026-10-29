@@ -17,6 +17,7 @@ import { Theme, OPTION_SEPARATOR, type HistogramData } from '../ui/AppProperties
 import { useContextMenu } from '../../context/ContextMenuContext';
 import Text from '../ui/Text';
 import Slider from '../ui/Slider';
+import CurvePresetControl from './CurvePresetControl';
 import { TextColors, TextVariants, TextWeights } from '../../types/typography';
 import { areSectionPropsEqual } from '../../utils/adjustments';
 
@@ -753,6 +754,7 @@ function CurveGraph({ adjustments, setAdjustments, histogram, theme, onDragState
 
   return (
     <div className="select-none touch-none" ref={containerRef}>
+      <CurvePresetControl adjustments={adjustments} setAdjustments={setAdjustments} />
       <div className="flex items-center justify-between gap-2 mb-2 mt-2">
         <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-secondary shrink-0">
           <button

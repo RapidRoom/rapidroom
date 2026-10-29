@@ -145,6 +145,47 @@ it('Reset RAW → curve-only Tool create and overwrite capture only curves, even
   expect(JSON.stringify(saved.at(-1))).not.toContain('cameraExposureCompensation');
 });
 
+it('Curve presets capture and overwrite the complete curve state without unrelated edits', async () => {
+  await resetAndCurve();
+  const parametricCurve = {
+    ...INITIAL_ADJUSTMENTS.parametricCurve!,
+    luma: { ...INITIAL_ADJUSTMENTS.parametricCurve!.luma, highlights: 40 },
+  };
+  await act(async () =>
+    actions.setAdjustments((before) => ({
+      ...before,
+      exposure: 3,
+      curveMode: 'parametric',
+      curves: curve(145),
+      pointCurves: curve(135),
+      parametricCurve,
+    })),
+  );
+  let preset!: Preset | null;
+  await act(async () => {
+    preset = await presets.addCurvePreset('Signature curve');
+  });
+  expect(preset).toMatchObject({ presetType: 'tool', curvePreset: true });
+  expect(preset!.adjustments).toEqual({
+    curves: curve(145),
+    pointCurves: curve(135),
+    parametricCurve,
+    curveMode: 'parametric',
+  });
+
+  await act(async () => actions.setAdjustments((before) => ({ ...before, exposure: 4, curves: curve(155) })));
+  await act(async () => {
+    preset = await presets.overwritePreset(preset!.id);
+  });
+  expect(preset!.adjustments).toEqual({
+    curves: curve(155),
+    pointCurves: curve(135),
+    parametricCurve,
+    curveMode: 'parametric',
+  });
+  expect(preset!.adjustments.exposure).toBeUndefined();
+});
+
 it('Merge uses the copied source defaults after navigation/settings changes and preserves a differently configured target', async () => {
   await resetAndCurve();
   await act(async () => {
