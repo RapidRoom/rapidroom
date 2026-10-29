@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import i18next from 'i18next';
+import { withRapidRoomLocales } from './rapidroom.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const localeDir = path.resolve(scriptDir, 'locales');
@@ -41,7 +42,8 @@ const failures = [];
 
 for (const filename of localeFiles) {
   const locale = path.basename(filename, '.json');
-  const translations = JSON.parse(fs.readFileSync(path.join(localeDir, filename), 'utf8'));
+  const upstream = JSON.parse(fs.readFileSync(path.join(localeDir, filename), 'utf8'));
+  const translations = withRapidRoomLocales({ [locale]: { translation: upstream } })[locale].translation;
   const leaves = flatten(translations);
   const pluralKeys = new Set();
 

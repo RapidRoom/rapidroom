@@ -1,0 +1,14 @@
+{
+  "id": "generated-conflict-resolution",
+  "title": "Resolve generated upstream-sync conflicts mechanically",
+  "category": "ci",
+  "landed": "2026-10-28",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "Resolves a lone Cargo.lock conflict from upstream's pins using main's captured Rust toolchain and Cargo's absolute manifest path from RUNNER_TEMP, outside merged configuration. The merge step has no GH_TOKEN; gh auth setup-git runs only for the push/gate path. Other conflicts and resolver failures abort with diagnostics, and the exact-head gate is unchanged."
+}

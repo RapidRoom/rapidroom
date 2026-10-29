@@ -1,0 +1,102 @@
+{
+  "rapidroom_base": "e8ee394e5c6184c853785d0ccc5e88c5969a4501",
+  "upstream_commit": "5fb4c292adb3511ffd609dc4f96de1a3add0bebc",
+  "locales": [
+    {
+      "locale": "ca",
+      "previous_sha256": "22c308156a94a9748190882aab5b38e351ad0ae28ee07bdfee3e7ed94849f6f8",
+      "upstream_sha256": "dbcf09a06248b169ae3591f635c4865f1c9f5159aed989ad935d3ad3df3afc47",
+      "merged_equals_previous": true
+    },
+    {
+      "locale": "cs",
+      "previous_sha256": "4baef49ee511971331d7e57bcbafc46f50143063375fe7e3b7e86c8d84a1eef7",
+      "upstream_sha256": "48eeb5c02f82be5c0f67d9f9e82c358d299d5ed885a80b8090e37c3985f195d5",
+      "merged_equals_previous": true
+    },
+    {
+      "locale": "de",
+      "previous_sha256": "3846ebc8541fda9cd2c6af40776710b1370b8081e202b7810a945e438e9b1f42",
+      "upstream_sha256": "300268ddf1bc1df417f6f822709e7296ac520b354c4c3de6bd786d294ab07148",
+      "merged_equals_previous": true
+    },
+    {
+      "locale": "en",
+      "previous_sha256": "4ab83479c56a385b67b5b4d75dd5b543c0f0a6735bdb571a3aa8a3ddc27256e2",
+      "upstream_sha256": "d731e8c741a04db31f04d310c4d88da36df31859031723844d8f91a93ec691f0",
+      "merged_equals_previous": true
+    },
+    {
+      "locale": "es",
+      "previous_sha256": "d264e0bb50f8759ec41de1da02679c3a43a89b66ea1af604f7cbea01d8347f5d",
+      "upstream_sha256": "38125225913573c72a8367b9278c55781cbd13ffc8877390de510c5cf76145be",
+      "merged_equals_previous": true
+    },
+    {
+      "locale": "fr",
+      "previous_sha256": "0921d634782618b750789a5a4cbb2da77aea8f6239230e64ebad5a44c05adcf8",
+      "upstream_sha256": "2e41fdef5aff55733e24203dfd698793960146876e1af6b20ea50103b1e672a3",
+      "merged_equals_previous": true
+    },
+    {
+      "locale": "it",
+      "previous_sha256": "a12876781a832cace030196ca6d338028c24287dce298ad6c01aa19e7cb88700",
+      "upstream_sha256": "a2f8415551c9205e56090dcbe87ff9aef3ffa5c803458cc8fba86f881cd5ac5d",
+      "merged_equals_previous": true
+    },
+    {
+      "locale": "ja",
+      "previous_sha256": "b8c1b4ef4d58afb154a05755ae77b4cd566490e289a40697776dd9d439dc17cf",
+      "upstream_sha256": "44b7b6db1dcf9cf574aa1e2d6f33df13fda7049a125cbca83b69c097473371df",
+      "merged_equals_previous": true
+    },
+    {
+      "locale": "ko",
+      "previous_sha256": "9d8a527e64203405150db26a5c518e98eff2e902b09b7381b79e78188a98fe07",
+      "upstream_sha256": "741bc260f9cb245c12e1c76984f407b019425ccb5e362cdc759b164b18191194",
+      "merged_equals_previous": true
+    },
+    {
+      "locale": "nl",
+      "previous_sha256": "f67a349dfd9f5b8206ae3f8b4846e72c523edef7b17bdbbf14f4ad5fb1d3aef6",
+      "upstream_sha256": "45aa2c179b8c0482562ffcdfe54ad1b8c818503264f6e864d7042818503025f4",
+      "merged_equals_previous": true
+    },
+    {
+      "locale": "pl",
+      "previous_sha256": "90e463c2e380d83c16ffdbac6b9dc71a036bd9297a6e85232f647cc0c398a3c7",
+      "upstream_sha256": "f7cfac27c70f7bc321b2ece5a09c2ddb2959e4f926f6390eeca08bd99a3ee739",
+      "merged_equals_previous": true
+    },
+    {
+      "locale": "pt",
+      "previous_sha256": "619723eb9fc5f089a7d4347c3812e0266e8b38d005dbb491591f255dd62f20fe",
+      "upstream_sha256": "1e83725d865573dd89e8b7509180ea4d8a5d6bb96c7a41f3004cb3d4e048957b",
+      "merged_equals_previous": true
+    },
+    {
+      "locale": "ru",
+      "previous_sha256": "0e4529ce2a13e8c81df8aa6bf00ccf117c17f8564c09e393743a1b6cb56a998a",
+      "upstream_sha256": "7b4a5ac603e322b309f1ed33a57cea220bfc21a9a6e63b3cc697e48037545a29",
+      "merged_equals_previous": true
+    },
+    {
+      "locale": "uk",
+      "previous_sha256": "6193d69c75196f77b7195fb1b1c4450b255eb4ca873c859bd2007fdb770dedd6",
+      "upstream_sha256": "b1ba7827e6ad455d941fc96ef5949a3e1b2a187a6d8927263acce7a5503d747a",
+      "merged_equals_previous": true
+    },
+    {
+      "locale": "zh-CN",
+      "previous_sha256": "375662625062badac3a06986bbb07a786acc6a6432439d1a0b9b6a36e1a91ba4",
+      "upstream_sha256": "0154e8f2364cc088e6320d5ff5563727b86e16f6146f69e58b9027d97131b800",
+      "merged_equals_previous": true
+    },
+    {
+      "locale": "zh-TW",
+      "previous_sha256": "251859d9ecf733133cc04a3d0efbdcbfaea4cdbec352cc9e0033e83ed7a635b3",
+      "upstream_sha256": "eea3f91904b075e5ee93832cfeb2238efe5987730ea2c64e5bfbb16df355223d",
+      "merged_equals_previous": true
+    }
+  ]
+}

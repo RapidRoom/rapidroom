@@ -1,0 +1,14 @@
+{
+  "id": "rust-library-ci",
+  "title": "Run Rust library tests in CI",
+  "category": "ci",
+  "landed": "2026-10-28",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "Runs the app crate's library suite in the existing headless Rust job, reusing its toolchain, system dependencies and target directory. The Sigma profile regression needs no skip after #444 isolated it from the duplicate Auto-selection policy still tracked in #445."
+}

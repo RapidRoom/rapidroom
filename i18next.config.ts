@@ -1,10 +1,16 @@
 import { defineConfig } from 'i18next-cli';
+import { overlayExtraction } from './rapidroom/i18n-extraction.mjs';
+
+const locales = ['en', 'de', 'pl', 'zh-CN', 'zh-TW', 'es', 'fr', 'it', 'pt', 'ja', 'ko', 'ru', 'uk', 'ca', 'nl', 'cs'];
+const overlays = overlayExtraction(locales);
 
 export default defineConfig({
-  locales: ['en', 'de', 'pl', 'zh-CN', 'zh-TW', 'es', 'fr', 'it', 'pt', 'ja', 'ko', 'ru', 'uk', 'ca', 'nl', 'cs'],
+  locales,
+  plugins: [overlays.plugin],
   extract: {
     input: ['src/**/*.{ts,tsx}'],
-    output: 'src/i18n/locales/{{language}}.json',
+    output: overlays.output,
+    mergeNamespaces: true,
     defaultNS: false,
     removeUnusedKeys: false,
     sort: true,
