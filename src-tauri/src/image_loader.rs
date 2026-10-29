@@ -1,8 +1,8 @@
 use crate::Cursor;
 use crate::app_settings::{AppSettings, load_settings};
-use crate::app_state::{AppState, LoadedImage};
+use crate::app_state::{AppState, LoadedImage, PreviewTarget};
 use crate::baseline_exposure::BaselineOptions;
-use crate::cache_utils::{DecodeFingerprint, FlightRole};
+use crate::cache_utils::{DecodeFingerprint, FlightRole, clear_preview_slot};
 use crate::exif_processing;
 use crate::file_management::{parse_virtual_path, read_file_mapped};
 use crate::formats::{has_non_raw_image_signature, is_raw_file};
@@ -25,14 +25,14 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
 use std::panic;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
 };
 use std::time::Instant;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 #[derive(serde::Serialize)]
 pub struct LoadImageResult {
@@ -44,6 +44,9 @@ pub struct LoadImageResult {
     pub is_raw: bool,
     pub as_shot_white_balance: WhiteBalance,
     pub used_embedded_preview: bool,
+    /// False when the returned buffer was expanded from an f16 cache entry.
+    /// A later `decoded-source-ready` event carries the full decode.
+    pub source_exact: bool,
 }
 
 struct BaseImageLoad {
@@ -1082,6 +1085,7 @@ pub fn get_or_decode_pristine(
     loop {
         if let Some(fp) = &fingerprint
             && let Some(hit) = state.decoded_image_cache.lock().unwrap().get(&path_str, fp)
+            && hit.3
         {
             return Ok(hit);
         }
@@ -1139,6 +1143,9 @@ pub fn get_or_decode_pristine(
         };
 
         let image = Arc::new(image);
+        if is_cancelled(&cancel_token) {
+            return Err("Load cancelled".to_string());
+        }
         if let Some(fp) = fingerprint {
             state.decoded_image_cache.lock().unwrap().insert(
                 path_str,
@@ -1148,7 +1155,7 @@ pub fn get_or_decode_pristine(
                 used_embedded_preview,
             );
         }
-        return Ok((image, exif, used_embedded_preview));
+        return Ok((image, exif, used_embedded_preview, true));
     }
 }
 
@@ -1188,10 +1195,9 @@ pub async fn load_image(
     let cancel_token = Some((state.load_image_generation.clone(), my_generation));
 
     {
-        *state
-            .cached_preview
-            .lock()
-            .unwrap_or_else(|e| e.into_inner()) = None;
+        for target in PreviewTarget::ALL {
+            clear_preview_slot(&state, target);
+        }
         *state
             .gpu_image_cache
             .lock()
@@ -1250,7 +1256,7 @@ pub async fn load_image(
             .get(&source_path_str, &fingerprint)
     });
 
-    let (pristine_arc, exif_data, used_embedded_preview) = if let Some(hit) = cached {
+    let (pristine_arc, exif_data, used_embedded_preview, source_exact) = if let Some(hit) = cached {
         hit
     } else {
         // Serialise full-resolution decodes and skip superseded waiters.
@@ -1311,9 +1317,22 @@ pub async fn load_image(
         image: pristine_arc,
         is_raw,
         as_shot,
+        source_epoch: state.decoded_source_epoch.load(Ordering::SeqCst),
     });
 
     drop(image);
+    if !source_exact {
+        // The flip already has the expanded f16 buffer. Re-decode off the
+        // navigation path and swap the preview once the original pixels are back.
+        spawn_exact_redecode(
+            app_handle.clone(),
+            source_path,
+            path.clone(),
+            my_generation,
+            settings,
+        );
+    }
+
     crate::ai_jobs::prioritize(&app_handle, &path);
 
     Ok(LoadImageResult {
@@ -1325,7 +1344,113 @@ pub async fn load_image(
         is_raw,
         as_shot_white_balance: as_shot.white_balance,
         used_embedded_preview,
+        source_exact,
     })
+}
+
+fn spawn_exact_redecode(
+    app_handle: tauri::AppHandle,
+    source_path: PathBuf,
+    virtual_path: String,
+    my_generation: usize,
+    settings: AppSettings,
+) {
+    tauri::async_runtime::spawn(async move {
+        let state = app_handle.state::<AppState>();
+        if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
+            return;
+        }
+        // Take the decode slot only after the generation check, and drop it
+        // before doing any further work if this photo is no longer current.
+        // A cold open of the next photo must not wait out this re-decode.
+        let Ok(decode_permit) = state.decode_permit.clone().acquire_owned().await else {
+            return;
+        };
+        if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
+            return;
+        }
+
+        let started = Instant::now();
+        let app_for_decode = app_handle.clone();
+        let path_for_decode = source_path.clone();
+        let generation = state.load_image_generation.clone();
+        let decoded = tauri::async_runtime::spawn_blocking(move || {
+            let _decode_permit = decode_permit;
+            let state = app_for_decode.state::<AppState>();
+            get_or_decode_pristine(
+                &state,
+                &path_for_decode,
+                &settings,
+                Some((generation, my_generation)),
+            )
+        })
+        .await;
+
+        let Ok(Ok((image, _, _, exact))) = decoded else {
+            return;
+        };
+        if !exact || state.load_image_generation.load(Ordering::SeqCst) != my_generation {
+            return;
+        }
+
+        let epoch = {
+            let mut loaded = state
+                .original_image
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
+                return;
+            }
+            let Some(current) = loaded.as_mut() else {
+                return;
+            };
+            if current.path != virtual_path {
+                return;
+            }
+            let epoch = state.decoded_source_epoch.fetch_add(1, Ordering::SeqCst) + 1;
+            current.image = image;
+            current.source_epoch = epoch;
+            epoch
+        };
+
+        for target in PreviewTarget::ALL {
+            clear_preview_slot(&state, target);
+        }
+        *state
+            .full_warped_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        crate::cache_utils::clear_preview_stage_caches(&state);
+        state
+            .mask_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+        state
+            .patch_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+        state
+            .geometry_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+
+        if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
+            return;
+        }
+
+        log::info!(
+            "Exact re-decode for '{}' finished in {:?} (source epoch {epoch})",
+            virtual_path,
+            started.elapsed()
+        );
+        let _ = app_handle.emit(
+            "decoded-source-ready",
+            serde_json::json!({ "path": virtual_path }),
+        );
+    });
 }
 
 #[cfg(test)]

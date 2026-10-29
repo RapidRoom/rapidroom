@@ -1,0 +1,14 @@
+{
+  "id": "csp-job-timeout",
+  "title": "Stop a stuck Production CSP check after 15 minutes instead of 6 hours",
+  "category": "ci",
+  "landed": "2026-10-28",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "The csp job had no timeout-minutes and fell back to GitHub's 6-hour default; one run hung for about 4 hours at the browser-tools install. A healthy run takes about a minute."
+}

@@ -34,7 +34,7 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
   const hasRenderedFirstFrame = useEditorStore((s) => s.hasRenderedFirstFrame);
 
   const setEditor = useEditorStore((s) => s.setEditor);
-  const resetHistory = useEditorStore((s) => s.resetHistory);
+  const restoreHistory = useEditorStore((s) => s.restoreHistory);
   const setLibrary = useLibraryStore((s) => s.setLibrary);
   const appSettings = useSettingsStore((s) => s.appSettings);
 
@@ -60,7 +60,7 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
           }
 
           setEditor({ adjustments: initialAdjusts });
-          resetHistory(initialAdjusts);
+          restoreHistory(initialAdjusts);
         } catch (err) {
           console.error('Failed to load metadata early:', err);
         }
@@ -140,7 +140,7 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
     selectedImage?.path,
     selectedImage?.isReady,
     appSettings?.editorPreviewResolution,
-    resetHistory,
+    restoreHistory,
     setEditor,
     setLibrary,
   ]);

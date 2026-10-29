@@ -791,11 +791,12 @@ fn decode_source(app_handle: &AppHandle, source_path: &Path) -> Result<Arc<Dynam
     let settings = crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default();
     if let Some(fingerprint) =
         crate::cache_utils::DecodeFingerprint::for_file(source_path, &settings)
-        && let Some((image, _, _)) = state
+        && let Some((image, _, _, exact)) = state
             .decoded_image_cache
             .lock()
             .unwrap()
             .get(&source_path_str, &fingerprint)
+        && exact
     {
         return Ok(image);
     }
