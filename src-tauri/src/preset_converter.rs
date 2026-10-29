@@ -1183,14 +1183,13 @@ pub fn lightroom_settings_not_transferred_with_mask_summary(
         items.push("unsupportedProcessVersion");
     }
 
-    // Lightroom Classic sidecars carry no as-shot values, so a custom white
-    // balance often can't be turned into RapidRAW's relative controls.
     let custom_white_balance = attrs
         .get("WhiteBalance")
         .is_some_and(|value| !value.is_empty() && !value.eq_ignore_ascii_case("As Shot"));
     if custom_white_balance
         && preset.adjustments.get("temperature").is_none()
         && preset.adjustments.get("tint").is_none()
+        && preset.adjustments.get("whiteBalance").is_none()
     {
         items.push("whiteBalance");
     }
@@ -1496,11 +1495,8 @@ fn convert_xmp_to_preset_with_crop(
         && !white_balance_is_as_shot
         && let Some(tint_val) = get_attr_as_f64(&attrs, "Tint")
     {
-        // Lightroom stores tint as an absolute, camera-profile-dependent value.
-        // Sidecars therefore need an as-shot baseline before that value can be
-        // translated into RapidRAW's relative tint control. Preset XMP files do
-        // not describe a particular source image, so retain their established
-        // direct conversion behavior.
+        // Prefer the established relative conversion when an as-shot baseline
+        // exists. Reusable presets retain their direct conversion behavior.
         let tint_delta = get_attr_as_f64(&attrs, "AsShotTint")
             .map(|as_shot_tint| tint_val - as_shot_tint)
             .or((!include_crop_transform).then_some(tint_val));
@@ -1508,6 +1504,21 @@ fn convert_xmp_to_preset_with_crop(
             let scaled_tint = tint_delta / TINT_PER_RELATIVE_UNIT;
             adjustments.insert("tint".to_string(), json!(scaled_tint.clamp(-100.0, 100.0)));
         }
+    }
+
+    if can_convert_white_balance
+        && !white_balance_is_as_shot
+        && include_crop_transform
+        && adjustments.get("temperature").is_none()
+        && adjustments.get("tint").is_none()
+        && let Some(adjusted_k) = get_attr_as_f64(&attrs, "Temperature")
+            .filter(|temperature| temperature.is_finite() && *temperature > 0.0)
+        && let Some(tint_val) = get_attr_as_f64(&attrs, "Tint").filter(|tint| tint.is_finite())
+    {
+        adjustments.insert(
+            "whiteBalance".to_string(),
+            json!({"temperature": adjusted_k, "tint": tint_val}),
+        );
     }
 
     let colors = [
@@ -3175,6 +3186,7 @@ mod tests {
 
         assert!((preset.adjustments["temperature"].as_f64().unwrap() - 18.6).abs() < 0.1);
         assert!((preset.adjustments["tint"].as_f64().unwrap() + 4.0).abs() < 0.01);
+        assert!(preset.adjustments.get("whiteBalance").is_none());
     }
 
     #[test]
@@ -3187,6 +3199,7 @@ mod tests {
 
         assert!(preset.adjustments.get("temperature").is_none());
         assert!(preset.adjustments.get("tint").is_none());
+        assert!(preset.adjustments.get("whiteBalance").is_none());
     }
 
     #[test]
@@ -3197,10 +3210,11 @@ mod tests {
         .unwrap();
 
         assert!(preset.adjustments.get("temperature").is_none());
+        assert!(preset.adjustments.get("whiteBalance").is_none());
     }
 
     #[test]
-    fn omits_absolute_sidecar_white_balance_without_as_shot_baseline() {
+    fn imports_absolute_sidecar_white_balance_without_as_shot_baseline() {
         let preset = convert_xmp_sidecar_to_preset(
             r#"<rdf:Description
                 crs:WhiteBalance="Custom"
@@ -3211,6 +3225,10 @@ mod tests {
 
         assert!(preset.adjustments.get("temperature").is_none());
         assert!(preset.adjustments.get("tint").is_none());
+        assert_eq!(
+            preset.adjustments["whiteBalance"],
+            json!({"temperature": 6190.0, "tint": 12.0})
+        );
     }
 
     #[test]
@@ -3229,6 +3247,7 @@ mod tests {
 
         assert!(preset.adjustments.get("temperature").is_none());
         assert!(preset.adjustments.get("tint").is_none());
+        assert!(preset.adjustments.get("whiteBalance").is_none());
         assert_eq!(preset.adjustments["exposure"], json!(0.0));
         assert_eq!(preset.adjustments["brightness"], json!(0.25));
         assert_eq!(preset.adjustments["toneMapper"], json!("basic"));
@@ -3519,7 +3538,6 @@ mod tests {
         assert_eq!(
             not_transferred(&xmp),
             vec![
-                "whiteBalance",
                 "profileLook",
                 "aiDenoise",
                 "masks",

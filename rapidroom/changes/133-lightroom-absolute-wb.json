@@ -1,0 +1,13 @@
+{
+  "id": "133-lightroom-absolute-wb",
+  "title": "Import absolute Lightroom white balance without an as-shot baseline",
+  "category": "fix",
+  "landed": "2026-10-29",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Custom RAW sidecars with both Temperature and Tint now use RapidRAW's absolute white balance when no relative conversion is possible. As Shot and rendered-source imports are unchanged; Lightroom colour parity remains uncalibrated."
+}
