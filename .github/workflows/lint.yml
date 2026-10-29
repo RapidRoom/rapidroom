@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Test upstream sync merge gates without GitHub writes
         run: bash rapidroom/upstream-sync/test-gate.sh
@@ -32,9 +34,10 @@ jobs:
         run: npm run format:check
         continue-on-error: true
 
-      - name: Run ESLint
-        run: npm run lint
-        continue-on-error: true
+      - name: Reject new ESLint errors
+        env:
+          LINT_BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
+        run: node rapidroom/check-lint-ratchet.mjs --base "$LINT_BASE"
 
       - name: Check Translation Sync
         run: npm run i18n:check
