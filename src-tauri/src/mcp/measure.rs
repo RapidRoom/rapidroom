@@ -232,7 +232,7 @@ fn contact_sheet(
     Ok(DynamicImage::ImageRgb8(sheet))
 }
 
-fn geometry(value: &Value) -> Value {
+pub(super) fn geometry(value: &Value) -> Value {
     let fields = [
         "crop",
         "orientationSteps",
@@ -390,14 +390,7 @@ fn stage_adjustments(arguments: &Value, current: &Value) -> Result<Value, String
     };
     match stage {
         "edited" => Ok(current.clone()),
-        "original" => {
-            let mut neutral = tools::original_adjustments_for(current)?;
-            for (key, value) in geometry(current).as_object().unwrap() {
-                neutral[key] = value.clone();
-            }
-            neutral["toneMapper"] = current["toneMapper"].clone();
-            Ok(neutral)
-        }
+        "original" => tools::aligned_original_adjustments_for(current),
         _ => Err("stage must be edited or original".into()),
     }
 }
