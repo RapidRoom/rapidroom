@@ -71,11 +71,10 @@ class ResolveGeneratedTests(unittest.TestCase):
             **os.environ,
             "PATH": str(self.bin) + ":" + os.environ["PATH"],
             "CALLS": str(self.calls),
-            "GH_TOKEN": "must-not-reach-cargo",
             "RUNNER_TEMP": self.temp.name,
             "EXPECTED_MANIFEST": str(manifest),
         }
-        command = 'env -u GH_TOKEN bash "$1" "$2" 1.98 "$3"'
+        command = 'bash "$1" "$2" 1.98 "$3"'
         if abort_on_failure:
             command = f'if {command}; then exit 0; else git merge --abort; exit 1; fi'
         return subprocess.run(

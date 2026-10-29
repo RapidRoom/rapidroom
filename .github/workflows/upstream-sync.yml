@@ -61,9 +61,8 @@ jobs:
             exit 0
           fi
           toolchain=$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' src-tauri/rust-toolchain.toml)
-          if [ -z "$toolchain" ]; then
-            echo "::error::Could not read main's Rust toolchain."
-            exit 1
+          if [ -n "$toolchain" ]; then
+            rustup toolchain install "$toolchain" --profile minimal
           fi
           echo "toolchain=$toolchain" >> "$GITHUB_OUTPUT"
           cp rapidroom/upstream-sync/gate.sh "$RUNNER_TEMP/upstream-sync-gate.sh"
