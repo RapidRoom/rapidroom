@@ -25,6 +25,12 @@ The workflow merges only clean syncs whose renders are unchanged. Everything els
 
 The routine's prompt is kept with the maintainer's project notes. Pause it at claude.ai/code/routines.
 
+## Locale catalogs
+
+Take `src/i18n/locales/<lang>.json` from the upstream merge parent byte-for-byte, including formatting. Do not resolve these files by combining RapidRoom strings into them. RapidRoom additions and overrides live in `src/i18n/locales/rapidroom/<lang>.json`, deep-merged over upstream by the small hook in `src/i18n/index.ts`; the overlay wins. Keep the overlay files and merge hook when syncing.
+
+New RapidRoom strings, branding changes and completed plural forms belong only in the overlay. `npm run i18n:extract` reads the complete merged catalogs in temporary files and writes only differences back to the overlay. After a sync, run `npm run i18n:check`, `npm run i18n:runtime-check`, and the locale-loading Vitest; if upstream adds or changes a key, retain any intentional RapidRoom override. The migration receipt and reproducible checker are in `rapidroom/validation/420-locale-overlay-migration.json` and `rapidroom/validation/check-locale-overlay.mjs`.
+
 ## Remaining base race
 
 Main deliberately keeps the [non-strict status policy](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches) to avoid forcing all parallel PRs to refresh and repeat long CI after every merge. GitHub binds the merge to the expected head, while our last base read and the merge are separate requests. A seconds-wide base race remains; the post-merge first-parent check detects it and escalates to human review plus full hosted checks on main. The workflow does not silently claim that combination was verified, roll it back, or re-bless a reference.

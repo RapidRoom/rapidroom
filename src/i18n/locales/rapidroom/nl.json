@@ -1,0 +1,302 @@
+{
+  "adjustments": {
+    "details": {
+      "aiDenoiseHint": "For high-ISO RAW photos, use AI Denoise from the photo menu. These sliders are for light touch-ups.",
+      "quickNoiseReduction": "Quick noise reduction (basic)"
+    }
+  },
+  "contextMenus": {
+    "xmpImportReport": {
+      "settings": {
+        "summary": "Lightroom settings: {{mapped}} mapped, {{approximated}} approximated, {{ignored}} ignored.",
+        "detail": "{{field}} — {{outcome}}: {{reason}}",
+        "omitted": "{{count}} additional settings omitted.",
+        "outcomes": {
+          "mapped": "mapped",
+          "approximated": "approximated",
+          "ignored": "ignored"
+        },
+        "reasons": {
+          "sharpenCompanion": "Lightroom sharpening radius/detail has no matching operator",
+          "noiseCompanion": "Lightroom noise detail/contrast/smoothness has no matching operator",
+          "calibration": "Camera calibration primaries and shadow tint are not supported",
+          "perspective": "Lightroom perspective/Upright transforms are not imported",
+          "defringe": "Lightroom defringe controls are not supported",
+          "manualLens": "Manual Adobe lens corrections are not imported",
+          "vignetteCompanion": "Lightroom vignette style/highlights has no matching operator",
+          "retouch": "Lightroom retouch/spot removal is not imported",
+          "parametricCurve": "Lightroom parametric curves are not imported",
+          "cameraProfile": "Adobe camera profiles are not available in the engine",
+          "aiEnhancement": "AI enhancement is not recreated; enhanced pixels may already contain it",
+          "pointColor": "Lightroom Point Color is not imported",
+          "invalidValue": "Invalid or non-finite setting value",
+          "whiteBalanceBaseline": "White balance was not converted; source baseline or supported mapping is missing",
+          "cropUnavailable": "Crop was not imported; geometry is unavailable or not included in presets",
+          "lensUnavailable": "Lens correction was not enabled or is not included in presets",
+          "notConverted": "No corresponding adjustment was produced by the converter",
+          "sharpnessScale": "Amount is scaled from 0-150 to 0-100; the sharpening operator differs",
+          "sharpenMasking": "Masking is approximated by the native sharpening threshold",
+          "hueScale": "Hue is scaled by 0.75; engine colour response differs",
+          "monochrome": "Monochrome is approximated with desaturation and HSL luminance",
+          "curveInterpolation": "Curve points are transferred; engine interpolation differs",
+          "lensfun": "Lensfun substitutes for the Adobe lens profile when a matching lens is available",
+          "nativeResponse": "Transferred to native controls; Lightroom rendering and units may differ",
+          "asShot": "The source requests as-shot white balance; no native override is imported",
+          "disabled": "The source disables this feature; no native adjustment is applied",
+          "cropGeometry": "Converted to native crop geometry",
+          "unsupported": "No supported mapping for this CRS setting",
+          "superseded": "The newer process-version setting takes precedence",
+          "inactive": "This setting is inactive in the source conversion mode",
+          "alreadyApplied": "The photo marks development settings AlreadyApplied; existing native edits are preserved"
+        }
+      },
+      "unchangedForImage": "Bestaande bewerkingen behouden; er zijn geen ondersteunde aanpassingen geïmporteerd.",
+      "brushTableGroup": "Penseelgroep ‘{{name}}’: {{reason}}",
+      "notTransferredItems": {
+        "maskBrushTable": "Penseeltabellen niet geïmporteerd"
+      }
+    }
+  },
+  "editor": {
+    "presets": {
+      "favorites": "Favorieten",
+      "tooltips": {
+        "favorite": "Toevoegen aan favorieten",
+        "unfavorite": "Verwijderen uit favorieten"
+      },
+      "appliedFolder": "Toegepast",
+      "bakedIn": "ingebakken",
+      "bakedInNotice": "Eerder toegepast en in de bewerking opgenomen. Verwijderen behoudt de bewerking."
+    },
+    "referenceView": {
+      "active": "Actief",
+      "cancel": "Annuleren",
+      "chooseHint": "Klik op een foto in de filmstrip om die als referentie te gebruiken.",
+      "clear": "Referentie wissen",
+      "close": "Referentieweergave sluiten",
+      "readOnly": "Alleen-lezen",
+      "reference": "Referentie",
+      "replace": "Andere referentie kiezen",
+      "unavailable": "Referentiebeeld niet beschikbaar"
+    },
+    "toolbar": {
+      "tooltips": {
+        "referenceView": "Referentieweergave (Shift+R)",
+        "showEdited": "Bewerkt weergeven (B)",
+        "showOriginal": "Origineel weergeven (B)"
+      }
+    },
+    "embeddedPreviewWarning": "RAW-ontwikkeling is mislukt; de ingesloten voorbeeldweergave wordt getoond.",
+    "viewer": {
+      "windowTitle": "RapidRoom-viewer"
+    }
+  },
+  "export": {
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
+    }
+  },
+  "library": {
+    "import": {
+      "complete": "Import voltooid!",
+      "failed": "Import mislukt!",
+      "progress": "Importeren... ({{current}}/{{total}})"
+    },
+    "splash": {
+      "brand": "RapidRoom"
+    },
+    "photoCounts": {
+      "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
+      "emptyFolder": "No photos directly in this folder.",
+      "descendants_one": "{{count}} photo in subfolders.",
+      "descendants_other": "{{count}} photos in subfolders.",
+      "descendantsPartial_one": "At least {{count}} photo in subfolders.",
+      "descendantsPartial_other": "At least {{count}} photos in subfolders.",
+      "checking": "Checking subfolders…",
+      "scanLimited": "This folder is large. Open subfolders to see all photos.",
+      "showSubfolders": "Show photos in subfolders",
+      "total_one": "{{count}} photo",
+      "total_other": "{{count}} photos",
+      "filtered_one": "{{count}} of {{total}} photos",
+      "filtered_other": "{{count}} of {{total}} photos",
+      "recursive": "(incl. subfolders)",
+      "albumCountsLabel": "Album image counts",
+      "albumCountsDesc": "Show image totals next to albums. Folder photo counts are always shown.",
+      "checkFailed": "Could not check subfolders. Refresh the folder to try again."
+    }
+  },
+  "modals": {
+    "copyPaste": {
+      "groups": {
+        "exposureToneMapper": "Belichting & toonmapping",
+        "tone": "Toon"
+      }
+    },
+    "denoise": {
+      "batchProgressText": "Ruis verwijderen {{current}} van {{total}}...",
+      "btnBatchDenoise": "Batch ruisonderdrukking & opslaan",
+      "btnRetry": "Opnieuw",
+      "btnSave": "Opslaan",
+      "btnStart": "Starten",
+      "cancel": "Annuleren",
+      "close": "Sluiten",
+      "denoised": "Ruis verwijderd",
+      "denoisingProgress": "Ruisonderdrukking bezig",
+      "description": "Verwijder ruis uit uw afbeelding met AI-gestuurde of traditionele ruisonderdrukking.",
+      "downloadingText": "Downloaden {{status}}...",
+      "fewerMethods": "Fewer methods",
+      "gpuWarningTooltip": "NIND Ruis verwijderen ondersteunt nog geen GPU-versnelling vanwege afhankelijkheidsbeperkingen.",
+      "initializing": "Initialiseren...",
+      "legacyAi": "NIND (legacy AI)",
+      "methodAi": "NIND (AI - Beste voor RAW)",
+      "methodBm3d": "BM3D (Traditioneel - Alle formaten)",
+      "methodLabel": "Methode",
+      "methodRaw9": "Apple RAW 9 (Neural Engine)",
+      "moreMethods": "More methods",
+      "openInEditor": "Openen in editor",
+      "original": "Origineel",
+      "panZoomEnabled": "Pannen & zoomen ingeschakeld",
+      "presetBest": "Best",
+      "presetFast": "Fast",
+      "processingFailed": "Verwerking mislukt",
+      "qualityTileSizeLabel": "Kwaliteit / Tegelgrootte",
+      "rawHint": "Denoise the original Bayer RAW. Save creates an editable DNG. Models download on first use.",
+      "rawSpeedTooltip": "Processing runs locally and may take several minutes. The saved DNG can be edited without running AI again.",
+      "reset": "Herstellen",
+      "saveSuccess": "Afbeelding succesvol opgeslagen!",
+      "sharpen": "Sharpen",
+      "speedNotice": "Dit kan enkele minuten duren afhankelijk van de afbeeldingsgrootte en geselecteerde methode.",
+      "strengthLabel": "Sterkte",
+      "titleBatch": "Ruis verwijderen uit foto's",
+      "titleSingle": "Ruis verwijderen uit foto"
+    },
+    "lensCorrection": {
+      "sourceApplied": "Toegepast: {{source}}",
+      "sourceAvailable": "Beschikbaar: {{source}}",
+      "sourceCameraData": "Cameragegevens",
+      "sourceExistingRecipe": "opgeslagen bewerking",
+      "sourceNoData": "Geen correctiegegevens",
+      "sourceUnavailable": "Correctiebronnen niet beschikbaar",
+      "sourceChecking": "Correctiebronnen controleren…"
+    }
+  },
+  "settings": {
+    "data": {
+      "clearAiDenoise": "AI-ruisonderdrukkingscache wissen",
+      "clearAiDenoiseButton": "Wissen",
+      "clearAiDenoiseDesc": "Verwijdert de opgeslagen AI-ruisonderdrukkingsresultaten ({{size}}). Afbeeldingen met AI-ruisonderdrukking ingeschakeld berekenen deze opnieuw wanneer ze de volgende keer worden geopend.",
+      "clearSidecars": "Alle sidecar-bestanden wissen",
+      "clearSidecarsButton": "Wissen",
+      "clearSidecarsDesc": "Dit verwijdert alle .rrdata-bestanden (met uw bewerkingen) in uw hoofdmappen:",
+      "clearThumbnail": "Miniatuurcache wissen",
+      "clearThumbnailButton": "Wissen",
+      "clearThumbnailDesc": "Dit verwijdert alle gecachte miniatuurafbeeldingen. Ze worden automatisch opnieuw gegenereerd terwijl u door uw bibliotheek bladert.",
+      "cacheUsage": "Miniaturen en voorbeelden: {{size}} · Bestanden: {{files}}",
+      "cacheUsageError": "Cachegebruik kon niet worden gelezen.",
+      "loading": "Laden...",
+      "logs": "Toepassingslogboeken bekijken",
+      "logsButton": "Openen",
+      "logsDesc": "Bekijk het logboekbestand van de toepassing voor probleemoplossing. Het logboek bevindt zich op:",
+      "modals": {
+        "confirmCacheTitle": "Cacheverwijdering bevestigen",
+        "confirmClearCache": "Cache wissen"
+      },
+      "resetLayoutButton": "Indeling herstellen",
+      "statuses": {
+        "clearingAi": "AI-tags wissen uit alle sidecar-bestanden...",
+        "clearingAiDenoise": "AI-ruisonderdrukkingscache wordt gewist...",
+        "clearingAll": "Alle tags wissen uit sidecar-bestanden...",
+        "clearingCache": "Miniatuurcache wissen...",
+        "deleting": "Sidecar-bestanden verwijderen, even geduld...",
+        "failedToGetPath": "Kon pad naar logboekbestand niet ophalen.",
+        "processing": "Verwerken...",
+        "resettingLayout": "Werkruimte herstellen..."
+      }
+    },
+    "general": {
+      "compactAdjustments": "Compacte schuifregelaars",
+      "compactAdjustmentsDesc": "Zet elke ontwikkelschuifregelaar op één regel, met label en waarde naast de balk, zodat er op een klein scherm meer regelaars passen.",
+      "enableCompactAdjustments": "Compacte schuifregelaars inschakelen",
+      "writeJpegMetadata": "Write ratings and labels into JPEG files",
+      "writeJpegMetadataDesc": "Embed ratings, color labels and reject flags in original JPEGs without re-encoding pixels. Off by default; other formats keep using sidecars."
+    },
+    "keybinds": {
+      "actions": {
+        "cycle_lights_out": "Lights Out doorlopen",
+        "cycle_lights_out_reverse": "Lights Out achteruit doorlopen",
+        "toggle_reference_view": "Referentieweergave aan/uit",
+        "toggle_denoise_mark": "Toggle denoise mark"
+      }
+    },
+    "processing": {
+      "preprocessing": {
+        "autoLensCorrection": "Automatische lenscorrectie voor nieuwe RAW’s",
+        "autoLensCorrectionDesc": "Past beschikbare lenscorrecties toe bij het eerste openen of herstellen van een RAW-foto. Opgeslagen bewerkingen behouden hun instellingen.",
+        "enableAutoLensCorrection": "Automatische lenscorrectie standaard gebruiken",
+        "baselineExposureDesc": "Past een vaste belichtingsverhoging toe op oudere bewerkingen die basisbelichting gebruiken. Nieuwe en geresette RAW-bewerkingen gebruiken in plaats daarvan belichtingscompensatie van de camera of DNG."
+      }
+    },
+    "tagging": {
+      "clearAiTagsButton": "Wissen",
+      "clearAiTagsDesc": "Dit verwijdert alle door AI gegenereerde tags uit uw .rrdata-bestanden in alle actieve hoofdmappen. Door gebruikers toegevoegde tags blijven behouden.",
+      "clearAiTagsTitle": "AI-tags wissen",
+      "clearAllTagsDesc": "Dit verwijdert alle door AI gegenereerde en door gebruikers toegevoegde tags uit uw .rrdata-bestanden in alle actieve hoofdmappen. Kleurlabels blijven behouden.",
+      "clearAllTagsTitle": "Alle tags wissen"
+    },
+    "thanks": {
+      "list": {
+        "u2net": "Voor het leveren van de robuuste architectuur die wordt gebruikt voor de AI-lucht- en voorgronddetectiemogelijkheden."
+      }
+    }
+  },
+  "denoiseQueue": {
+    "title": "Denoise marked photos…",
+    "marked": "Marked for denoise",
+    "done": "Denoised",
+    "mark": "Mark for denoise",
+    "unmark": "Remove denoise mark",
+    "toggle": "Toggle denoise mark",
+    "filter": "Denoise status",
+    "all": "All photos",
+    "chooseFolder": "Choose a library folder first.",
+    "method": "Method",
+    "methods": {
+      "best": "Best · sensor DNG",
+      "fast": "Fast · sensor DNG",
+      "nind": "NIND · TIFF / PNG",
+      "bm3d": "Basic · TIFF / PNG",
+      "raw9": "Apple RAW 9 · TIFF"
+    },
+    "sharpen": "Sharpen (optional)",
+    "strength": "Strength / quality",
+    "recursive": "Include subfolders",
+    "hint": "Runs one photo at a time in the background and skips valid results. Fast/Best retain RAW edits; other methods require unedited RAWs. Install AI models in the Denoise dialog first.",
+    "close": "Close",
+    "start": "Start queue",
+    "cancel": "Cancel",
+    "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
+    "cancelled": "Cancelled. Run the queue again to resume.",
+    "errors": "Errors"
+  },
+  "captureTime": {
+    "folderShift": "Folder display time shift…",
+    "description": "Shift displayed capture times for photos directly in this folder. Original files, capture-time sorting and auto-stack stay unchanged. Enter 0 to reset.",
+    "hours": "Hours to add",
+    "example": "Hawaii camera clock in Japan: +19 hours. Half and quarter hours are supported.",
+    "cameraZone": "Camera zone: {{zone}}",
+    "shifted": "{{shift}} display shift",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "jpegMetadata": {
+    "write": "Write metadata to files",
+    "undo": "Undo last metadata write",
+    "written_one": "Wrote JPEG metadata to {{count}} file.",
+    "written_other": "Wrote JPEG metadata to {{count}} files.",
+    "restored_one": "Restored metadata for {{count}} file.",
+    "restored_other": "Restored metadata for {{count}} files.",
+    "failed": "Metadata write failed: {{error}}"
+  }
+}
