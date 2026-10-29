@@ -1,0 +1,14 @@
+{
+  "id": "generated-conflict-resolution",
+  "title": "Resolve generated upstream-sync conflicts mechanically",
+  "category": "ci",
+  "landed": "2026-10-28",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "Resolves generated-only sync conflicts by rebuilding Cargo.lock from main and the merged Cargo.toml, plus the adjustment schema and plugin reference from their generators. Any other conflict still aborts and opens the usual agent issue; the unchanged exact-head gate applies to every mechanically resolved merge."
+}

@@ -85,8 +85,13 @@ jobs:
             echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           else
             git diff --name-only --diff-filter=U > "$RUNNER_TEMP/conflicts.txt"
-            git merge --abort
-            echo "result=conflict" >> "$GITHUB_OUTPUT"
+            if bash rapidroom/upstream-sync/resolve-generated.sh "$RUNNER_TEMP/conflicts.txt"; then
+              echo "result=merged" >> "$GITHUB_OUTPUT"
+              echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            else
+              git merge --abort
+              echo "result=conflict" >> "$GITHUB_OUTPUT"
+            fi
           fi
           git log --no-merges --format='- %h %s (%an)' origin/main..upstream/main > "$RUNNER_TEMP/commits.txt"
 
