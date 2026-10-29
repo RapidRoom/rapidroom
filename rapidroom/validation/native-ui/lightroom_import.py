@@ -66,10 +66,27 @@ def run_lightroom_import_checks(smoke, wait_for, baseline):
         adjustments = image_state(url, image, token=token)["adjustments"]
         assert sidecar.read_text() == xml, name + " import rewrote its source packet"
         if expect_unsupported:
-            assert smoke.execute(
-                "return [...document.querySelectorAll('[role=alert]')].some(e=>"
-                "e.innerText.includes('Lightroom develop settings with no RapidRoom control'));"
-            ), "CurveRefineSaturation was not reported as unsupported"
+            wait_for(
+                lambda: smoke.execute(
+                    "return [...document.querySelectorAll('[role=alert]')].some(e=>"
+                    "e.innerText.includes('Lightroom settings:'));"
+                ),
+                name + " per-setting import summary",
+            )
+            smoke.execute(
+                "[...document.querySelectorAll('[role=alert]')].find(e=>"
+                "e.innerText.includes('Lightroom settings:')).click();return true;"
+            )
+            wait_for(
+                lambda: smoke.execute(
+                    "return document.body.innerText.includes('CurveRefineSaturation — ignored:');"
+                ),
+                "CurveRefineSaturation reported as unsupported",
+            )
+            smoke.capture(name + "-unsupported-report")
+            smoke.execute(
+                "[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Cancel').click();return true;"
+            )
         smoke.execute("document.querySelectorAll('.Toastify__close-button').forEach(e=>e.click());return true;")
         imported_preview = smoke.stable_preview(name + "-imported")
         assert ImageChops.difference(smoke.crop(baseline), smoke.crop(imported_preview)).getbbox() is not None, (
