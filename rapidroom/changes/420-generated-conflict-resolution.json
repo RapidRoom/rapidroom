@@ -10,5 +10,5 @@
   "upstream_prs": [],
   "rendering_change": false,
   "rapidroom_only": true,
-  "notes": "Resolves generated-only sync conflicts by rebuilding Cargo.lock from main and the merged Cargo.toml, plus the adjustment schema and plugin reference from their generators. Any other conflict still aborts and opens the usual agent issue; the unchanged exact-head gate applies to every mechanically resolved merge."
+  "notes": "Resolves a lone Cargo.lock sync conflict from upstream's pins with cargo update -w under src-tauri's pinned toolchain. The pre-merge resolver runs without checkout credentials or GH_TOKEN. Other conflicts and resolver failures abort with diagnostics; the unchanged exact-head gate applies to every mechanically resolved merge."
 }

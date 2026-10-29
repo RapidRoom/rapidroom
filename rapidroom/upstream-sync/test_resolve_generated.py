@@ -6,10 +6,10 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 RESOLVER = ROOT / "rapidroom/upstream-sync/resolve-generated.sh"
-GENERATED = {
+FILES = {
     "src-tauri/Cargo.lock": "lock",
-    "rapidroom/adjustment-schema.json": "schema",
-    "rapidroom/plugin/skills/rapidroom/references/adjustments.md": "reference",
+    "src-tauri/Cargo.toml": "manifest",
+    "src/example.txt": "code",
 }
 
 
@@ -22,17 +22,17 @@ class ResolveGeneratedTests(unittest.TestCase):
         self.git("init", "-b", "main")
         self.git("config", "user.name", "Test")
         self.git("config", "user.email", "test@example.invalid")
-        for path, marker in {**GENERATED, "src-tauri/Cargo.toml": "manifest", "src/example.txt": "code"}.items():
+        for path, marker in FILES.items():
             self.write(path, f"base {marker}\n")
         self.git("add", ".")
         self.git("commit", "-m", "base")
         self.git("checkout", "-b", "upstream")
-        for path, marker in {**GENERATED, "src/example.txt": "code"}.items():
+        for path, marker in FILES.items():
             self.write(path, f"upstream {marker}\n")
         self.git("add", ".")
         self.git("commit", "-m", "upstream")
         self.git("checkout", "main")
-        for path, marker in {**GENERATED, "src/example.txt": "code"}.items():
+        for path, marker in FILES.items():
             self.write(path, f"main {marker}\n")
         self.git("add", ".")
         self.git("commit", "-m", "main")
@@ -50,29 +50,33 @@ class ResolveGeneratedTests(unittest.TestCase):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content)
 
-    def fake_command(self, name, body):
-        target = self.bin / name
-        target.write_text(f"#!/bin/sh\necho '{name} '\"$*\" >> \"$CALLS\"\n{body}\n")
+    def fake_cargo(self, body):
+        target = self.bin / "cargo"
+        target.write_text(f"#!/bin/sh\necho 'cargo '\"$*\" >> \"$CALLS\"\n{body}\n")
         target.chmod(0o755)
 
     def merge(self, mixed=False):
         if not mixed:
             self.write("src/example.txt", "upstream code\n")
-            self.git("add", "src/example.txt")
-            self.git("commit", "-m", "keep code out of conflict")
+            self.write("src-tauri/Cargo.toml", "upstream manifest\n")
+            self.git("add", "src/example.txt", "src-tauri/Cargo.toml")
+            self.git("commit", "-m", "keep code and manifest out of conflict")
         self.git("merge", "upstream", check=False)
 
-    def resolve(self):
+    def resolve(self, *, abort_on_failure=False):
         conflicts = Path(self.temp.name) / "conflicts.txt"
         conflicts.write_text(self.git("diff", "--name-only", "--diff-filter=U") + "\n")
         env = {
             **os.environ,
             "PATH": str(self.bin) + ":" + os.environ["PATH"],
             "CALLS": str(self.calls),
-            "FAKE_CARGO_OFFLINE_FAIL": "1",
+            "GH_TOKEN": "must-not-reach-cargo",
         }
+        command = 'env -u GH_TOKEN bash "$1" "$2"'
+        if abort_on_failure:
+            command = f'if {command}; then exit 0; else git merge --abort; exit 1; fi'
         return subprocess.run(
-            ["bash", str(RESOLVER), str(conflicts)],
+            ["bash", "-c", command, "test", str(RESOLVER), str(conflicts)],
             cwd=self.repo,
             env=env,
             capture_output=True,
@@ -80,17 +84,16 @@ class ResolveGeneratedTests(unittest.TestCase):
             timeout=20,
         )
 
-    def test_generated_only_conflict_is_resolved_and_committed(self):
+    def test_cargo_lock_only_conflict_is_resolved_and_committed(self):
         self.merge()
-        self.fake_command(
-            "cargo",
-            "if [ \"$FAKE_CARGO_OFFLINE_FAIL\" = 1 ] && [ \"$1\" = update ] && [ \"$5\" = --offline ]; then exit 1; fi\nprintf 'resolved lock\\n' > src-tauri/Cargo.lock",
-        )
-        self.fake_command("npm", "exit 0")
-        self.fake_command("node", "printf 'generated schema\\n' > rapidroom/adjustment-schema.json")
-        self.fake_command(
-            "npx",
-            "printf 'generated reference\\n' > rapidroom/plugin/skills/rapidroom/references/adjustments.md",
+        self.fake_cargo(
+            "if [ -n \"${GH_TOKEN:-}\" ]; then echo 'token visible' >&2; exit 90; fi\n"
+            "case \" $* \" in *\" update \"*) ;; *) exit 91 ;; esac\n"
+            "case \" $* \" in *\" -w \"*) ;; *) exit 92 ;; esac\n"
+            "case \" $* \" in *\" --offline \"*) exit 93 ;; esac\n"
+            "if [ \"${PWD##*/}\" != src-tauri ]; then exit 94; fi\n"
+            "if [ \"$(cat Cargo.lock)\" != 'upstream lock' ]; then exit 95; fi\n"
+            "printf 'resolved lock\\n' > Cargo.lock"
         )
 
         result = self.resolve()
@@ -99,17 +102,8 @@ class ResolveGeneratedTests(unittest.TestCase):
         self.assertEqual(self.git("diff", "--name-only", "--diff-filter=U"), "")
         self.assertEqual(len(self.git("rev-list", "--parents", "-n", "1", "HEAD").split()), 3)
         self.assertEqual((self.repo / "src-tauri/Cargo.lock").read_text(), "resolved lock\n")
-        self.assertEqual((self.repo / "rapidroom/adjustment-schema.json").read_text(), "generated schema\n")
-        self.assertEqual(
-            (self.repo / "rapidroom/plugin/skills/rapidroom/references/adjustments.md").read_text(),
-            "generated reference\n",
-        )
-        calls = self.calls.read_text()
-        self.assertIn("cargo update -w --manifest-path src-tauri/Cargo.toml --offline", calls)
-        self.assertIn("cargo update -w --manifest-path src-tauri/Cargo.toml\n", calls)
-        self.assertIn("npm ci", calls)
-        self.assertIn("node rapidroom/generate-adjustment-schema.mjs", calls)
-        self.assertIn("npx vitest run src/utils/adjustmentReference.test.ts -u", calls)
+        self.assertNotIn("# Conflicts:", self.git("log", "-1", "--format=%B"))
+        self.assertEqual(self.calls.read_text(), "cargo update -w\n")
 
     def test_mixed_conflict_falls_back_without_modifying_merge(self):
         self.merge(mixed=True)
@@ -119,12 +113,30 @@ class ResolveGeneratedTests(unittest.TestCase):
         result = self.resolve()
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Non-generated conflict remains: src/example.txt", result.stdout)
+        self.assertIn("limited to a lone src-tauri/Cargo.lock conflict", result.stdout)
         self.assertEqual(self.git("status", "--porcelain"), before_status)
         self.assertEqual(self.git("rev-parse", "HEAD"), before_head)
         self.assertTrue((self.repo / ".git/MERGE_HEAD").exists())
         self.assertIn("src/example.txt", self.git("diff", "--name-only", "--diff-filter=U"))
         self.assertFalse(self.calls.exists())
+
+    def test_cargo_failure_is_aborted_cleanly_by_the_workflow_path(self):
+        self.merge()
+        before_head = self.git("rev-parse", "HEAD")
+        self.fake_cargo(
+            "printf 'partial lock\\n' > Cargo.lock\n"
+            "echo 'simulated cargo failure' >&2\n"
+            "exit 42"
+        )
+
+        result = self.resolve(abort_on_failure=True)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((self.repo / ".git/MERGE_HEAD").exists())
+        self.assertEqual(self.git("rev-parse", "HEAD"), before_head)
+        self.assertEqual(self.git("status", "--porcelain"), "")
+        self.assertEqual((self.repo / "src-tauri/Cargo.lock").read_text(), "main lock\n")
+        self.assertIn("simulated cargo failure", result.stderr)
 
 
 if __name__ == "__main__":

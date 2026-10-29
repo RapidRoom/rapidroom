@@ -40,6 +40,7 @@ jobs:
           ref: main
           fetch-depth: 0
           token: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
+          persist-credentials: false
 
       - name: Preserve human review and wait for the initial integration
         id: ready
@@ -57,6 +58,7 @@ jobs:
             exit 0
           fi
           cp rapidroom/upstream-sync/gate.sh "$RUNNER_TEMP/upstream-sync-gate.sh"
+          cp rapidroom/upstream-sync/resolve-generated.sh "$RUNNER_TEMP/upstream-sync-resolve-generated.sh"
           echo "run=true" >> "$GITHUB_OUTPUT"
 
       - name: Merge upstream into a fresh branch
@@ -85,11 +87,18 @@ jobs:
             echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           else
             git diff --name-only --diff-filter=U > "$RUNNER_TEMP/conflicts.txt"
-            if bash rapidroom/upstream-sync/resolve-generated.sh "$RUNNER_TEMP/conflicts.txt"; then
+            if env -u GH_TOKEN bash "$RUNNER_TEMP/upstream-sync-resolve-generated.sh" "$RUNNER_TEMP/conflicts.txt" > "$RUNNER_TEMP/generated-resolution.log" 2>&1; then
               echo "result=merged" >> "$GITHUB_OUTPUT"
+              echo "resolved=lock" >> "$GITHUB_OUTPUT"
               echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
             else
               git merge --abort
+              {
+                echo "Mechanical Cargo.lock resolution failed; the merge was aborted."
+                echo '```text'
+                tail -n 80 "$RUNNER_TEMP/generated-resolution.log"
+                echo '```'
+              } >> "$GITHUB_STEP_SUMMARY"
               echo "result=conflict" >> "$GITHUB_OUTPUT"
             fi
           fi
@@ -107,6 +116,13 @@ jobs:
             echo "**Conflicting files**"
             sed 's/^/- `/; s/$/`/' "$RUNNER_TEMP/conflicts.txt"
             echo
+            if [ -s "$RUNNER_TEMP/generated-resolution.log" ]; then
+              echo "**Mechanical Cargo.lock resolution failed**"
+              echo '```text'
+              tail -n 80 "$RUNNER_TEMP/generated-resolution.log"
+              echo '```'
+              echo
+            fi
             echo "<details><summary>Upstream commits not in main</summary>"
             echo
             sed 's/#\([0-9]\)/#\&#8203;\1/g; s/@/@\&#8203;/g' "$RUNNER_TEMP/commits.txt"
@@ -129,6 +145,10 @@ jobs:
           {
             echo "Daily upstream sync: merges upstream RapidRAW \`${{ steps.merge.outputs.upstream }}\` (${{ steps.merge.outputs.behind }} commits) into main. May merge only after every required exact-head/base check passes and renders match the committed reference. Render changes stay open for human approval; no reference is re-blessed."
             echo
+            if [ "${{ steps.merge.outputs.resolved }}" = lock ]; then
+              echo "Mechanically resolved: Cargo.lock (upstream's lock, re-resolved)"
+              echo
+            fi
             echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             echo
             echo "**Upstream commits**"
