@@ -106,7 +106,7 @@ merge_reviewed() {
   [[ "$(gh api "repos/$GH_REPO/pulls/$PR" --jq '[.labels[].name] | any(. == "needs-human" or . == "rendering-change")')" == false ]] || skip "it became held"
   [[ "$draft" == false ]] || gh pr ready "$PR"
   gh pr merge "$PR" --merge --match-head-commit "$HEAD"
-  verify_first_parent || exit 1
+  verify_first_parent || exit 3  # merged, but the base raced: the issue opened above is the follow-up
   gh api -X DELETE "repos/$GH_REPO/git/refs/heads/$ref" >/dev/null || echo "::warning::Could not delete $ref."
   gh pr comment "$PR" --body "Merged by the upstream-sync merge workflow: \`Sync review: FINAL ACCEPT\` at \`${reviewed:0:8}\` covers head \`${HEAD:0:8}\`, every required check passed there, and the merge's first parent is the verified main \`${MAIN:0:8}\`. Run: https://github.com/$GH_REPO/actions/runs/${GITHUB_RUN_ID:-}"
   echo "PR #$PR merged at ${HEAD:0:8}." | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"

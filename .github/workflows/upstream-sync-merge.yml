@@ -56,9 +56,13 @@ jobs:
       - name: Merge reviewed sync PRs
         run: |
           set -uo pipefail
-          prs=$(gh pr list --state open --json number,headRefName --jq '.[] | select(.headRefName | startswith("sync/upstream-")) | .number')
+          prs=$(gh pr list --state open --json number,headRefName --jq '.[] | select(.headRefName | startswith("sync/upstream-")) | .number') || exit 1
           for pr in $prs; do
-            if ! bash rapidroom/upstream-sync/merge-reviewed.sh "$pr"; then
+            rc=0
+            bash rapidroom/upstream-sync/merge-reviewed.sh "$pr" || rc=$?
+            if [ "$rc" = 3 ]; then
+              echo "::error::PR #$pr merged, but main moved during the merge; a needs-human issue was opened."
+            elif [ "$rc" != 0 ]; then
               echo "::error::merge-reviewed.sh failed for PR #$pr"
               gh pr edit "$pr" --add-label needs-human || true
               gh pr comment "$pr" --body "Upstream sync merge workflow: an unexpected error stopped the merge check, so this PR is held (\`needs-human\`) until someone looks. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || true
