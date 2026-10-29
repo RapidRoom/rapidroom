@@ -82,6 +82,15 @@ class ReviewCoversTests(unittest.TestCase):
         self.commit(f"Re-record\n\n{STANDING}", {"rapidroom/regression/ci-reference.json": "{}\n{}\n", "src/sync.ts": "x\n"})
         self.assertFalse(self.covers())
 
+    def test_deleted_reference_fails_the_checks(self):
+        self.git("rm", "-q", "rapidroom/regression/ci-reference.json")
+        self.git("commit", "-m", f"Drop the reference\n\n{STANDING}")
+        head, main = self.git("rev-parse", "HEAD"), self.git("rev-parse", "main")
+        result = subprocess.run(["bash", "-c", f'source "{SCRIPT}"; RUNNER_TEMP=$(mktemp -d); checks_pass "$@"', "_", head, main],
+                                cwd=self.repo, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("no ci-reference.json", result.stdout)
+
     def test_review_not_in_head(self):
         self.git("checkout", "-b", "elsewhere", "main")
         other = self.commit("unrelated", {"src/x.ts": "x\n"})

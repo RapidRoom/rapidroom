@@ -8,15 +8,12 @@ on:
   issue_comment:
     types: [created]
   workflow_run:
-    workflows: [CI Build, Production CSP, Lint, Frontend Tests, Regression check, RapidRoom change list]
+    workflows:
+      [CI Build, Production CSP, Lint, Frontend Tests, Regression check, RapidRoom change list, MCP stdio client]
     types: [completed]
   schedule:
     - cron: '37 * * * *'
   workflow_dispatch:
-    inputs:
-      pr:
-        description: Sync PR number (empty checks every open sync/upstream-* PR)
-        required: false
 
 concurrency:
   group: upstream-sync-merge
@@ -54,19 +51,16 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
 
+      # Every run checks every open sync PR, so a queued run that concurrency replaces loses nothing.
+      # A hard error holds that PR once (needs-human + comment) instead of failing again every hour.
       - name: Merge reviewed sync PRs
-        env:
-          EVENT_PR: ${{ github.event.issue.number || github.event.workflow_run.pull_requests[0].number || inputs.pr }}
-          RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
-          set -euo pipefail
-          if [ -n "$EVENT_PR" ]; then
-            prs=$EVENT_PR
-          elif [ -n "$RUN_BRANCH" ]; then
-            prs=$(gh pr list --head "$RUN_BRANCH" --state open --json number --jq '.[].number')
-          else
-            prs=$(gh pr list --state open --json number,headRefName --jq '.[] | select(.headRefName | startswith("sync/upstream-")) | .number')
-          fi
+          set -uo pipefail
+          prs=$(gh pr list --state open --json number,headRefName --jq '.[] | select(.headRefName | startswith("sync/upstream-")) | .number')
           for pr in $prs; do
-            bash rapidroom/upstream-sync/merge-reviewed.sh "$pr"
+            if ! bash rapidroom/upstream-sync/merge-reviewed.sh "$pr"; then
+              echo "::error::merge-reviewed.sh failed for PR #$pr"
+              gh pr edit "$pr" --add-label needs-human || true
+              gh pr comment "$pr" --body "Upstream sync merge workflow: an unexpected error stopped the merge check, so this PR is held (\`needs-human\`) until someone looks. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || true
+            fi
           done

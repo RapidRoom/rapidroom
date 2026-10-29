@@ -4,8 +4,10 @@
 # cannot call the merge API itself; see rapidroom/UPSTREAM-SYNC.md ("Sync agent").
 set -euo pipefail
 
+# The daily gate's filter, job and render checks are reused so both merge paths apply the same rules.
+source "$(dirname "${BASH_SOURCE[0]}")/gate.sh"
+
 REVIEWER=${SYNC_REVIEWER:-yojen7}
-REQUIRED_CHECKS=("csp" "Frontend Lint & Format" "cargo fmt" "cargo clippy" "Headless CLI exit codes" "Vitest" "regression" "check")
 STANDING='Covered by the standing maintainer approval for upstream render changes (2026-10-23).'
 
 skip() {
@@ -20,6 +22,7 @@ review_covers() {
   git merge-base --is-ancestor "$reviewed" "$head" || return 1
   for c in $(git rev-list "$reviewed..$head" --not "$main"); do
     read -r _ p1 p2 extra <<<"$(git rev-list --parents -n1 "$c")"
+    [[ -n "${p1:-}" ]] || return 1
     if [[ -n "${p2:-}" ]]; then
       [[ -z "${extra:-}" ]] || return 1
       git merge-base --is-ancestor "$p2" "$main" || return 1
@@ -36,24 +39,30 @@ review_covers() {
   done
 }
 
-# Prints why the head's checks don't allow a merge; returns 0 when they do.
+# Prints why the head's checks don't allow a merge; returns 0 when they do. Like gate.sh, each
+# required workflow needs its latest pull_request run for this PR, head and base, every required
+# job must succeed, and regression must pass its determinism and reference-comparison steps.
 checks_pass() {
-  gh api --paginate "repos/$GH_REPO/commits/$1/check-runs?per_page=100" \
-    --jq '.check_runs[] | [.name, .status, (.conclusion // "")] | @tsv' >"$RUNNER_TEMP/sync-checks.tsv"
-  python3 - "$RUNNER_TEMP/sync-checks.tsv" "${REQUIRED_CHECKS[@]}" <<'PY'
-import sys
-rows = [line.rstrip("\n").split("\t") for line in open(sys.argv[1]) if line.strip()]
-names = {row[0] for row in rows}
-missing = [name for name in sys.argv[2:] if name not in names]
-if not any(name.startswith("build") and name.endswith(" / build") for name in names):
-    missing.append("build (...) / build")
-bad = [f"{name} {status}/{conclusion or '-'}" for name, status, conclusion in rows
-       if status != "completed" or (conclusion != "success" and not (name == "refresh" and conclusion == "skipped"))]
-reasons = (["missing " + ", ".join(missing)] if missing else []) + (["not passing " + ", ".join(bad)] if bad else [])
-if reasons:
-    print("; ".join(reasons))
-    sys.exit(1)
-PY
+  local head=$1 base=$2 runs workflow row id status conclusion jobs
+  local -a required=(pr-ci.yml csp.yml lint.yml frontend-test.yml)
+  for workflow in regression.yml mcp-client.yml rapidroom-status.yml; do
+    filter_excludes_diff "$workflow" "$base" "$head" || required+=("$workflow")
+  done
+  git cat-file -e "$head:rapidroom/regression/ci-reference.json" || { echo "the head has no ci-reference.json"; return 1; }
+  runs=$(gh api "repos/$GH_REPO/actions/runs?head_sha=$head&event=pull_request&per_page=100")
+  for workflow in "${required[@]}"; do
+    row=$(jq -r --arg path ".github/workflows/$workflow" --arg sha "$head" --arg base "$base" --argjson pr "$PR" '[.workflow_runs[] | select(.path == $path and .head_sha == $sha and any(.pull_requests[]; .number == $pr and .head.sha == $sha and .base.sha == $base))] | sort_by(.id) | last | if . == null then "none none none" else "\(.id) \(.status) \(.conclusion // "none")" end' <<<"$runs")
+    read -r id status conclusion <<<"$row"
+    [[ "$id" != none ]] || { echo "$workflow has no pull_request run for this head and base"; return 1; }
+    [[ "$status" == completed ]] || { echo "$workflow is $status"; return 1; }
+    jobs="$RUNNER_TEMP/sync-merge-$id-jobs.json"
+    gh api --paginate "repos/$GH_REPO/actions/runs/$id/jobs?per_page=100" --slurp | jq '{jobs: [.[].jobs[]]}' >"$jobs"
+    if [[ "$workflow" == regression.yml ]] && render_changed "$jobs"; then
+      echo "renders differ from the reference (the sync agent handles render changes)"
+      return 1
+    fi
+    [[ "$conclusion" == success ]] && jobs_pass "$workflow" "$jobs" || { echo "$workflow did not pass every required job/step ($conclusion)"; return 1; }
+  done
 }
 
 verify_first_parent() {
@@ -64,7 +73,7 @@ verify_first_parent() {
   gh issue create --title "Upstream sync base changed during merge (${commit:0:8})" --label upstream-sync --label needs-human \
     --assignee "$REVIEWER" --body "PR #$PR merged as \`$commit\`, but its first parent \`$parent\` differs from the verified base \`$MAIN\`. Checked head: \`$HEAD\`. The full hosted check set is being dispatched on main. Run: https://github.com/$GH_REPO/actions/runs/${GITHUB_RUN_ID:-}" || true
   local workflow
-  for workflow in pr-ci.yml csp.yml lint.yml frontend-test.yml regression.yml rapidroom-status.yml; do
+  for workflow in ci.yml csp.yml lint.yml frontend-test.yml regression.yml mcp-client.yml rapidroom-status.yml; do
     gh workflow run "$workflow" --ref main || echo "::error::Could not dispatch $workflow; human follow-up required."
   done
   return 1
@@ -72,28 +81,29 @@ verify_first_parent() {
 
 merge_reviewed() {
   PR=$1
-  local state ref repo draft labels reviewed why
-  read -r state ref repo draft HEAD labels <<<"$(gh api "repos/$GH_REPO/pulls/$PR" \
-    --jq '"\(.state) \(.head.ref) \(.head.repo.full_name) \(.draft) \(.head.sha) ,\([.labels[].name] | join(",")),"')"
+  local state ref repo target draft labels reviewed why
+  read -r state ref repo target draft HEAD labels <<<"$(gh api "repos/$GH_REPO/pulls/$PR" \
+    --jq '"\(.state) \(.head.ref) \(.head.repo.full_name) \(.base.ref) \(.draft) \(.head.sha) ,\([.labels[].name] | join(",")),"')"
   [[ "$state" == open ]] || skip "it is $state"
   [[ "$ref" == sync/upstream-* ]] || skip "branch $ref is not an agent-resolved sync branch"
   [[ "$repo" == "$GH_REPO" ]] || skip "the head is in $repo"
-  [[ "$labels" != *,needs-human,* ]] || skip "it is labelled needs-human"
+  [[ "$target" == main ]] || skip "it targets $target, not main"
+  [[ "$labels" != *,needs-human,* && "$labels" != *,rendering-change,* ]] || skip "it is held (needs-human or rendering-change)"
   reviewed=$(gh api --paginate --slurp "repos/$GH_REPO/issues/$PR/comments?per_page=100" | jq -r --arg r "$REVIEWER" \
-    '[.[][] | select(.user.login == $r and (.body | test("^Sync review: FINAL ACCEPT at [0-9a-f]{40}")))] | last // empty
-     | .body | capture("^Sync review: FINAL ACCEPT at (?<sha>[0-9a-f]{40})").sha')
-  [[ -n "$reviewed" ]] || skip "no 'Sync review: FINAL ACCEPT' comment from $REVIEWER"
+    '[.[][] | select(.user.login == $r and (.body | startswith("Sync review:")))] | last // empty
+     | .body | capture("^Sync review: FINAL ACCEPT at (?<sha>[0-9a-f]{40})")?.sha // empty')
+  [[ -n "$reviewed" ]] || skip "the latest 'Sync review:' comment from $REVIEWER is not a FINAL ACCEPT"
 
   git fetch --no-tags -q origin main "+refs/heads/$ref:refs/remotes/origin/$ref"
   MAIN=$(git rev-parse origin/main)
   [[ "$(git rev-parse "origin/$ref")" == "$HEAD" ]] || skip "the branch moved while it was being read"
   git merge-base --is-ancestor "$MAIN" "$HEAD" || skip "main ${MAIN:0:8} is not in head ${HEAD:0:8} yet (the sync agent merges it in)"
   review_covers "$reviewed" "$HEAD" "$MAIN" || skip "the review at ${reviewed:0:8} does not cover head ${HEAD:0:8}"
-  why=$(checks_pass "$HEAD") || skip "checks at ${HEAD:0:8}: $why"
+  why=$(checks_pass "$HEAD" "$MAIN") || skip "checks at ${HEAD:0:8}: $why"
 
   [[ "$(gh api "repos/$GH_REPO/pulls/$PR" --jq .head.sha)" == "$HEAD" ]] || skip "the head changed"
   [[ "$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq .object.sha)" == "$MAIN" ]] || skip "main moved"
-  [[ "$(gh api "repos/$GH_REPO/pulls/$PR" --jq '[.labels[].name] | any(. == "needs-human")')" == false ]] || skip "it is labelled needs-human"
+  [[ "$(gh api "repos/$GH_REPO/pulls/$PR" --jq '[.labels[].name] | any(. == "needs-human" or . == "rendering-change")')" == false ]] || skip "it became held"
   [[ "$draft" == false ]] || gh pr ready "$PR"
   gh pr merge "$PR" --merge --match-head-commit "$HEAD"
   verify_first_parent || exit 1
