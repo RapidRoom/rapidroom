@@ -19,7 +19,7 @@ export function captureAdjustments(
 
   if (defaults && CURVE_ADJUSTMENT_KEYS.some((key) => owns(patch, key))) {
     for (const key of CURVE_ADJUSTMENT_KEYS) {
-      if (owns(source, key)) patch[key] = structuredClone(source[key]);
+      if (keys.includes(key) && owns(source, key)) patch[key] = structuredClone(source[key]);
     }
   }
 

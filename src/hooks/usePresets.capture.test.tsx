@@ -73,6 +73,7 @@ beforeEach(() => {
   });
   mockCommand(Invokes.LoadMetadata, () => ({ adjustments: useEditorStore.getState().adjustments }));
   vi.spyOn(toast, 'error').mockImplementation(() => 'error');
+  vi.spyOn(toast, 'info').mockImplementation(() => 'info');
 });
 
 afterEach(async () => {
@@ -239,7 +240,7 @@ it('a curve preset captures RGB-only changes with the complete curve state', asy
   });
 });
 
-it('refuses to save an empty curve capture', async () => {
+it('refuses to save an empty curve capture and explains why', async () => {
   useEditorStore.setState({
     selectedImage: image('/linear.ARW'),
     adjustments: { ...INITIAL_ADJUSTMENTS },
@@ -251,6 +252,24 @@ it('refuses to save an empty curve capture', async () => {
   });
   expect(preset).toBeNull();
   expect(presets.presets).toHaveLength(0);
+  expect(toast.info).toHaveBeenCalledOnce();
+});
+
+it('refuses to overwrite a curve preset with an empty capture', async () => {
+  await resetAndCurve();
+  let preset!: Preset | null;
+  await act(async () => {
+    preset = await presets.addCurvePreset('Keep this look');
+  });
+  const original = preset!.adjustments;
+  await act(async () => actions.setAdjustments(() => ({ ...INITIAL_ADJUSTMENTS })));
+  let overwritten: Preset | null = null;
+  await act(async () => {
+    overwritten = await presets.overwritePreset(preset!.id);
+  });
+  expect(overwritten).toBeNull();
+  expect(usePresetCatalog.getState().presets[0].preset?.adjustments).toEqual(original);
+  expect(toast.info).toHaveBeenCalledOnce();
 });
 
 it('Merge uses the copied source defaults after navigation/settings changes and preserves a differently configured target', async () => {
@@ -292,12 +311,7 @@ it('Merge uses the copied source defaults after navigation/settings changes and 
     });
     actions.handlePasteAdjustments(['/target.ARW']);
   });
-  expect(applied.at(-1)?.adjustments).toEqual({
-    curves: curve(145),
-    pointCurves: INITIAL_ADJUSTMENTS.pointCurves,
-    parametricCurve: INITIAL_ADJUSTMENTS.parametricCurve,
-    curveMode: 'point',
-  });
+  expect(applied.at(-1)?.adjustments).toEqual({ curves: curve(145) });
   expect(useEditorStore.getState().adjustments).toMatchObject({
     baselineExposure: false,
     cameraExposureCompensation: false,

@@ -11,6 +11,7 @@
     "curves": {
       "presets": {
         "delete": "Delete curve preset",
+        "empty": "Curve is at defaults",
         "namePlaceholder": "Curve preset name",
         "rename": "Rename curve preset",
         "renameTitle": "Rename Curve Preset",

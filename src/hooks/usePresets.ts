@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import {
   usePresetCatalog,
@@ -57,6 +58,7 @@ function arrayMove<T>(array: T[], from: number, to: number): T[] {
 }
 
 export function usePresets(currentAdjustments: Adjustments) {
+  const { t } = useTranslation();
   const { presets, isLoading } = usePresetCatalog();
   const presetsRef = useRef(presets);
   presetsRef.current = presets;
@@ -165,7 +167,11 @@ export function usePresets(currentAdjustments: Adjustments) {
 
   const addCurvePreset = async (name: string) => {
     const capture = await captureCurrent(false, false, true, CURVE_ADJUSTMENT_KEYS);
-    if (!capture?.isCurrent() || Object.keys(capture.adjustments).length === 0) return null;
+    if (!capture?.isCurrent()) return null;
+    if (Object.keys(capture.adjustments).length === 0) {
+      toast.info(t('adjustments.curves.presets.empty'));
+      return null;
+    }
     const newPresetData: Preset = {
       adjustments: capture.adjustments,
       id: crypto.randomUUID(),
@@ -412,6 +418,10 @@ export function usePresets(currentAdjustments: Adjustments) {
       existingPreset.curvePreset ? CURVE_ADJUSTMENT_KEYS : COPYABLE_ADJUSTMENT_KEYS,
     );
     if (!capture?.isCurrent()) return null;
+    if (existingPreset.curvePreset && Object.keys(capture.adjustments).length === 0) {
+      toast.info(t('adjustments.curves.presets.empty'));
+      return null;
+    }
     const presetAdjustments = capture.adjustments;
 
     if (presetAdjustments.exposure !== undefined) {
