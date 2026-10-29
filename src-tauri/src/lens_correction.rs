@@ -4,8 +4,12 @@ use fuzzy_matcher::FuzzyMatcher;
 use include_dir::{Dir, include_dir};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+#[cfg(not(target_os = "android"))]
 use std::fs;
-use tauri::{Manager, State};
+#[cfg(not(target_os = "android"))]
+use tauri::Manager;
+use tauri::State;
+#[cfg(not(target_os = "android"))]
 use walkdir::WalkDir;
 #[cfg(target_os = "android")]
 static LENS_DB_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/lensfun_db");
@@ -883,6 +887,7 @@ pub fn load_lensfun_db(app_handle: &tauri::AppHandle) -> LensDatabase {
 
     #[cfg(target_os = "android")]
     {
+        let _ = app_handle;
         log::info!("Loading Lensfun DB from embedded assets (Android path)");
 
         for file in LENS_DB_DIR.files() {
@@ -1910,8 +1915,11 @@ mod tests {
     }
 
     #[test]
-    fn sigma_profile_matches_sony_exif_and_reports_unsupported_tca() {
-        let db = load_bundled_db();
+    fn sigma_profile_matches_sony_exif_and_reports_tca_not_included() {
+        let db = LensDatabase {
+            cameras: load_bundled_db().cameras,
+            lenses: vec![sigma_profile()],
+        };
         let matched = find_best_lens_match(
             &db,
             "SONY",
@@ -1920,7 +1928,7 @@ mod tests {
         )
         .expect("exact Sony lens name is supported");
         assert_eq!(matched.0, "Sigma");
-        assert!(matched.1.contains("TCA unsupported"));
+        assert!(matched.1.contains("TCA not included"));
         let lens = find_lens(&db, &matched.0, &matched.1).unwrap();
         assert!(lens.mount.iter().any(|m| m == "Sony E"));
         assert!(!lens.has_tca_data());
@@ -2113,7 +2121,7 @@ mod tests {
                 image.to_rgb8().save(out.join(&file)).unwrap();
                 reports.push(serde_json::json!({"file":file,"focal":focal,"aperture":aperture,
                     "synthetic":true,"purpose":"existing geometry renderer on explicit synthetic input; not real-lens correction acceptance",
-                    "adjustments":adjustments,"tca":"unsupported; neutral channel scales"}));
+                    "adjustments":adjustments,"tca":"not included; neutral channel scales"}));
             }
         }
         std::fs::write(

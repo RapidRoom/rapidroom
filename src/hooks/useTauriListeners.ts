@@ -43,11 +43,6 @@ interface TauriEventPayloads {
     noResults: string[];
   };
   'ai-model-download-start': string;
-  'analytics-update': {
-    histogram: HistogramData | null;
-    path: string;
-    waveform: WaveformData | null;
-  };
   'batch-export-progress': Progress & { path?: string };
   'culling-complete': CullingSuggestions;
   'culling-error': string;
@@ -99,6 +94,7 @@ interface TauriEventPayloads {
   };
   'thumbnail-generation-complete': boolean;
   'thumbnail-progress': Progress;
+  'viewer-closed': null;
   'wgpu-frame-ready': { path: string };
 }
 
@@ -568,6 +564,11 @@ export function useTauriListeners({
           },
         }));
       }),
+      listen('viewer-closed', () => {
+        if (isEffectActive) {
+          useUIStore.getState().setUI({ isViewerOpen: false });
+        }
+      }),
       listen('wgpu-frame-ready', (event: any) => {
         const editorState = useEditorStore.getState();
         if (
@@ -737,7 +738,7 @@ export function useTauriListeners({
       if (!isEffectActive || sequence < latestAppliedAnalytics) return;
       if (path !== useEditorStore.getState().selectedImage?.path) return;
       latestAppliedAnalytics = sequence;
-      const update: { histogram?: any; waveform?: WaveformData } = {};
+      const update: { histogram?: HistogramData; waveform?: WaveformData } = {};
       if (histogram) update.histogram = histogram;
       if (waveform) update.waveform = waveform;
       useEditorStore.getState().setEditor(update);

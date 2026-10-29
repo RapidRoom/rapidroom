@@ -50,7 +50,6 @@ export enum Invokes {
   ClearAllSidecars = 'clear_all_sidecars',
   ClearAiTags = 'clear_ai_tags',
   ClearAllTags = 'clear_all_tags',
-  GetThumbnailCacheUsage = 'get_thumbnail_cache_usage',
   ClearAiDenoiseCache = 'clear_ai_denoise_cache',
   ClearThumbnailCache = 'clear_thumbnail_cache',
   CopyFiles = 'copy_files',
@@ -142,6 +141,8 @@ export enum Invokes {
   SetCardBrowseRoot = 'set_card_browse_root',
   SetColorLabelForPaths = 'set_color_label_for_paths',
   SetRatingForPaths = 'set_rating_for_paths',
+  WriteJpegMetadataForPaths = 'write_jpeg_metadata_for_paths',
+  UndoJpegMetadataWrite = 'undo_jpeg_metadata_write',
   SetFlagForPaths = 'set_flag_for_paths',
   EditPhotoStack = 'edit_photo_stack',
   PreviewPhotoStacks = 'preview_photo_stacks',
@@ -159,6 +160,11 @@ export enum Invokes {
   UndoLastRename = 'undo_last_rename',
   UpdateWgpuTransform = 'update_wgpu_transform',
   ReleaseOriginalPreview = 'release_original_preview',
+  OpenViewerWindow = 'open_viewer_window',
+  CloseViewerWindow = 'close_viewer_window',
+  SetViewerView = 'set_viewer_view',
+  GetViewerInfo = 'get_viewer_info',
+  GetViewerFrame = 'get_viewer_frame',
   UpdateExifFields = 'update_exif_fields',
   FetchCommunityPresets = 'fetch_community_presets',
   GenerateAllCommunityPreviews = 'generate_all_community_previews',
@@ -320,6 +326,7 @@ export interface AppSettings {
   linearRawMode?: string;
   enableXmpSync?: boolean;
   createXmpIfMissing?: boolean;
+  writeJpegMetadata?: boolean;
   isWaveformVisible?: boolean;
   waveformHeight?: number;
   activeWaveformChannel?: string;
@@ -341,6 +348,7 @@ export interface AppSettings {
   enableFocusMode?: boolean;
   enableToolFocusMode?: boolean;
   autoAdvanceOnRate?: boolean;
+  hideCollapsedPanels?: boolean;
   openTreeSections?: string[];
   folderIcons?: Record<string, string>;
   folderCaptureTimeShiftMinutes?: Record<string, number>;

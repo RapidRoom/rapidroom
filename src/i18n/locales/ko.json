@@ -55,6 +55,55 @@
         "reds": "레드",
         "yellows": "옐로우"
       },
+      "monochrome": {
+        "badge": "흑백",
+        "balance": "밸런스",
+        "blackWhite": "흑백",
+        "film": "필름",
+        "filmDescriptions": {
+          "balanced": "모든 색상에 고른 감도로 빨강과 피부가 더 밝아집니다",
+          "extendedRed": "빨강에 민감한 필름으로 피부는 밝고 하늘은 어둡습니다",
+          "infrared": "빛나는 나뭇잎과 거의 검은 하늘",
+          "neutral": "각 색상의 인지 밝기와 일치합니다",
+          "orthoPanchromatic": "약간 어두운 빨강과 선명한 초록",
+          "orthochromatic": "빨강에 감광하지 않아 빨강은 어둡고 하늘은 밝습니다",
+          "panchromatic": "푸른 하늘이 더 밝은 클래식 필름 응답"
+        },
+        "films": {
+          "balanced": "균형",
+          "extendedRed": "확장 레드",
+          "infrared": "적외선",
+          "neutral": "뉴트럴",
+          "orthoPanchromatic": "오르소 팬",
+          "orthochromatic": "오르소크로매틱",
+          "panchromatic": "팬크로매틱"
+        },
+        "filter": "필터",
+        "filters": {
+          "blue": "파랑",
+          "green": "초록",
+          "none": "없음",
+          "orange": "주황",
+          "red": "빨강",
+          "yellow": "노랑"
+        },
+        "highlights": "하이라이트",
+        "hue": "색조",
+        "mix": "흑백 믹스",
+        "saturation": "채도",
+        "shadows": "섀도우",
+        "strength": "강도",
+        "toning": "토닝",
+        "tonings": {
+          "cyanotype": "시아노타입",
+          "gold": "골드",
+          "none": "없음",
+          "platinum": "플래티넘",
+          "selenium": "셀레늄",
+          "sepia": "세피아",
+          "split": "스플릿 톤"
+        }
+      },
       "mixerPickerTooltip": "컬러 믹서 스포이트: 사진을 클릭한 채 위아래로 드래그",
       "presence": "외관",
       "saturation": "채도",
@@ -239,8 +288,10 @@
       "autoLensCorrection": "자동 렌즈 교정",
       "autoStraighten": "자동 수평 맞추기",
       "cancel": "취소",
+      "closeViewer": "보조 창 닫기",
       "colorLabel": "색상 레이블",
       "confirmReset": "초기화 확인",
+      "convertBlackWhite": "흑백으로 변환",
       "convertNegative": "네거티브 변환",
       "copyAdjustments": "조정값 복사",
       "cullImage": "자동 선별",
@@ -255,12 +306,14 @@
       "mergeHdr": "HDR로 병합",
       "noLabel": "레이블 없음",
       "noRating": "평점 없음",
+      "openViewer": "보조 창에서 열기",
       "pasteAdjustments": "조정값 붙여넣기",
       "productivity": "생산성",
       "rating": "평점",
       "ratingLabel_one": "{{count}}점",
       "ratingLabel_other": "{{count}}점",
       "redo": "다시 실행",
+      "removeBlackWhite": "흑백 해제",
       "removeDenoise": "노이즈 제거 해제",
       "removeNegativeConversion": "네거티브 변환 해제",
       "resetAdjustments": "조정값 초기화",
@@ -562,7 +615,8 @@
         "quickErase": "빠른 지우기 {{count}}",
         "quickErase_one": "빠른 지우기 {{count}}",
         "quickErase_other": "빠른 지우기 {{count}}",
-        "retouch": "리터칭 {{count}}"
+        "retouch": "리터칭 {{count}}",
+        "retouch_other": "리터칭 {{count}}"
       },
       "resetInpaintingTooltip": "인페인팅 초기화",
       "settings": {
@@ -981,7 +1035,11 @@
       },
       "vc": "VC"
     },
-    "embeddedPreviewWarning": "RAW 현상에 실패하여 내장 미리보기를 표시합니다."
+    "embeddedPreviewWarning": "RAW 현상에 실패하여 내장 미리보기를 표시합니다.",
+    "viewer": {
+      "openFailed": "보조 창을 열 수 없습니다: {{error}}",
+      "windowTitle": "RapidRAW 뷰어"
+    }
   },
   "export": {
     "advanced": {
@@ -1124,6 +1182,10 @@
       "title": "아직 Immich에 없는 편집"
     },
     "export": {
+      "newAlbum": "새 앨범…",
+      "newAlbumName": "앨범 이름",
+      "createAlbum": "만들기",
+      "newAlbumFailed": "앨범을 만들 수 없습니다: {{error}}",
       "album": "앨범",
       "destination": "Immich",
       "noAlbum": "앨범 없음",
@@ -1132,16 +1194,19 @@
       "withOriginalDesc": "로컬 폴더의 이미지: 원본이 편집 내용과 함께 업로드되고 내보낸 파일이 그 위에 스택됩니다. Immich의 이미지는 항상 원본 위에 스택됩니다."
     },
     "section": {
+      "albums": "앨범",
       "empty": "서버에 앨범이 없습니다.",
       "error": "Immich에 연결할 수 없습니다.",
       "loading": "앨범 불러오는 중…",
       "refresh": "앨범 새로고침",
       "timeline": "타임라인",
-      "title": "Immich"
+      "title": "Immich",
+      "unassigned": "앨범 없음",
+      "unassignedHint": "이미지를 여기에 놓으면 앨범에 추가하지 않고 업로드합니다."
     },
     "settings": {
       "apiKey": "API 키",
-      "apiKeyDesc": "Immich의 계정 설정 → API 키에서 다음 권한으로 만드세요: album.read, albumAsset.create, albumAsset.delete, asset.read, asset.view, asset.download, asset.upload, asset.update, asset.delete, stack.read, stack.create, user.read",
+      "apiKeyDesc": "Immich의 계정 설정 → API 키에서 다음 권한으로 만드세요: album.read, album.create, albumAsset.create, albumAsset.delete, asset.read, asset.view, asset.download, asset.upload, asset.update, asset.delete, stack.read, stack.create, user.read",
       "connected": "{{user}}(으)로 연결됨 (Immich {{version}})",
       "description": "Immich 서버의 사진을 라이브러리에서 둘러보고 바로 편집하세요. 원본은 열 때 다운로드되며, 편집 내용은 Immich에 저장되어 모든 컴퓨터에서 똑같이 보입니다.",
       "keyInFile": "본인만 읽을 수 있는 파일에 저장됨: 사용 가능한 자격 증명 저장소가 없습니다. KDE에서는 KDE 지갑 설정에서 Secret Service 인터페이스를 켠 뒤 다시 저장하세요.",
@@ -1163,8 +1228,12 @@
       "downloadFailed": "Immich에서 다운로드하지 못했습니다: {{error}}",
       "editsConflict": "{{fileName}}이(가) 다른 컴퓨터에서도 편집되었습니다. 내 편집 내용은 유지되고, 다른 버전은 가상 사본으로 보관됩니다.",
       "offline": "Immich에 연결할 수 없습니다. 편집 내용은 여기에 보관되며 다시 연결되면 전송됩니다.",
+      "transferFailed": "Immich에 추가하지 못함: {{number}} ({{error}})",
+      "transferred": "Immich에 추가됨: {{number}}",
+      "transferring": "Immich에 추가하는 중… {{current}}/{{total}}",
       "trashFailed": "Immich 휴지통으로 이동하지 못했습니다: {{error}}",
-      "uploaded": "Immich에 업로드됨: {{number}}"
+      "uploaded": "Immich에 업로드됨: {{number}}",
+      "uploadKeptCopy": "{{fileName}}은(는) 이미 다른 편집 내용으로 Immich에 있습니다. 해당 편집은 유지되고, 내 편집은 가상 사본으로 보관됩니다."
     }
   },
   "library": {
@@ -1489,6 +1558,11 @@
       "importImages": "이미지 가져오기",
       "select": "선택"
     },
+    "viewMode": {
+      "culling": "선별 보기",
+      "grid": "그리드 보기",
+      "list": "목록 보기"
+    },
     "photoCounts": {
       "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
       "emptyFolder": "No photos directly in this folder.",
@@ -1587,6 +1661,7 @@
       "descReplace": "선택한 모든 설정을 덮어쓰고 나머지는 기본값으로 초기화합니다.",
       "groups": {
         "aiDenoise": "AI 노이즈 제거",
+        "blackWhite": "흑백",
         "chromaticAberration": "색수차",
         "clarityDehaze": "명료도 및 디헤이즈",
         "colorCalibration": "색상 보정",
@@ -2059,6 +2134,8 @@
       "folderImageCountsDesc": "폴더 트리 위에 마우스를 올리면 폴더 내 이미지 개수를 표시합니다.",
       "font": "글꼴",
       "fontDesc": "애플리케이션 글꼴을 변경합니다.",
+      "hideCollapsedPanels": "접힌 패널 숨기기",
+      "hideCollapsedPanelsDesc": "접힌 사이드 패널을 좁은 띠로 남기지 않고 완전히 숨깁니다. 하단 바 또는 키보드 단축키로 다시 열 수 있습니다.",
       "nativeTitlebar": "네이티브 제목 표시줄",
       "nativeTitlebarDesc": "RapidRAW의 사용자 지정 제목 표시줄 대신 시스템 기본 창 제목 표시줄을 사용합니다.",
       "neutralGreyCanvas": "뉴트럴 그레이 캔버스",
@@ -2072,7 +2149,9 @@
       "toolFocusMode": "도구 집중 모드",
       "toolFocusModeDesc": "도구를 펼치면 같은 패널의 다른 도구를 자동으로 접습니다.",
       "xmpSync": "XMP 메타데이터 동기화",
-      "xmpSyncDesc": "다른 사진 편집기와의 호환성을 위해 평점, 색상 레이블, 태그를 표준 XMP 사이드카 파일에 동기화합니다."
+      "xmpSyncDesc": "다른 사진 편집기와의 호환성을 위해 평점, 색상 레이블, 태그를 표준 XMP 사이드카 파일에 동기화합니다.",
+      "writeJpegMetadata": "Write ratings and labels into JPEG files",
+      "writeJpegMetadataDesc": "Embed ratings, color labels and reject flags in original JPEGs without re-encoding pixels. Off by default; other formats keep using sidecars."
     },
     "keybinds": {
       "actions": {
@@ -2114,6 +2193,7 @@
         "toggle_adjustments": "조정 패널 전환",
         "toggle_ai": "AI 패널 전환",
         "toggle_analytics": "분석 표시 전환",
+        "toggle_black_white": "흑백 전환",
         "toggle_bottom_panel": "필름스트립 토글",
         "toggle_crop": "자르기 / 수평 맞추기 전환",
         "toggle_crop_panel": "자르기 패널 전환",
@@ -2129,6 +2209,7 @@
         "toggle_presets": "프리셋 패널 전환",
         "toggle_reference_view": "참조 보기 전환",
         "toggle_right_panel": "오른쪽 패널 토글",
+        "toggle_viewer_window": "보조 창 전환",
         "undo": "조정 실행 취소",
         "unflag": "플래그 해제",
         "zoom_100": "100%로 확대/축소",
@@ -2590,5 +2671,14 @@
     "shifted": "{{shift}} display shift",
     "save": "Save",
     "cancel": "Cancel"
+  },
+  "jpegMetadata": {
+    "write": "Write metadata to files",
+    "undo": "Undo last metadata write",
+    "written_one": "Wrote JPEG metadata to {{count}} file.",
+    "written_other": "Wrote JPEG metadata to {{count}} files.",
+    "restored_one": "Restored metadata for {{count}} file.",
+    "restored_other": "Restored metadata for {{count}} files.",
+    "failed": "Metadata write failed: {{error}}"
   }
 }

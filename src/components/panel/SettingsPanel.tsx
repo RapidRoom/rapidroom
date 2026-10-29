@@ -714,7 +714,10 @@ export default function SettingsPanel({
     invoke<string[]>('get_lensfun_makers').then(setLensMakers).catch(console.error);
   }, []);
 
-  const handleProcessingSettingChange = async (key: string, value: any) => {
+  const handleProcessingSettingChange = async <K extends ProcessingSettingKey>(
+    key: K,
+    value: SettingsPanelAppSettings[K],
+  ) => {
     setProcessingSettings((prev) => ({ ...prev, [key]: value }));
 
     if (
@@ -1014,6 +1017,7 @@ export default function SettingsPanel({
                             { value: 'pl', label: 'Polski' },
                             { value: 'pt', label: 'Português' },
                             { value: 'ru', label: 'Русский' },
+                            { value: 'uk', label: 'Українська' },
                             { value: 'ja', label: '日本語' },
                             { value: 'ko', label: '한국어' },
                             { value: 'cs', label: 'Čeština' },
@@ -1041,6 +1045,18 @@ export default function SettingsPanel({
                               }
                               onSettingsChange(newSettings);
                             }}
+                          />
+                        </SettingItem>
+
+                        <SettingItem
+                          label={t('settings.general.writeJpegMetadata')}
+                          description={t('settings.general.writeJpegMetadataDesc')}
+                        >
+                          <Switch
+                            checked={appSettings?.writeJpegMetadata ?? false}
+                            id="write-jpeg-metadata-toggle"
+                            label={t('settings.general.writeJpegMetadata')}
+                            onChange={(checked) => onSettingsChange({ ...appSettings, writeJpegMetadata: checked })}
                           />
                         </SettingItem>
 
@@ -1156,6 +1172,18 @@ export default function SettingsPanel({
                           id="auto-advance-toggle"
                           label={t('settings.general.enableAutoAdvance')}
                           onChange={(checked) => onSettingsChange({ ...appSettings, autoAdvanceOnRate: checked })}
+                        />
+                      </SettingItem>
+
+                      <SettingItem
+                        label={t('settings.general.hideCollapsedPanels')}
+                        description={t('settings.general.hideCollapsedPanelsDesc')}
+                      >
+                        <Switch
+                          checked={appSettings?.hideCollapsedPanels ?? false}
+                          id="hide-collapsed-panels-toggle"
+                          label={t('settings.general.hideCollapsedPanels')}
+                          onChange={(checked) => onSettingsChange({ ...appSettings, hideCollapsedPanels: checked })}
                         />
                       </SettingItem>
 
