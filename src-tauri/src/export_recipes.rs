@@ -16,6 +16,8 @@ fn instagram_recipe(
     ratio_height: f32,
 ) -> ExportPreset {
     ExportPreset {
+        instagram_ratio: None,
+        dpi: None,
         id: format!("{RECIPE_ID_PREFIX}{id}"),
         name: name.to_string(),
         file_format: "jpeg".to_string(),
@@ -56,10 +58,77 @@ fn instagram_recipe(
     }
 }
 
-// Read-only recipes shipped with the app. Exports are already sRGB; the photo is
-// padded to the post's aspect ratio (no cropping) and scaled to Instagram's 1080 px width.
+// The original padded recipe IDs retain their behaviour. New crop recipes
+// opt into separately remembered framing of the finished edit.
+fn instagram_crop_recipe(
+    ratio: crate::export_framing::InstagramRatio,
+    id: &str,
+    label: &str,
+    rw: f32,
+    rh: f32,
+) -> ExportPreset {
+    let mut preset = instagram_recipe(id, label, id, rw, rh);
+    preset.instagram_ratio = Some(ratio);
+    preset.enable_pad = Some(false);
+    preset.filename_template = format!(
+        "{{original_filename}}_{}",
+        match ratio {
+            crate::export_framing::InstagramRatio::Portrait => "ig45",
+            crate::export_framing::InstagramRatio::Grid => "ig34",
+            crate::export_framing::InstagramRatio::Stories => "ig916",
+            crate::export_framing::InstagramRatio::Landscape => "ig191",
+        }
+    );
+    preset
+}
+
+fn web_share_recipe() -> ExportPreset {
+    let mut preset = instagram_recipe(
+        "web-share",
+        "Web / Share (camera info, no GPS)",
+        "share",
+        1.0,
+        1.0,
+    );
+    preset.enable_pad = Some(false);
+    preset.resize_mode = "longEdge".to_string();
+    preset.resize_value = 2048;
+    preset.dont_enlarge = true;
+    preset
+}
+
 pub fn builtin_export_recipes() -> Vec<ExportPreset> {
+    use crate::export_framing::InstagramRatio;
     vec![
+        web_share_recipe(),
+        instagram_crop_recipe(
+            InstagramRatio::Portrait,
+            "instagram-crop-4x5",
+            "Instagram Portrait crop 4:5 (1080×1350)",
+            4.0,
+            5.0,
+        ),
+        instagram_crop_recipe(
+            InstagramRatio::Grid,
+            "instagram-crop-3x4",
+            "Instagram Grid crop 3:4 (1080×1440)",
+            3.0,
+            4.0,
+        ),
+        instagram_crop_recipe(
+            InstagramRatio::Stories,
+            "instagram-crop-9x16",
+            "Instagram Stories crop 9:16 (1080×1920)",
+            9.0,
+            16.0,
+        ),
+        instagram_crop_recipe(
+            InstagramRatio::Landscape,
+            "instagram-crop-landscape",
+            "Instagram Landscape crop 1.91:1 (1080×565)",
+            1080.0,
+            565.0,
+        ),
         instagram_recipe(
             "instagram-portrait",
             "Instagram Portrait 4:5 (1080×1350)",
@@ -204,7 +273,17 @@ pub fn preset_to_export_settings(preset: &ExportPreset) -> Result<ExportSettings
         _ => None,
     };
 
+    if preset.dpi == Some(0) {
+        return Err("DPI must be between 1 and 65535".to_string());
+    }
     Ok(ExportSettings {
+        instagram: preset
+            .instagram_ratio
+            .map(|ratio| crate::export_framing::InstagramExport {
+                ratio,
+                frames_by_path: Default::default(),
+            }),
+        dpi: preset.dpi,
         jpeg_quality: preset.jpeg_quality,
         tiff_bit_depth: preset
             .tiff_bit_depth
@@ -224,6 +303,7 @@ pub fn preset_to_export_settings(preset: &ExportPreset) -> Result<ExportSettings
         destination_type: preset.destination_type.clone(),
         subfolder: preset.subfolder.clone(),
         output_sharpening: preset.output_sharpening,
+        overwrite_existing: false,
     })
 }
 
@@ -254,6 +334,88 @@ mod tests {
         (640, 480),
     ];
 
+    #[test]
+    fn share_recipe_jpeg_round_trip_keeps_camera_lens_date_without_gps() {
+        use crate::exif_processing::{ExportXmp, write_image_with_metadata};
+        use little_exif::rational::uR64;
+        use little_exif::{exif_tag::ExifTag, filetype::FileExtension, metadata::Metadata};
+        use std::io::Cursor;
+
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("camera.jpg");
+        let mut encoded = Cursor::new(Vec::new());
+        image::DynamicImage::new_rgb8(16, 8)
+            .write_to(&mut encoded, image::ImageFormat::Jpeg)
+            .unwrap();
+        let pixels = encoded.into_inner();
+        let mut source_bytes = pixels.clone();
+        let mut metadata = Metadata::new();
+        metadata.set_tag(ExifTag::Make("Sony".into()));
+        metadata.set_tag(ExifTag::Model("ILCE-7CM2".into()));
+        metadata.set_tag(ExifTag::LensModel("FE 35mm F1.4 GM".into()));
+        metadata.set_tag(ExifTag::DateTimeOriginal("2026:10:16 12:34:56".into()));
+        metadata.set_tag(ExifTag::GPSLatitudeRef("N".into()));
+        metadata.set_tag(ExifTag::GPSLatitude(vec![
+            uR64 {
+                nominator: 45,
+                denominator: 1,
+            },
+            uR64 {
+                nominator: 30,
+                denominator: 1,
+            },
+            uR64 {
+                nominator: 0,
+                denominator: 1,
+            },
+        ]));
+        metadata
+            .write_to_vec(&mut source_bytes, FileExtension::JPEG)
+            .unwrap();
+        std::fs::write(&source, source_bytes).unwrap();
+        let xmp = ExportXmp::from_metadata(&Default::default());
+
+        for (id, expect_gps) in [("default-hq", true), ("recipe-web-share", false)] {
+            let preset = find_export_preset(&default_export_presets(), id).unwrap();
+            let settings = preset_to_export_settings(&preset).unwrap();
+            let mut output = pixels.clone();
+            write_image_with_metadata(
+                &mut output,
+                source.to_str().unwrap(),
+                "jpg",
+                settings.keep_metadata,
+                settings.strip_gps,
+                &xmp,
+            )
+            .unwrap();
+            let decoded = exif::Reader::new()
+                .read_from_container(&mut Cursor::new(output))
+                .unwrap();
+            for (tag, expected) in [
+                (exif::Tag::Make, "Sony"),
+                (exif::Tag::Model, "ILCE-7CM2"),
+                (exif::Tag::LensModel, "FE 35mm F1.4 GM"),
+                (exif::Tag::DateTimeOriginal, "2026:10:16 12:34:56"),
+            ] {
+                let value = &decoded
+                    .get_field(tag, exif::In::PRIMARY)
+                    .expect("camera info retained")
+                    .value;
+                assert!(
+                    matches!(value, exif::Value::Ascii(values) if values[0] == expected.as_bytes()),
+                    "{id}: {tag}"
+                );
+            }
+            for tag in [exif::Tag::GPSLatitude, exif::Tag::GPSLatitudeRef] {
+                assert_eq!(
+                    decoded.get_field(tag, exif::In::PRIMARY).is_some(),
+                    expect_gps,
+                    "{id}: {tag}"
+                );
+            }
+        }
+    }
+
     fn assert_recipe_size(id: &str, expected: (u32, u32), with_border: bool) {
         let mut preset = find_export_preset(&[], id).expect("recipe exists");
         preset.enable_border = Some(with_border);
@@ -270,6 +432,10 @@ mod tests {
     #[test]
     fn instagram_recipes_produce_exact_sizes() {
         for border in [false, true] {
+            assert_recipe_size("recipe-instagram-crop-4x5", (1080, 1350), border);
+            assert_recipe_size("recipe-instagram-crop-3x4", (1080, 1440), border);
+            assert_recipe_size("recipe-instagram-crop-9x16", (1080, 1920), border);
+            assert_recipe_size("recipe-instagram-crop-landscape", (1080, 565), border);
             assert_recipe_size("recipe-instagram-portrait", (1080, 1350), border);
             assert_recipe_size("recipe-instagram-square", (1080, 1080), border);
             assert_recipe_size("recipe-instagram-landscape", (1080, 566), border);
@@ -388,6 +554,27 @@ mod tests {
             TiffBitDepth::Eight
         );
         preset.resize_mode = "diagonal".to_string();
+        assert!(preset_to_export_settings(&preset).is_err());
+    }
+}
+
+#[cfg(test)]
+mod print_resolution_tests {
+    use super::*;
+
+    #[test]
+    fn stored_preset_resolution_survives_deserialization_and_export_conversion() {
+        let mut preset = crate::app_settings::default_export_presets().remove(0);
+        assert!(preset_to_export_settings(&preset).unwrap().dpi.is_none());
+        preset.dpi = Some(240);
+        let saved = serde_json::to_vec(&preset).unwrap();
+        let restored: ExportPreset = serde_json::from_slice(&saved).unwrap();
+        assert_eq!(preset_to_export_settings(&restored).unwrap().dpi, Some(240));
+        let mut old = serde_json::to_value(&restored).unwrap();
+        old.as_object_mut().unwrap().remove("dpi");
+        let restored: ExportPreset = serde_json::from_value(old).unwrap();
+        assert!(restored.dpi.is_none());
+        preset.dpi = Some(0);
         assert!(preset_to_export_settings(&preset).is_err());
     }
 }

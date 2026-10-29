@@ -1,0 +1,13 @@
+{
+  "id": "subpixel-chromatic-aberration",
+  "title": "Apply chromatic aberration corrections at sub-pixel positions",
+  "category": "fix",
+  "landed": "2026-10-19",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": ["CyberTimon/RapidRAW#1670"],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Manual red/cyan and blue/yellow shifts interpolate fractional sample positions. Lensfun corrections preserve small nonzero shifts instead of suppressing them; zero corrections keep their existing path."
+}

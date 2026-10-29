@@ -1,0 +1,13 @@
+{
+  "id": "upstream-pr-records-2",
+  "title": "Record the upstream PRs offered for three more changes",
+  "category": "ci",
+  "landed": "2026-10-26",
+  "authors": ["yojen7"],
+  "source": "rapidroom",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "Only the upstream_prs field of three existing records changes: relative launch paths, AI mask antialiasing and RAW repair thumbnails are now offered upstream."
+}

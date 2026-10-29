@@ -15,18 +15,23 @@ import {
   Bandage,
   Spline,
   MopSparkles,
+  TextSearch,
+  ScanFace,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import Text from '../../ui/Text';
 import { TextWeights } from '../../../types/typography';
 import i18n from 'i18next';
+import type { LucideIcon } from 'lucide-react';
 
 export enum Mask {
   AiDepth = 'ai-depth',
   AiForeground = 'ai-foreground',
   AiSky = 'ai-sky',
   AiSubject = 'ai-subject',
+  AiText = 'ai-text',
+  AiFace = 'ai-face',
   All = 'all',
   Brush = 'brush',
   Flow = 'flow',
@@ -57,10 +62,71 @@ export enum ToolType {
 
 export interface MaskType {
   disabled: boolean;
-  icon: any;
+  icon: LucideIcon;
   id?: string;
   name: string;
   type: Mask;
+}
+
+export interface MaskLine {
+  brushSize: number;
+  feather?: number;
+  flow?: number;
+  points: Array<{ x: number; y: number }>;
+  tool: ToolType;
+}
+
+export interface MaskParameters {
+  aiSource?: unknown;
+  parts?: Array<string>;
+  prompt?: string;
+  centerX?: number;
+  centerY?: number;
+  endX?: number;
+  endY?: number;
+  feather?: number;
+  flow?: number;
+  flipHorizontal?: boolean;
+  flipVertical?: boolean;
+  grow?: number;
+  isInitialDraw?: boolean;
+  liquifyMode?: string;
+  lines?: MaskLine[];
+  maskDataBase64?: string | null;
+  mask_data_base64?: string | null;
+  maxDepth?: number;
+  maxFade?: number;
+  minDepth?: number;
+  minFade?: number;
+  radiusX?: number;
+  radiusY?: number;
+  range?: number;
+  rotation?: number;
+  sourceX?: number;
+  sourceY?: number;
+  startX?: number;
+  startY?: number;
+  targetX?: number;
+  targetY?: number;
+  tolerance?: number;
+  orientationSteps?: number;
+  pressure?: number;
+  intensity?: number;
+}
+
+export interface MaskParameterConfig {
+  defaultValue: number;
+  key: 'feather' | 'grow' | 'intensity' | 'pressure' | 'tolerance';
+  max: number;
+  min: number;
+  multiplier?: number;
+  step: number;
+}
+
+export interface SubMaskConfig {
+  parameters?: MaskParameterConfig[];
+  showBrushTools?: boolean;
+  showFlowControl?: boolean;
 }
 
 export interface SubMask {
@@ -69,7 +135,7 @@ export interface SubMask {
   mode: SubMaskMode;
   name?: string;
   opacity: number;
-  parameters?: any;
+  parameters?: MaskParameters;
   type: Mask;
   visible: boolean;
 }
@@ -79,6 +145,8 @@ export function formatMaskTypeName(type: string) {
   if (type === Mask.AiSubject) return i18n.t('masks.types.subject');
   if (type === Mask.AiForeground) return i18n.t('masks.types.foreground');
   if (type === Mask.AiSky) return i18n.t('masks.types.sky');
+  if (type === Mask.AiText) return i18n.t('masks.types.text');
+  if (type === Mask.AiFace) return i18n.t('masks.types.face');
   if (type === Mask.All) return i18n.t('masks.types.all');
   if (type === Mask.QuickEraser) return i18n.t('masks.types.quickEraser');
   if (type === Mask.Brush) return i18n.t('masks.types.brush');
@@ -102,15 +170,22 @@ export function getMaskTypeName(mask: MaskType) {
   return formatMaskTypeName(mask.type);
 }
 
-export function getSubMaskName(subMask: Pick<SubMask, 'name' | 'type'>) {
-  return subMask.name?.trim() || formatMaskTypeName(subMask.type);
+export function getSubMaskName(subMask: Pick<SubMask, 'name' | 'type' | 'parameters'>) {
+  const prompt = subMask.type === Mask.AiText ? subMask.parameters?.prompt?.trim() : '';
+  return (
+    subMask.name?.trim() ||
+    (prompt && prompt.charAt(0).toUpperCase() + prompt.slice(1)) ||
+    formatMaskTypeName(subMask.type)
+  );
 }
 
-export const MASK_ICON_MAP: Record<Mask, any> = {
+export const MASK_ICON_MAP: Record<Mask, LucideIcon> = {
   [Mask.AiDepth]: BringToFront,
   [Mask.AiForeground]: User,
   [Mask.AiSky]: Cloud,
   [Mask.AiSubject]: SquareMousePointer,
+  [Mask.AiText]: TextSearch,
+  [Mask.AiFace]: ScanFace,
   [Mask.All]: RectangleHorizontal,
   [Mask.Brush]: Brush,
   [Mask.Flow]: Droplets,
@@ -130,7 +205,22 @@ export const MASK_AI_TYPES: Array<MaskType> = [
   { disabled: false, icon: Cloud, name: 'Sky', type: Mask.AiSky },
   { disabled: false, icon: User, name: 'Foreground', type: Mask.AiForeground },
   { disabled: false, icon: BringToFront, name: 'Depth', type: Mask.AiDepth },
+  { disabled: false, icon: TextSearch, name: 'Text', type: Mask.AiText },
+  { disabled: false, icon: ScanFace, name: 'Face', type: Mask.AiFace },
 ];
+
+export const FACE_PARTS = [
+  'faceSkin',
+  'bodySkin',
+  'eyebrows',
+  'eyeWhites',
+  'iris',
+  'lips',
+  'teeth',
+  'nose',
+  'hair',
+] as const;
+export type FacePart = (typeof FACE_PARTS)[number];
 
 export const MASK_BASIC_TYPES: Array<MaskType> = [
   { disabled: false, icon: Brush, name: 'Brush', type: Mask.Brush },
@@ -261,7 +351,13 @@ export const AI_SUB_MASK_COMPONENT_TYPES: Array<MaskType> = [
   ...AI_GENERATIVE_CREATION_TYPES,
 ];
 
-export function NewMaskDropZone({ isOver, textKey }: { isOver: boolean; textKey: string }) {
+export function NewMaskDropZone({
+  isOver,
+  textKey,
+}: {
+  isOver: boolean;
+  textKey: 'editor.ai.dropzoneText' | 'editor.masks.dropzoneText';
+}) {
   const { t } = useTranslation();
   return (
     <motion.div

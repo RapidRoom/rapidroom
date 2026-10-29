@@ -1,0 +1,12 @@
+{
+  "category": "fix",
+  "landed": "2026-10-02",
+  "source": "pluja/RapidRAW-Fork",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "id": "curve-index",
+  "title": "The curve shader no longer indexes past the end of its point array",
+  "authors": ["pluja"],
+  "commits": ["https://github.com/pluja/RapidRAW-Fork/commit/3eab73ca2b11840816d7d2236e4453795d7edeba"]
+}

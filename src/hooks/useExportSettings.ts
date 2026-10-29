@@ -3,16 +3,21 @@ import {
   BorderBasis,
   DEFAULT_FILENAME_TEMPLATE,
   ExportPreset,
+  InstagramRatio,
   OutputSharpening,
   sanitizeFilenameTemplate,
+  DEFAULT_EXPORT_DPI,
+  MAX_EXPORT_DPI,
   TiffBitDepth,
   WatermarkAnchor,
 } from '../components/ui/ExportImportProperties';
 
 export function useExportSettings() {
+  const [instagramRatio, setInstagramRatio] = useState<InstagramRatio | null>(null);
   const [fileFormat, setFileFormat] = useState('jpeg');
   const [jpegQuality, setJpegQuality] = useState(90);
   const [tiffBitDepth, setTiffBitDepth] = useState<TiffBitDepth>(16);
+  const [dpi, setDpi] = useState(DEFAULT_EXPORT_DPI);
   const [enableResize, setEnableResize] = useState(false);
   const [resizeMode, setResizeMode] = useState('longEdge');
   const [resizeValue, setResizeValue] = useState(2048);
@@ -43,9 +48,16 @@ export function useExportSettings() {
   const [outputSharpening, setOutputSharpening] = useState<OutputSharpening | null>(null);
 
   const handleApplyPreset = useCallback((preset: ExportPreset) => {
+    setInstagramRatio(preset.instagramRatio ?? null);
     setFileFormat(preset.fileFormat);
     setJpegQuality(preset.jpegQuality);
     setTiffBitDepth(preset.tiffBitDepth ?? 16);
+    const savedDpi = preset.dpi;
+    setDpi(
+      typeof savedDpi === 'number' && Number.isInteger(savedDpi) && savedDpi > 0 && savedDpi <= MAX_EXPORT_DPI
+        ? savedDpi
+        : DEFAULT_EXPORT_DPI,
+    );
     setEnableResize(preset.enableResize);
     setResizeMode(preset.resizeMode);
     setResizeValue(preset.resizeValue);
@@ -78,9 +90,11 @@ export function useExportSettings() {
 
   const currentSettingsObject = useMemo(
     () => ({
+      instagramRatio,
       fileFormat,
       jpegQuality,
       tiffBitDepth,
+      dpi,
       enableResize,
       resizeMode,
       resizeValue,
@@ -111,9 +125,11 @@ export function useExportSettings() {
       outputSharpening,
     }),
     [
+      instagramRatio,
       fileFormat,
       jpegQuality,
       tiffBitDepth,
+      dpi,
       enableResize,
       resizeMode,
       resizeValue,
@@ -146,12 +162,16 @@ export function useExportSettings() {
   );
 
   return {
+    instagramRatio,
+    setInstagramRatio,
     fileFormat,
     setFileFormat,
     jpegQuality,
     setJpegQuality,
     tiffBitDepth,
     setTiffBitDepth,
+    dpi,
+    setDpi,
     enableResize,
     setEnableResize,
     resizeMode,

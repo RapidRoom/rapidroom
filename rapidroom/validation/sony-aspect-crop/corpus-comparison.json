@@ -1,10 +1,10 @@
 {
   "kind": "rapidraw-baseline-compare",
   "created": "2026-10-04T00:10:09-10:00",
-  "refdir": "/home/josh/code/rapidraw-project/samples/baseline-int7",
-  "testdir": "/home/josh/code/rapidraw-project/samples/baseline-codex-92",
+  "refdir": "~/code/rapidraw-project/samples/baseline-int7",
+  "testdir": "~/code/rapidraw-project/samples/baseline-codex-92",
   "ref_engine": {
-    "path": "/home/josh/code/rapidraw-project/samples/engines/int7-rapidroom",
+    "path": "~/code/rapidraw-project/samples/engines/int7-rapidroom",
     "sha256": "933bab69f42ee992dc43ecb8d2c07387c0219c1c664b4a25e8afac06976699d2",
     "build_info": null,
     "package": null

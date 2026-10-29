@@ -308,7 +308,8 @@ The zoom-only test injector (`native_wheel.c`) is compiled into the owned case
 and preloaded into the isolated app. It receives only scroll direction and
 viewport coordinates through an owned file, then calls the WebView GTK event
 handler. It is never bundled in the app. Physical devices remain untested.
-`--presets` checks Ctrl+Shift+N preset creation, grouped/name search, hover cancellation, one-step preset Undo and Amount0 through the actual native app. XMP serialization/import and compatibility conditions also have unit coverage; Lightroom itself has not been tested.
+`--presets` checks Ctrl+Shift+N preset creation, flat Style name/description search, hover cancellation, one-step preset Undo and Amount0 through the actual native app. It also exercises built-in Styles description search, favourites, native export, Amount30/60/0, twenty flat top-level Styles, deletion through the preset menu followed by repeated native reloads, and marker-only migration of a pre-existing library without losing user folders, moved presets or saved order. Empty or missing saved libraries with the migration marker do not resurrect deleted Styles. XMP serialization/import and compatibility conditions also have unit coverage; Lightroom itself has not been tested.
+
 Point Color: pass `--point-color` to pick a swatch on the real canvas, verify
 zero-shift pixels are identical, edit its range and Hue Shift, and verify one
 Undo restores the shift and exact preview. The usual edit/export/exit checks
@@ -326,3 +327,96 @@ React store fixtures or private photos are used. Physical input and other
 platforms remain untested.
 
 `--point-color-mcp` implies `--point-color` and enables MCP only in the isolated test settings. Build with `build.py --mcp-clients`. The scenario uses authenticated local JSON-RPC discovery and edits, checks the eight-swatch/bounded schema and rejection without mutation, applies a selected-swatch Hue Shift through the real editor, and requires one GUI Undo to restore state and exact pixels. It verifies endpoint cleanup on exit. No Claude/Codex processes or model requests are launched.
+
+### Assistant untrusted text (#165)
+
+Build with `build.py --mcp-clients`, then run `smoke.py --untrusted-text`. The isolated native fixture exercises a hostile folder and filename through authenticated MCP, verifies the data-only envelope and exact operational paths, projects an assistant mask name before storage, refuses an out-of-range local mask exposure, and restores the original draft and exact native pixels. It sends no model requests. Unit fixtures separately cover EXIF, IPTC, XMP descriptions, presets, sidecars, errors, UTF-8/control/bidi handling, credential patterns and shared-budget exhaustion. Remote-model resistance is **not** claimed by these deterministic tests.
+
+The central tool result boundary labels both successes and errors as data-only. Descriptive strings have per-field UTF-8 byte caps (256 bytes normally, 1024 for longer text) and a shared 4096-byte budget. Controls/bidi are removed from descriptive text; secret-pattern matches are redacted. JSON display explicitly escapes bidi characters. Paths remain exact and must never be interpreted as shell commands or instructions. Only the user’s request can authorize operations. Binary data and validated opaque IDs retain their functional representations inside the same envelope.
+
+Assistant inputs project descriptive names/notes before UI storage. Names echoed from the current edit preserve the original stored name by identity, so reading a bounded display cannot silently rename an existing mask. Local numeric mask edits use the same existing numeric registry as global controls; invalid values are refused rather than applied. Terminal launches expose a data-only context and static trust policy without changing the actual working directory/path. The general terminal is not a photo-metadata prompt generator; arbitrary shell output remains data.
+
+Existing tool-result consumers must read the inner envelope. The native client helper `tool_data` supports that envelope and older results, while the hostile fixture asserts the envelope is actually present in the current build. Transport `isError`/protocol fields and image content blocks keep their roles.
+
+`--crs-interop` checks the public XMP import action with a synthetic packet: renamed namespaces and curve lists import, foreign/nested/other-subject settings do not; DOCTYPE is refused without changing the draft or pixels; original adjustments and exact pixels are restored. It enables authenticated MCP reads/writes only as the test observer/restore mechanism, never model requests. Wire receipts use their own `crs-client-tests` directory. This does not establish real Lightroom application or rendering equivalence. See the [field audit](../crs-interop-20261012/README.md).
+
+### Individual masks (#150)
+
+Build with `build.py --terminal --mcp-clients`, then run `smoke.py --mcp-masks`.
+The owned CC0 fixture records an actual installed Claude client adding a second
+radial mask without resending its sibling. It verifies nested HSL defaults,
+compact replies, GUI Undo with exact restored pixels, shared Redo, nested patches,
+sidecar persistence across a frontend restart, single-id removal and missing-id
+no-ops. The combined untrusted-text policy phase verifies a context-name echo
+preserves the raw stored name, new names are projected before storage, 128-byte
+opaque IDs round-trip, and invalid IDs are refused. That hostile-text phase makes
+no model requests. The first fixture phase uses the client's existing login and
+makes a real model request; no user library or global client config is changed.
+
+`--xmp-photo-policy` checks synthetic AlreadyApplied photo suppression versus reusable presets, metadata-only single/folder imports with a pending live edit and preserved Undo, ordinary False/absent packets, and input byte preservation with ordinary XMP sync enabled. It uses an isolated CC0 photo and authenticated MCP observations/restoration, with no models or Adobe application. See the [policy](../xmp-photo-policy-218/README.md).
+
+## Shipped skill/plugin acceptance (#118)
+
+`--mcp-skill --skill-source /path/to/matching/clean/checkout` runs a fresh Claude session with the shipped plugin and its stdio MCP configuration. It uses the owned CC0 Sony A7C II APS-C RAW copy, an approved 4:5 crop, three temporary look variants, a native detail check, GPS-stripped 1080×1350 export and a source-backed exposure explanation. The source checkout must match the pinned app's `sourceCommit`; the app and checkout must be clean. Named virtual-copy tools remain coming, so this test uses temporary comparisons.
+
+Use a pinned `native-ui-test,mcp` build plus the adapter, and pass `--lock /tmp/rapidroom-gpu.lock` when running the native harness. The real client needs account access. Raw client transcripts, endpoint credentials and private source paths stay local; publish only allowlisted summaries and inspected CC0 panels. A pass proves workflow and source use, not the aesthetic quality of the grade.
+
+### Photo stacks (#86)
+
+Run `smoke.py --stacks` with a freshly pinned native engine. The harness creates
+three owned synthetic JPEGs with explicit sub-second capture times alongside
+the CC0 RAW. Native Ctrl+G, badges and context menus create a manual stack,
+choose a cover, expand grid and filmstrip, unstack, preview a 0.15-second auto
+stack without writing, apply it, and persist whole-stack stars. Captures and
+sidecar assertions are followed by the normal real-RAW edit/export smoke.
+Rust tests reopen saved sidecars to check disk persistence. This scenario
+does not test a full application restart. Physical keyboard/mouse and other platforms
+remain human checks.
+
+`--atomic-exports` keeps the ordinary RAW GUI export, then repeats it through the
+real Export panel with overwrite disabled and checks that the earlier JPEG is
+preserved. It submits an explicit overwrite for the owned fixture with the exact
+settings captured from the real panel, verifies inode replacement, checks that
+the sibling export is untouched and records every observed final JPEG state.
+The temporary fetch observer records only the exact export IPC endpoint and
+forwards every request unchanged. Its installation and three observed requests
+are checked, and it is restored in a finally block; no IO or error handler is mocked. This does not automate the
+native overwrite-confirmation dialog. A separate Rust subprocess check kills a
+writer after partial staging to deterministically check interruption safety.
+
+`--file-transfers` adds owned synthetic JPEGs from two cards with overlapping
+names, real native copy/import IPC, paired `.rrdata`/virtual-copy/`.XMP` checks,
+exact reimport skips, failure continuation and source preservation even when
+Delete after import is enabled for a skipped file. It also uses the real Library
+keyboard copy/paste path and checks visible copy/import/partial-failure summaries.
+No IPC, filesystem write or frontend error handler is mocked. The ordinary RAW
+preview/edit/Undo/export and clean-exit assertions still run afterwards.
+
+### Editable Library filter chips (#312)
+
+Run `smoke.py --filter-chips` with a pinned native engine and the GPU lock.
+Three owned synthetic JPEGs carry explicit ISO/lens metadata beside the CC0 RAW.
+The native checks edit numeric and text queries and assert the displayed photo
+set changes, cancel edits with Escape and across Community Presets navigation,
+restore prior input drafts, edit the last chip with Backspace, delete
+only one duplicate using the separate x button, and navigate chip controls with
+Left/Right. Captures record the workflow; the usual RAW/edit/Undo/export/clean-exit
+checks still follow. Export counting excludes pre-existing fixture JPEGs.
+
+The chip-navigation check supplies an empty catalog only for the unrelated
+`fetch_community_presets` IPC request, restores the original transport afterwards,
+and supplies the owned JPEG for at most one exact stock-image fallback request.
+The request and its real temp-file IPC are counted and bounded; no external
+image is downloaded. Search/navigation and the final frontend/native error
+checks remain real and unfiltered.
+
+## Ordered Styles (#378)
+
+Build with the `mcp,native-ui-test` features and run `smoke.py --style-stack`.
+This uses only the copied CC0 fixture, the real public GUI controls and the
+private authenticated MCP endpoint; it makes no model requests. It checks the
+pinned Applied folder, ordered maximum of three entries, independent Amount,
+fourth-Style refusal without history changes, manual Exposure/Contrast through
+middle removal, the surviving editable mask, shared Undo/Redo, a fresh frontend
+reload from the actual paired sidecar, and exact preview restoration. Captures
+and per-step receipts remain in the owned output directory.

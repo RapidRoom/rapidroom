@@ -1,16 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import { computeSortedLibrary } from './useSortedLibrary';
-import { FlagStatus, ImageFlag, RawStatus } from '../components/ui/AppProperties';
+import { FlagStatus, ImageFlag, RawStatus, type ImageFile } from '../components/ui/AppProperties';
 
 const ratings: Record<string, number> = { '/a.raw': 0, '/b.raw': 2, '/c.raw': 3, '/d.raw': 4, '/e.raw': 5 };
-const imageList = Object.keys(ratings).map((path, i) => ({ path, modified: i, is_raw: true, tags: [] }));
+const makeImage = (path: string, modified: number, flag: ImageFile['flag'] = null): ImageFile => ({
+  exif: null,
+  flag,
+  group_id: null,
+  is_cloud_placeholder: false,
+  is_edited: false,
+  is_raw: true,
+  is_virtual_copy: false,
+  modified,
+  path,
+  rating: 0,
+  tags: [],
+});
 
-const filtered = (rating: number, ratingExact?: boolean) =>
+const imageList = Object.keys(ratings).map((path, i) => makeImage(path, i));
+
+const filtered = (rating: number, ratingExact?: boolean, ratingOperator?: 'gte' | 'eq' | 'lte') =>
   computeSortedLibrary(
     {
       imageList,
       imageRatings: ratings,
-      filterCriteria: { colors: [], rating, ratingExact, rawStatus: RawStatus.All },
+      filterCriteria: { colors: [], rating, ratingExact, ratingOperator, rawStatus: RawStatus.All },
       searchCriteria: { tags: [], text: '', mode: 'AND' },
       sortCriteria: { key: 'name', order: 'asc' },
     },
@@ -18,6 +32,12 @@ const filtered = (rating: number, ratingExact?: boolean) =>
   ).map((image) => image.path);
 
 describe('rating filter', () => {
+  it('supports upstream operators while respecting old exact preferences unless explicitly overridden', () => {
+    expect(filtered(3, false, 'eq')).toEqual(['/c.raw']);
+    expect(filtered(3, false, 'lte')).toEqual(['/a.raw', '/b.raw', '/c.raw']);
+    expect(filtered(3, true, 'gte')).toEqual(['/c.raw', '/d.raw', '/e.raw']);
+  });
+
   it('shows the rating and higher by default', () => {
     expect(filtered(3)).toEqual(['/c.raw', '/d.raw', '/e.raw']);
     expect(filtered(5)).toEqual(['/e.raw']);
@@ -36,12 +56,12 @@ describe('rating filter', () => {
 });
 
 describe('flag filter and rating sort', () => {
-  const flagged = [
-    { path: '/pick.raw', flag: ImageFlag.Pick },
-    { path: '/none.raw', flag: null },
-    { path: '/reject.raw', flag: ImageFlag.Reject },
-    { path: '/old.raw' },
-  ].map((image, i) => ({ ...image, modified: i, is_raw: true, tags: [] }));
+  const flagged: ImageFile[] = [
+    makeImage('/pick.raw', 0, ImageFlag.Pick),
+    makeImage('/none.raw', 1),
+    makeImage('/reject.raw', 2, ImageFlag.Reject),
+    makeImage('/old.raw', 3),
+  ];
   const stars: Record<string, number> = { '/pick.raw': 2, '/none.raw': 1, '/reject.raw': 5, '/old.raw': 3 };
 
   const list = (flagStatus?: FlagStatus, sortCriteria = { key: 'name', order: 'asc' }) =>
@@ -72,5 +92,57 @@ describe('flag filter and rating sort', () => {
       '/none.raw',
       '/reject.raw',
     ]);
+  });
+});
+
+describe('stacks under an Unrated filter', () => {
+  const stacked = (path: string, position: number) => ({
+    ...makeImage(path, position),
+    stack: { id: 'bracket', position },
+  });
+  const bracket = [stacked('/x/dark.raw', 1), stacked('/x/normal.raw', 0), stacked('/x/light.raw', 2)];
+  const unrated = (imageRatings: Record<string, number>) =>
+    computeSortedLibrary(
+      {
+        imageList: bracket,
+        imageRatings,
+        filterCriteria: { colors: [], rating: -1, rawStatus: RawStatus.All },
+        searchCriteria: { tags: [], text: '', mode: 'AND' },
+        sortCriteria: { key: 'name', order: 'asc' },
+        expandedStacks: new Set(),
+      },
+      { appSettings: {} },
+    ).map((image) => image.path);
+
+  it('shows the cover while unrated, and shows nothing (not a member) once the cover is rated', () => {
+    expect(unrated({})).toEqual(['/x/normal.raw']);
+    expect(unrated({ '/x/normal.raw': 3 })).toEqual([]);
+  });
+});
+
+describe('capture-date ordering', () => {
+  it('uses recorded UTC instants and ignores folder display shifts', () => {
+    const photos: ImageFile[] = [
+      {
+        ...makeImage('/trip/hawaii.jpg', 1),
+        exif: { DateTimeOriginal: '2026:10:19 23:30:00', OffsetTimeOriginal: '-10:00' },
+      },
+      {
+        ...makeImage('/trip/japan.jpg', 2),
+        exif: { DateTimeOriginal: '2026:10:20 12:00:00', OffsetTimeOriginal: '+09:00' },
+      },
+    ];
+    const appSettings = { grouping: 'off' as const, folderCaptureTimeShiftMinutes: { '/trip': 1140 } };
+    const result = computeSortedLibrary(
+      {
+        imageList: photos,
+        imageRatings: {},
+        filterCriteria: { colors: [], rating: 0, rawStatus: RawStatus.All },
+        searchCriteria: { tags: [], text: '', mode: 'AND' },
+        sortCriteria: { key: 'date_taken', order: 'asc' },
+      },
+      { appSettings },
+    );
+    expect(result.map((image) => image.path)).toEqual(['/trip/japan.jpg', '/trip/hawaii.jpg']);
   });
 });

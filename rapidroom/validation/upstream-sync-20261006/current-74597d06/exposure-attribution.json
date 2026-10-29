@@ -1,0 +1,120 @@
+{
+  "source": "dcff286122e8f384044dd44fc3dae2bbad3e30fc",
+  "prior_candidate": "6b3ac875a35d00d83b75b97a28c8ac486e9cd699",
+  "prior60_n_identical": 59,
+  "sole_changed_case": {
+    "id": "canon-r6m2-24mp-raw",
+    "set": "neutral",
+    "cause": "Fresh eligible Canon highlight-preservation compensation +0.5EV with default baseline disabled and HL enabled.",
+    "new_neutral_matches_fresh_HL_only": true,
+    "disabled_compensation_reproduces_previous_exactly": true,
+    "current_pixel_sha256": "74bcfdfd838a7c0156b07188513d92f4e14c4ed89155908882cc45769550750f",
+    "previous_pixel_sha256": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073"
+  },
+  "latest12_upstream_residual": 0,
+  "scope": "Measured ordinary60 corpus recipes and5camera eligibility/preference controls only; no unrelated camera/model/OS claim.",
+  "main_control": "f30d0e87cc8e2165c52582a9929a713ee07ac3d7",
+  "legacy_preference_checks": {
+    "canon-r6m2-24mp-raw/candidate": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+        "0-1": "74bcfdfd838a7c0156b07188513d92f4e14c4ed89155908882cc45769550750f",
+        "1-0": "0fbf044373e380c84f08b53664b8562ee52a45ee40cf9f2e303e8efeec522893",
+        "1-1": "9e9c7f1a842e50432a372dcb139cad6bdf7427d1678563ed07af2e23582b625a"
+      }
+    },
+    "canon-r6m2-24mp-raw/main": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+        "0-1": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+        "1-0": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073",
+        "1-1": "fc266531404ae273b9a75879d6de5080d3aefde977d38c67ad27c060245c9073"
+      }
+    },
+    "nikon-zf-24mp-compressed/candidate": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+        "0-1": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+        "1-0": "d9eaa4bb88c6cf393f9825679853b0b5e54bd9ae3aac58a28fdb792941e0c859",
+        "1-1": "d9eaa4bb88c6cf393f9825679853b0b5e54bd9ae3aac58a28fdb792941e0c859"
+      }
+    },
+    "nikon-zf-24mp-compressed/main": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+        "0-1": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+        "1-0": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead",
+        "1-1": "872b12a8a702e542120363ee5a9a5fec60264b7bb6d03b6fa2debca1d8adeead"
+      }
+    },
+    "nikon-zfc-21mp-lossless/candidate": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+        "0-1": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+        "1-0": "b94a60e1a82059876224a7abac33ef6211a1f6fa17aca52db99b97b053264252",
+        "1-1": "b94a60e1a82059876224a7abac33ef6211a1f6fa17aca52db99b97b053264252"
+      }
+    },
+    "nikon-zfc-21mp-lossless/main": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+        "0-1": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+        "1-0": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8",
+        "1-1": "ea1bc01606cbfcb4435f9b2ea4daa5f6591a1fac11cf667c06e5812729f3d6f8"
+      }
+    },
+    "fuji-xh2-40mp-compressed/candidate": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+        "0-1": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+        "1-0": "e4c59059f0516fd9ed2df2a1183f5401bd734263fcb84b91fa2b81400d86673a",
+        "1-1": "e4c59059f0516fd9ed2df2a1183f5401bd734263fcb84b91fa2b81400d86673a"
+      }
+    },
+    "fuji-xh2-40mp-compressed/main": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+        "0-1": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+        "1-0": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940",
+        "1-1": "bf4b0295e6762f7b8576aa1a7d193c84f0c74701f9eb2a303f8595cac7b0a940"
+      }
+    },
+    "fuji-xt4-26mp-lossless/candidate": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+        "0-1": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+        "1-0": "99f49f655d6c1d3e2bd4a45b7dca4cf5e318d872b98276700fe2301708892ce2",
+        "1-1": "99f49f655d6c1d3e2bd4a45b7dca4cf5e318d872b98276700fe2301708892ce2"
+      }
+    },
+    "fuji-xt4-26mp-lossless/main": {
+      "legacy_preferences_identical": true,
+      "disabled_fresh_matches_legacy": true,
+      "fresh_hashes": {
+        "0-0": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+        "0-1": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+        "1-0": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def",
+        "1-1": "7d56eb528227bc7ed1da587c2bad0a7957cbf4c669f4f7a9855b8f118df22def"
+      }
+    }
+  },
+  "reference_updated": false
+}

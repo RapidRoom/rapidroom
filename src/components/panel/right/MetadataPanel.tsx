@@ -1,3 +1,4 @@
+import CaptureTime from '../../ui/CaptureTime';
 import { useState, useMemo, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Check, ChevronDown, ChevronRight, Plus, Star, Tag, X, User } from 'lucide-react';
@@ -40,7 +41,13 @@ interface GPSData {
 
 interface MetaDataItemProps {
   label: string;
-  value: any;
+  value: unknown;
+}
+
+interface CameraGridSetting {
+  key: string;
+  label: string;
+  value: string | number;
 }
 
 const USER_TAG_PREFIX = 'user:';
@@ -205,7 +212,7 @@ const EDITABLE_FIELDS = [
   { key: 'Artist', label: 'author' },
   { key: 'Copyright', label: 'copyright' },
   { key: 'UserComment', label: 'comments' },
-];
+] as const;
 
 const KEY_CAMERA_SETTINGS_MAP: CameraSettings = {
   FNumber: {
@@ -243,7 +250,7 @@ export default function MetadataPanel() {
   const multiSelectedPaths = useLibraryStore((s) => s.multiSelectedPaths);
   const imageRatings = useLibraryStore((s) => s.imageRatings);
   const appSettings = useSettingsStore((s) => s.appSettings);
-  const thumbnails = useProcessStore((s) => s.thumbnails);
+  const liveThumbnailUrl = useProcessStore((s) => (selectedImage ? s.thumbnails[selectedImage.path] : undefined));
 
   const { handleRate, handleToggleFlag, handleSetColorLabel, handleTagsChanged, handleUpdateExif } =
     useLibraryActions();
@@ -254,7 +261,6 @@ export default function MetadataPanel() {
     if (!selectedImage) return EMPTY_TAGS;
     return state.imageList.find((img) => img.path === selectedImage.path)?.tags ?? EMPTY_TAGS;
   });
-  const liveThumbnailUrl = selectedImage ? thumbnails[selectedImage.path] : undefined;
 
   const targetPaths = multiSelectedPaths?.length > 0 ? multiSelectedPaths : selectedImage ? [selectedImage.path] : [];
   const getPathsToUpdate = () => {
@@ -267,7 +273,7 @@ export default function MetadataPanel() {
     const exif = selectedImage?.exif || {};
 
     const cameraGridKeys = ['ExposureTime', 'FNumber', 'PhotographicSensitivity', 'FocalLengthIn35mmFilm'];
-    const cameraGridSettings = cameraGridKeys.map((key) => {
+    const cameraGridSettings: CameraGridSetting[] = cameraGridKeys.map((key) => {
       const value = exif[key];
       const hasValue = value !== undefined && value !== null && value !== '';
 
@@ -451,9 +457,7 @@ export default function MetadataPanel() {
                         })
                       : t('editor.metadata.fileInfo.emptyDimensions')}
                   </Text>
-                  <Text variant={TextVariants.small} color={TextColors.secondary} className="truncate drop-shadow-sm">
-                    {selectedImage.exif?.DateTimeOriginal || '-'}
-                  </Text>
+                  <CaptureTime path={selectedImage.path} exif={selectedImage.exif} editable />
                 </div>
               </div>
             </div>
@@ -464,7 +468,7 @@ export default function MetadataPanel() {
               </Text>
               <div className="flex flex-col gap-2">
                 <div className="grid grid-cols-2 gap-2">
-                  {cameraGridSettings.map((item: any) => {
+                  {cameraGridSettings.map((item) => {
                     const Icon = CAMERA_ICONS[item.key];
                     return (
                       <div

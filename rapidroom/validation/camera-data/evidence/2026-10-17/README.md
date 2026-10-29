@@ -1,0 +1,31 @@
+# Fresh RAW lens correction comparisons
+
+These seventeen CC0 images change when a fresh RAW receives Auto lens defaults. All forty images with explicit adjustment recipes remain pixel-identical to the committed reference. The strict full60 comparison is **43/60 identical**, not a passing reference check. No reference has been updated.
+
+A separate native control preserves the existing baseline-exposure flag and omits lens correction: `{"baselineExposure":true}`. All twenty such outputs are pixel-identical to the committed neutral reference. An earlier empty-object control matched nineteen; its Canon R6 case also disabled the existing exposure flag, so it did not isolate lens policy.
+
+The panels were originally rendered by `e167fdb88576b73586498f1ab4e4fce3f5d2e10d`. The source-reviewed candidate `505cb2e13947b71fa1f1f7e69843982632e1a5d6` independently reproduced all sixty CC0 output pixel hashes and all twenty private control output pixel hashes with its own artifact-derived release pin `55fa4be3f346194de69b33f09eb23eec24290da728c5710db3dd5346931e0163`. Panel origin and later reproduction identities remain separate in the validation record. The later candidate also passed actual saved-Auto1 framing preview/Save IPC with two stale payloads, current component controls and three-lens ON/OFF detection cards. Current-main integration, hosted checks and human judgment remain pending.
+
+These panels compare full, unrepaired outputs. No registration, crop mask or fitted tone curve is used. Camera distortion takes precedence when valid; Lensfun supplies fallback components. Camera vignetting and camera TCA remain disabled pending independent same-shot validation. These are agent-generated comparisons for maintainer review, not human acceptance or a calibration release.
+
+The private three-lens controls and same-shot Lightroom/camera references remain local. Only the public CC0 regression corpus appears here. Source URLs, source hashes, output pixel hashes and measured differences are in [validation.json](validation.json).
+
+| CC0 source                                                                                                                                                   | Full comparison                                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| [canon-r50-24mp-craw](https://raw.pixls.us/getfile.php/6645/nice/Canon%20-%20EOS%20R50%20-%20CRAW%20%283%3A2%29.CR3)                                         | [before / after](panels/canon-r50-24mp-craw.jpg)         |
+| [canon-r6m2-24mp-raw](https://raw.pixls.us/getfile.php/6402/nice/Canon%20-%20EOS%20R6%20Mark%20II%20-%203%3A2.cr3)                                           | [before / after](panels/canon-r6m2-24mp-raw.jpg)         |
+| [fuji-xh2-40mp-compressed](https://raw.pixls.us/getfile.php/6001/nice/Fujifilm%20-%20X-H2%20-%2014bit%2014bit%20compressed%20%283%3A2%29.RAF)                | [before / after](panels/fuji-xh2-40mp-compressed.jpg)    |
+| [fuji-xt4-26mp-lossless](https://raw.pixls.us/getfile.php/3914/nice/Fujifilm%20-%20X-T4%20-%2014bit%2014bit%20lossless%20compressed%20%283%3A2%29.RAF)       | [before / after](panels/fuji-xt4-26mp-lossless.jpg)      |
+| [nikon-zf-24mp-compressed](https://raw.pixls.us/getfile.php/6885/nice/Nikon%20-%20Z%20f%20-%2014bit%2014bit%20compressed%20%283%3A2%29.NEF)                  | [before / after](panels/nikon-zf-24mp-compressed.jpg)    |
+| [nikon-zfc-21mp-lossless](https://raw.pixls.us/getfile.php/4812/nice/Nikon%20-%20Z%20fc%20-%2014bit%2014bit%20compressed%20%28Lossless%29%20%283%3A2%29.nef) | [before / after](panels/nikon-zfc-21mp-lossless.jpg)     |
+| [om-om1-20mp](https://raw.pixls.us/getfile.php/5283/nice/OM%20System%20-%20OM-1%20-%2016bit%20%284%3A3%29.ORF)                                               | [before / after](panels/om-om1-20mp.jpg)                 |
+| [ricoh-griiix-24mp-dng](https://raw.pixls.us/getfile.php/5818/nice/Ricoh%20-%20GR%20IIIx%20-%2014bit%20%283%3A2%29.DNG)                                      | [before / after](panels/ricoh-griiix-24mp-dng.jpg)       |
+| [sony-a7c2-15mp-compressed](https://raw.pixls.us/getfile.php/6869/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%20%283%3A2%29.ARW)                                   | [before / after](panels/sony-a7c2-15mp-compressed.jpg)   |
+| [sony-a7c2-15mp-uncompressed](https://raw.pixls.us/getfile.php/6866/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%2014bit%20uncompressed%20%283%3A2%29.ARW)          | [before / after](panels/sony-a7c2-15mp-uncompressed.jpg) |
+| [sony-a7c2-33mp-compressed](https://raw.pixls.us/getfile.php/6868/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%20%283%3A2%29.ARW)                                   | [before / after](panels/sony-a7c2-33mp-compressed.jpg)   |
+| [sony-a7c2-33mp-uncompressed](https://raw.pixls.us/getfile.php/6865/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%2014bit%20uncompressed%20%283%3A2%29.ARW)          | [before / after](panels/sony-a7c2-33mp-uncompressed.jpg) |
+| [sony-a7c2-37mp-4x3](https://raw.pixls.us/getfile.php/6867/nice/Sony%20-%20ILCE-7CM2%20-%2014bit%20%284%3A3%29.ARW)                                          | [before / after](panels/sony-a7c2-37mp-4x3.jpg)          |
+| [sony-a7cr-18mp-lossless-s](https://raw.pixls.us/getfile.php/7034/nice/Sony%20-%20ILCE-7CR%20-%20losseless%20compressed%20%284%3A3%29.ARW)                   | [before / after](panels/sony-a7cr-18mp-lossless-s.jpg)   |
+| [sony-a7cr-26mp-uncompressed](https://raw.pixls.us/getfile.php/7039/nice/Sony%20-%20ILCE-7CR%20-%2014bit%2014bit%20uncompressed%20%283%3A2%29.ARW)           | [before / after](panels/sony-a7cr-26mp-uncompressed.jpg) |
+| [sony-a7cr-61mp-compressed](https://raw.pixls.us/getfile.php/7035/nice/Sony%20-%20ILCE-7CR%20-%2014bit%2014bit%20Compressed%20%283%3A2%29.ARW)               | [before / after](panels/sony-a7cr-61mp-compressed.jpg)   |
+| [sony-a7cr-65mp-lossless](https://raw.pixls.us/getfile.php/7032/nice/Sony%20-%20ILCE-7CR%20-%2014bit%2014bit%20losseless%20compressed%20%284%3A3%29.ARW)     | [before / after](panels/sony-a7cr-65mp-lossless.jpg)     |

@@ -37,9 +37,9 @@
   "real_assistants_started": true,
   "clients": {
     "built-in-claude": {
-      "folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
-      "app_folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
-      "config_home": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/config",
+      "folder": "~/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "app_folder": "~/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "config_home": "~/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/config",
       "endpoint_or_token_env": false,
       "stdin_is_pty": true,
       "passed": true,
@@ -47,9 +47,9 @@
       "actual_mcp_edit_call": true
     },
     "built-in-codex": {
-      "folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
-      "app_folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
-      "config_home": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/config",
+      "folder": "~/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "app_folder": "~/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "config_home": "~/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/config",
       "endpoint_or_token_env": false,
       "stdin_is_pty": true,
       "passed": true,
@@ -57,9 +57,9 @@
       "actual_mcp_edit_call": true
     },
     "external-claude": {
-      "folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
-      "app_folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
-      "config_home": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/config",
+      "folder": "~/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "app_folder": "~/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "config_home": "~/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/config",
       "endpoint_or_token_env": false,
       "stdin_is_pty": false,
       "passed": true,
@@ -67,9 +67,9 @@
       "actual_mcp_edit_call": true
     },
     "external-codex": {
-      "folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
-      "app_folder": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
-      "config_home": "/home/josh/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/config",
+      "folder": "~/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "app_folder": "~/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/input",
+      "config_home": "~/code/rapidraw-project/samples/terminal-ui-119/native-auth-stage1/config",
       "endpoint_or_token_env": false,
       "stdin_is_pty": false,
       "passed": true,

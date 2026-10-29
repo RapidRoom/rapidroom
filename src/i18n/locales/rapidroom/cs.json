@@ -1,0 +1,224 @@
+{
+  "pointColor": {
+    "title": "Point Color",
+    "hsl": "HSL",
+    "pick": "Pick a Point Color on the photo",
+    "select": "Select Point Color {{index}}",
+    "delete": "Delete selected Point Color",
+    "empty": "Pick a color on the photo to adjust nearby colors.",
+    "bounded": "Shifts adapt to the selected range to keep colors in order.",
+    "sampleFailed": "Could not sample this color. Try again on the photo."
+  },
+  "editor": {
+    "presets": {
+      "appliedFolder": "Použité",
+      "bakedIn": "pevně začleněno",
+      "bakedInNotice": "Použito dříve a pevně začleněno do úprav. Odebrání zachová úpravy."
+    },
+    "toolbar": {
+      "tooltips": {
+        "showEdited": "Zobrazit upravený (B)",
+        "showOriginal": "Zobrazit originál (B)"
+      }
+    },
+    "viewer": {
+      "windowTitle": "Prohlížeč RapidRoom"
+    }
+  },
+  "library": {
+    "import": {
+      "complete": "Import dokončen!",
+      "failed": "Import se nezdařil!",
+      "progress": "Probíhá import... ({{current}}/{{total}})"
+    },
+    "photoCounts": {
+      "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
+      "emptyFolder": "No photos directly in this folder.",
+      "descendants_one": "{{count}} photo in subfolders.",
+      "descendants_other": "{{count}} photos in subfolders.",
+      "descendantsPartial_one": "At least {{count}} photo in subfolders.",
+      "descendantsPartial_other": "At least {{count}} photos in subfolders.",
+      "checking": "Checking subfolders…",
+      "scanLimited": "This folder is large. Open subfolders to see all photos.",
+      "showSubfolders": "Show photos in subfolders",
+      "total_one": "{{count}} photo",
+      "total_other": "{{count}} photos",
+      "filtered_one": "{{count}} of {{total}} photos",
+      "filtered_other": "{{count}} of {{total}} photos",
+      "recursive": "(incl. subfolders)",
+      "albumCountsLabel": "Album image counts",
+      "albumCountsDesc": "Show image totals next to albums. Folder photo counts are always shown.",
+      "checkFailed": "Could not check subfolders. Refresh the folder to try again.",
+      "descendants_few": "{{count}} photos in subfolders.",
+      "descendants_many": "{{count}} photos in subfolders.",
+      "descendantsPartial_few": "At least {{count}} photos in subfolders.",
+      "descendantsPartial_many": "At least {{count}} photos in subfolders.",
+      "total_few": "{{count}} photos",
+      "total_many": "{{count}} photos",
+      "filtered_few": "{{count}} of {{total}} photos",
+      "filtered_many": "{{count}} of {{total}} photos"
+    }
+  },
+  "modals": {
+    "copyPaste": {
+      "groups": {
+        "exposureToneMapper": "Expozice a mapování tónů",
+        "tone": "Tón"
+      }
+    },
+    "denoise": {
+      "batchProgressText": "Odšumování {{current}} z {{total}}...",
+      "btnBatchDenoise": "Odšumovat vše a uložit",
+      "btnRetry": "Zkuste to znovu",
+      "btnSave": "Uložit",
+      "btnStart": "Start",
+      "cancel": "Zrušit",
+      "close": "Zavřít",
+      "denoised": "Odšumovaný",
+      "denoisingProgress": "Probíhá odstraňování šumu",
+      "description": "Odstraňte šum ze snímku pomocí umělé inteligence nebo tradičního odšumování.",
+      "downloadingText": "Stahování {{status}}...",
+      "gpuWarningTooltip": "NIND Denoise zatím nepodporuje akceleraci GPU kvůli omezením závislosti.",
+      "initializing": "Inicializace...",
+      "methodAi": "NIND (AI – nejlepší pro RAW)",
+      "methodBm3d": "BM3D (tradiční – všechny formáty)",
+      "methodLabel": "Metoda",
+      "methodRaw9": "Apple RAW 9 (Neural Engine)",
+      "openInEditor": "Otevřít v Editoru",
+      "original": "Originál",
+      "panZoomEnabled": "Posouvání a přibližování povoleno",
+      "processingFailed": "Zpracování se nezdařilo",
+      "qualityTileSizeLabel": "Kvalita / velikost dlaždic",
+      "reset": "Resetovat",
+      "saveSuccess": "Snímek byl úspěšně uložen!",
+      "speedNotice": "To může trvat několik minut v závislosti na velikosti snímku a zvolené metodě.",
+      "strengthLabel": "Síla",
+      "titleBatch": "Odšumovat snímky",
+      "titleSingle": "Odšumovat snímek"
+    },
+    "lensCorrection": {
+      "sourceApplied": "Použito: {{source}}",
+      "sourceAvailable": "K dispozici: {{source}}",
+      "sourceCameraData": "Data fotoaparátu",
+      "sourceExistingRecipe": "uložené úpravy",
+      "sourceNoData": "Žádná data korekce",
+      "sourceUnavailable": "Zdroje korekce nejsou dostupné",
+      "sourceChecking": "Kontrola zdrojů korekce…"
+    }
+  },
+  "settings": {
+    "data": {
+      "clearAiDenoise": "Vymazat mezipaměť AI odšumění",
+      "clearAiDenoiseButton": "Vymazat",
+      "clearAiDenoiseDesc": "Smaže uložené výsledky AI odšumění ({{size}}). Snímky se zapnutým AI odšuměním jej při dalším otevření přepočítají.",
+      "clearSidecars": "Vymazat všechny sidecar soubory",
+      "clearSidecarsButton": "Vymazat",
+      "clearSidecarsDesc": "Tím smažete všechny soubory .rrdata (obsahující vaše úpravy) ve vašich kořenových složkách:",
+      "clearThumbnail": "Vymazat mezipaměť miniatur",
+      "clearThumbnailButton": "Vymazat",
+      "clearThumbnailDesc": "Tím se vymažou všechny miniatury snímků uložené v mezipaměti. Při procházení knihovny se automaticky znovu vygenerují.",
+      "cacheUsage": "Miniatury a náhledy: {{size}} · Soubory: {{files}}",
+      "cacheUsageError": "Využití mezipaměti se nepodařilo načíst.",
+      "loading": "Načítání...",
+      "logs": "Zobrazit protokoly aplikace",
+      "logsButton": "Otevřít",
+      "logsDesc": "Zobrazit soubor protokolu aplikace pro řešení potíží. Protokol se nachází v:",
+      "modals": {
+        "confirmCacheTitle": "Potvrďte smazání mezipaměti",
+        "confirmClearCache": "Vymazat mezipaměť"
+      },
+      "resetLayoutButton": "Obnovit rozložení",
+      "statuses": {
+        "clearingAi": "Mazání značek AI ze všech sidecar souborů...",
+        "clearingAiDenoise": "Mazání mezipaměti AI odšumění...",
+        "clearingAll": "Mazání všech značek ze sidecar souborů...",
+        "clearingCache": "Mazání mezipaměti miniatur...",
+        "deleting": "Mazání sidecar souborů, čekejte prosím...",
+        "failedToGetPath": "Nelze načíst cestu k souboru protokolu.",
+        "processing": "Zpracovává se...",
+        "resettingLayout": "Obnovování pracovní plochy..."
+      }
+    },
+    "general": {
+      "writeJpegMetadata": "Zapisovat hodnocení a štítky do souborů JPEG",
+      "writeJpegMetadataDesc": "Vloží hodnocení, barevné štítky a příznaky zamítnutí do původních souborů JPEG bez překódování pixelů. Ve výchozím nastavení vypnuto; ostatní formáty nadále používají doprovodné soubory."
+    },
+    "keybinds": {
+      "actions": {
+        "toggle_denoise_mark": "Toggle denoise mark"
+      }
+    },
+    "processing": {
+      "preprocessing": {
+        "autoLensCorrection": "Automatická korekce objektivu pro nové RAW",
+        "autoLensCorrectionDesc": "Použije dostupné korekce při prvním otevření nebo obnovení fotografie RAW. Uložené úpravy si zachovají nastavení.",
+        "enableAutoLensCorrection": "Používat automatickou korekci objektivu jako výchozí",
+        "baselineExposureDesc": "Přidává pevné zvýšení expozice ke starším úpravám používajícím základní expozici. Nové a resetované úpravy RAW místo toho používají kompenzaci expozice fotoaparátu nebo DNG."
+      }
+    },
+    "tagging": {
+      "clearAiTagsButton": "Vymazat",
+      "clearAiTagsDesc": "Tím odstraníte všechny značky generované AI z vašich souborů .rrdata ve všech aktivních kořenových složkách. Uživatelem přidané značky zůstanou zachovány.",
+      "clearAiTagsTitle": "Vymazat značky AI",
+      "clearAllTagsDesc": "Tím odstraníte všechny značky generované AI i přidané uživatelem z vašich souborů .rrdata ve všech aktivních kořenových složkách. Barevné štítky zůstanou zachovány.",
+      "clearAllTagsTitle": "Vymazat všechny značky"
+    },
+    "thanks": {
+      "list": {
+        "u2net": "Pro zajištění robustní architektury používané pro schopnosti detekce oblohy a popředí AI."
+      }
+    }
+  },
+  "denoiseQueue": {
+    "title": "Denoise marked photos…",
+    "marked": "Marked for denoise",
+    "done": "Denoised",
+    "mark": "Mark for denoise",
+    "unmark": "Remove denoise mark",
+    "toggle": "Toggle denoise mark",
+    "filter": "Denoise status",
+    "all": "All photos",
+    "chooseFolder": "Choose a library folder first.",
+    "method": "Method",
+    "methods": {
+      "best": "Best · sensor DNG",
+      "fast": "Fast · sensor DNG",
+      "nind": "NIND · TIFF / PNG",
+      "bm3d": "Basic · TIFF / PNG",
+      "raw9": "Apple RAW 9 · TIFF"
+    },
+    "sharpen": "Sharpen (optional)",
+    "strength": "Strength / quality",
+    "recursive": "Include subfolders",
+    "hint": "Runs one photo at a time in the background and skips valid results. Fast/Best retain RAW edits; other methods require unedited RAWs. Install AI models in the Denoise dialog first.",
+    "close": "Close",
+    "start": "Start queue",
+    "cancel": "Cancel",
+    "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
+    "cancelled": "Cancelled. Run the queue again to resume.",
+    "errors": "Errors"
+  },
+  "captureTime": {
+    "folderShift": "Folder display time shift…",
+    "description": "Shift displayed capture times for photos directly in this folder. Original files, capture-time sorting and auto-stack stay unchanged. Enter 0 to reset.",
+    "hours": "Hours to add",
+    "example": "Hawaii camera clock in Japan: +19 hours. Half and quarter hours are supported.",
+    "cameraZone": "Camera zone: {{zone}}",
+    "shifted": "{{shift}} display shift",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "jpegMetadata": {
+    "write": "Zapsat metadata do souborů",
+    "undo": "Vrátit poslední zápis metadat",
+    "written_one": "Metadata JPEG byla zapsána do {{count}} souboru.",
+    "written_few": "Metadata JPEG byla zapsána do {{count}} souborů.",
+    "written_other": "Metadata JPEG byla zapsána do {{count}} souborů.",
+    "restored_one": "Metadata byla obnovena pro {{count}} soubor.",
+    "restored_few": "Metadata byla obnovena pro {{count}} soubory.",
+    "restored_other": "Metadata byla obnovena pro {{count}} souborů.",
+    "failed": "Zápis metadat selhal: {{error}}",
+    "written_many": "Metadata JPEG byla zapsána do {{count}} souborů.",
+    "restored_many": "Metadata byla obnovena pro {{count}} souborů."
+  }
+}

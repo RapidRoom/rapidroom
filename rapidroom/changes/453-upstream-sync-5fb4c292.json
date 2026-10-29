@@ -1,0 +1,25 @@
+{
+  "id": "upstream-sync-5fb4c292",
+  "title": "Sync upstream main: second viewer window, Immich album organising, option to hide collapsed side panels",
+  "category": "feature",
+  "landed": "2026-10-28",
+  "authors": ["lalibertemarc", "cl1x", "prosthetiknow", "elhigu", "CyberTimon"],
+  "source": "CyberTimon/RapidRAW",
+  "commits": [
+    "https://github.com/CyberTimon/RapidRAW/commit/5fb4c292",
+    "https://github.com/CyberTimon/RapidRAW/commit/7647169b",
+    "https://github.com/CyberTimon/RapidRAW/commit/61787c6a",
+    "https://github.com/CyberTimon/RapidRAW/commit/340acaa1",
+    "https://github.com/CyberTimon/RapidRAW/commit/2452f6df"
+  ],
+  "upstream_issues": [],
+  "upstream_prs": [
+    "CyberTimon/RapidRAW#1949",
+    "CyberTimon/RapidRAW#2013",
+    "CyberTimon/RapidRAW#2028",
+    "CyberTimon/RapidRAW#2039",
+    "CyberTimon/RapidRAW#2040"
+  ],
+  "rendering_change": false,
+  "notes": "Conflicts kept both sides. The viewer window's per-window GPU display keeps RapidRoom's pending-surface-size resize handling for the main window only; the preview job keeps RapidRoom's perf spans, image-cache hash and lens snapshot resolution after upstream's earlier settings/content-hash step; the Immich conflict-copy helpers stay on RapidRoom's sidecar locking and also back the new upload adoption; editor wheel zoom keeps RapidRoom's percent stepping on top of upstream's shared wheel gesture helper, and click zoom keeps RapidRoom's percent targets. Not run locally: the Rust build was blocked by the network policy, so hosted CI is the first full build."
+}

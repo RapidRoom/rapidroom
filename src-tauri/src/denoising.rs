@@ -1,3 +1,5 @@
+#[path = "denoise_queue.rs"]
+pub mod queue;
 use crate::app_settings::load_settings;
 use crate::app_state::AppState;
 use crate::file_management::parse_virtual_path;
@@ -11,13 +13,14 @@ use rayon::prelude::*;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fs;
+use std::hash::{Hash, Hasher};
 use std::io::Cursor;
 use std::path::Path;
 use std::sync::atomic::{
     AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering as AtomicOrdering,
 };
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
 pub const DENOISE_CANCELLED: &str = "Denoise cancelled";
 
@@ -96,6 +99,15 @@ pub struct DenoiseJob {
 }
 
 impl DenoiseJob {
+    /// A job with no events and no cancellation, for callers outside the denoise queue.
+    pub fn detached() -> Self {
+        Self {
+            id: 0,
+            token: Arc::default(),
+            sink: None,
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn testing() -> Self {
         Self {
@@ -222,6 +234,17 @@ struct DenoiseOptions {
     intensity: f32,
     method: String,
     sharpen: bool,
+    exposure_policies: HashMap<String, serde_json::Value>,
+}
+
+fn selected_exposure_policy(
+    path: &str,
+    overrides: &HashMap<String, serde_json::Value>,
+) -> serde_json::Value {
+    overrides.get(path).cloned().unwrap_or_else(|| {
+        let (_, sidecar) = parse_virtual_path(path);
+        crate::exif_processing::load_sidecar(&sidecar).adjustments
+    })
 }
 
 async fn denoise_session(
@@ -281,12 +304,14 @@ pub fn cancel_denoise(job_id: u64, state: tauri::State<'_, AppState>) {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn apply_denoising(
     job_id: u64,
     path: String,
     intensity: f32,
     method: String,
     sharpen: Option<bool>,
+    exposure_policies: Option<HashMap<String, serde_json::Value>>,
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
@@ -303,6 +328,7 @@ pub async fn apply_denoising(
             intensity,
             method,
             sharpen: sharpen.unwrap_or(true),
+            exposure_policies: exposure_policies.unwrap_or_default(),
         },
         app_handle,
         &state,
@@ -329,9 +355,14 @@ async fn run_single_denoise(
     let denoise_result_handle = state.denoise_result.clone();
 
     tokio::task::spawn_blocking(move || {
-        let outcome = denoise_image(&path_str, &options, &app_handle, ai_session, &job).and_then(
+        let outcome = denoise_image(&path, &options, &app_handle, ai_session, &job).and_then(
             |(image, original, raw)| {
-                let payload = build_previews(&image, original, is_raw_file(&path_str), &job)?;
+                let payload = build_previews(
+                    &image,
+                    original,
+                    uses_default_raw_tone(is_raw_file(&path_str), &options.method),
+                    &job,
+                )?;
                 store_result(
                     &denoise_result_handle,
                     &job,
@@ -352,12 +383,14 @@ async fn run_single_denoise(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn batch_denoise_images(
     job_id: u64,
     paths: Vec<String>,
     intensity: f32,
     method: String,
     sharpen: Option<bool>,
+    exposure_policies: Option<HashMap<String, serde_json::Value>>,
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<String>, String> {
@@ -374,6 +407,7 @@ pub async fn batch_denoise_images(
             intensity,
             method,
             sharpen: sharpen.unwrap_or(true),
+            exposure_policies: exposure_policies.unwrap_or_default(),
         },
         app_handle,
         &state,
@@ -435,7 +469,7 @@ fn run_batch(
         let (source_path, source_sidecar_path) = parse_virtual_path(path_str);
         let real_path = source_path.to_string_lossy().to_string();
 
-        let image = match denoise(&real_path) {
+        let image = match denoise(path_str) {
             Ok(image) => image,
             Err(e) if e == DENOISE_CANCELLED => break,
             Err(e) => {
@@ -467,7 +501,7 @@ fn run_batch(
             && let Some(output_path_str) = output_path.to_str()
         {
             let (_, dest_sidecar_path) = parse_virtual_path(output_path_str);
-            if let Err(e) = fs::copy(&source_sidecar_path, &dest_sidecar_path) {
+            if let Err(e) = copy_denoised_sidecar(&source_sidecar_path, &dest_sidecar_path) {
                 log::warn!("Failed to copy sidecar file for denoised image: {}", e);
             }
         }
@@ -476,6 +510,20 @@ fn run_batch(
     }
 
     results
+}
+
+fn copy_denoised_sidecar(source: &Path, destination: &Path) -> std::io::Result<()> {
+    let bytes = crate::file_management::copied_sidecar_without_stack(source)?;
+    let contents = match serde_json::from_slice::<serde_json::Value>(&bytes) {
+        Ok(serde_json::Value::Object(mut metadata)) if metadata.contains_key("denoise") => {
+            metadata.remove("denoise");
+            serde_json::to_vec_pretty(&metadata).map_err(std::io::Error::other)?
+        }
+        _ => bytes,
+    };
+    // The regular atomic writer preserves any queue state already owned by the target.
+    crate::file_management::write_file_atomically(destination, contents)?;
+    fs::set_permissions(destination, fs::metadata(source)?.permissions())
 }
 
 fn write_denoised_output(
@@ -568,7 +616,7 @@ pub async fn save_denoised_image(
         && let Some(output_path_str) = output_path.to_str()
     {
         let (_, dest_sidecar_path) = crate::file_management::parse_virtual_path(output_path_str);
-        if let Err(e) = std::fs::copy(&source_sidecar_path, &dest_sidecar_path) {
+        if let Err(e) = copy_denoised_sidecar(&source_sidecar_path, &dest_sidecar_path) {
             log::warn!("Failed to copy sidecar file for denoised image: {}", e);
         }
     }
@@ -633,23 +681,131 @@ fn bm3d_denoise(
     Ok(merge_channels(&[r, g, b], width, height))
 }
 
+// Both the default-developed RAW view and normal RGB files are encoded.
+fn nind_model_input(image: DynamicImage) -> Result<Rgb32FImage, String> {
+    let mut model_view = image.into_rgb32f();
+    if model_view.as_raw().iter().any(|sample| !sample.is_finite()) {
+        return Err("Legacy NIND requires finite RGB input samples".into());
+    }
+    // The original RGB loader normalizes uint8/uint16 files to [0, 1]. This
+    // bounded model view does not change the physical source or other methods.
+    for sample in model_view.as_mut() {
+        *sample = sample.clamp(0.0, 1.0);
+    }
+    Ok(model_view)
+}
+
+fn uses_default_raw_tone(is_raw: bool, method: &str) -> bool {
+    is_raw && method != "ai"
+}
+
+fn nind_raw_defaults(source_adjustments: &serde_json::Value) -> serde_json::Value {
+    let mut defaults = crate::image_processing::default_adjustments();
+    crate::image_processing::copy_exposure_policy(source_adjustments, &mut defaults);
+    defaults
+}
+
+fn nind_raw_view(
+    path: &str,
+    source_adjustments: &serde_json::Value,
+    image: &DynamicImage,
+    settings: &crate::app_settings::AppSettings,
+    app_handle: &AppHandle,
+    job: &DenoiseJob,
+) -> Result<DynamicImage, String> {
+    use crate::gpu_processing::{RenderOutputPrecision, RenderRequest};
+
+    job.check()?;
+    job.progress("Developing legacy NIND RGB view...");
+    let invalid = match image {
+        DynamicImage::ImageRgb32F(rgb) => rgb.as_raw().iter().any(|v| !v.is_finite()),
+        DynamicImage::ImageRgba32F(rgba) => rgba.as_raw().iter().any(|v| !v.is_finite()),
+        _ => false,
+    };
+    if invalid {
+        return Err("Legacy NIND requires finite RGB input samples".into());
+    }
+    let state = app_handle.state::<AppState>();
+    let context = crate::gpu_processing::get_or_init_gpu_context(&state, app_handle)?;
+    let (width, height) = image.dimensions();
+    if width > context.limits.max_texture_dimension_2d
+        || height > context.limits.max_texture_dimension_2d
+    {
+        return Err("Legacy NIND RAW development exceeds the GPU image limit".into());
+    }
+    // Reuse the RAW renderer rather than approximating its display curve in
+    // the save path. NIND receives the same encoded, default-developed look
+    // that the original photo displays; its TIFF needs no second tone curve.
+    let default_adjustments = nind_raw_defaults(source_adjustments);
+    let mut adjustments = crate::image_processing::get_all_adjustments_from_json(
+        &default_adjustments,
+        true,
+        crate::as_shot::as_shot(path),
+        crate::image_processing::resolve_render_options(settings, true),
+    );
+    adjustments.global.show_clipping = 0;
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    "nind-default-raw-view".hash(&mut hash);
+    default_adjustments.to_string().hash(&mut hash);
+    job.id.hash(&mut hash);
+    image.as_bytes().hash(&mut hash);
+    let developed = crate::gpu_processing::process_and_get_dynamic_image_with_precision(
+        &context,
+        &state,
+        image,
+        hash.finish(),
+        RenderRequest {
+            adjustments,
+            mask_bitmaps: &[],
+            mask_cache_key: None,
+            lut: None,
+            roi: None,
+        },
+        "nind_default_raw_view",
+        RenderOutputPrecision::SixteenBit,
+    )?;
+    job.check()?;
+    Ok(developed)
+}
+
 fn denoise_image(
-    path_str: &str,
+    image_path: &str,
     options: &DenoiseOptions,
     app_handle: &AppHandle,
     ai_session: DenoiseModels,
     job: &DenoiseJob,
 ) -> Result<(DynamicImage, Rgb32FImage, Option<Vec<u8>>), String> {
+    denoise_image_with_settings(
+        image_path,
+        options,
+        app_handle,
+        ai_session,
+        job,
+        load_settings(app_handle.clone()).unwrap_or_default(),
+        None,
+    )
+}
+
+fn denoise_image_with_settings(
+    image_path: &str,
+    options: &DenoiseOptions,
+    app_handle: &AppHandle,
+    ai_session: DenoiseModels,
+    job: &DenoiseJob,
+    settings: crate::app_settings::AppSettings,
+    source_recipe: Option<&queue::RenderedRecipe>,
+) -> Result<(DynamicImage, Rgb32FImage, Option<Vec<u8>>), String> {
     let method = options.method.as_str();
     let intensity = options.intensity;
-    let path = Path::new(path_str);
+    let (source_path, _) = parse_virtual_path(image_path);
+    let path = source_path.as_path();
+    let path_string = source_path.to_string_lossy();
+    let path_str = path_string.as_ref();
     if !path.exists() {
         return Err("File not found".to_string());
     }
 
     let is_raw = is_raw_file(path_str);
-    let settings = load_settings(app_handle.clone()).unwrap_or_default();
-
     job.progress("Loading image...");
 
     let file_bytes = fs::read(path).map_err(|e| e.to_string())?;
@@ -670,7 +826,29 @@ fn denoise_image(
     .map_err(|e| e.to_string())?;
     job.check()?;
 
-    let rgb_img_for_denoiser = dynamic_img.to_rgb32f();
+    let rgb_img_for_denoiser = if method == "ai" {
+        let encoded = if is_raw {
+            if let Some(recipe) = source_recipe {
+                recipe.render(path_str, &dynamic_img, &original_settings, app_handle, job)?
+            } else {
+                let source_adjustments =
+                    selected_exposure_policy(image_path, &options.exposure_policies);
+                nind_raw_view(
+                    path_str,
+                    &source_adjustments,
+                    &dynamic_img,
+                    &original_settings,
+                    app_handle,
+                    job,
+                )?
+            }
+        } else {
+            dynamic_img
+        };
+        nind_model_input(encoded)?
+    } else {
+        dynamic_img.to_rgb32f()
+    };
 
     let mut raw_output = None;
     let mut out_dynamic = if let DenoiseModels::Tree {
@@ -728,7 +906,14 @@ fn denoise_image(
     };
     job.check()?;
 
-    if is_raw {
+    if is_raw
+        && method != "ai"
+        && let Some(recipe) = source_recipe
+    {
+        // BM3D keeps linear RGB input; RAW9 keeps sensor input. Develop their
+        // linear result with the source recipe only after the native denoiser.
+        out_dynamic = recipe.render(path_str, &out_dynamic, &original_settings, app_handle, job)?;
+    } else if uses_default_raw_tone(is_raw, method) {
         apply_cpu_default_raw_processing(&mut out_dynamic);
     }
 
@@ -1434,6 +1619,104 @@ fn gaussian_blur_1ch(data: &[f32], width: usize, height: usize, sigma: f32) -> V
 mod tests {
     use super::*;
 
+    #[test]
+    fn nind_preserves_prepared_encoded_rgb() {
+        let encoded = Rgb32FImage::from_pixel(2, 2, Rgb([0.0, 0.01292, 0.4613561]));
+        let unchanged = nind_model_input(DynamicImage::ImageRgb32F(encoded.clone())).unwrap();
+        assert_eq!(unchanged, encoded);
+    }
+
+    #[test]
+    fn nind_model_view_bounds_hdr_without_mutating_the_source_and_rejects_nonfinite() {
+        let source = Rgb32FImage::from_pixel(2, 2, Rgb([-0.1, 1.0, 4.0]));
+        let view = nind_model_input(DynamicImage::ImageRgb32F(source.clone())).unwrap();
+        assert_eq!(view.get_pixel(0, 0)[0], 0.0);
+        assert!((view.get_pixel(0, 0)[1] - 1.0).abs() < 1e-6);
+        assert_eq!(view.get_pixel(0, 0)[2], 1.0);
+        assert_eq!(source.get_pixel(0, 0).0, [-0.1, 1.0, 4.0]);
+        for invalid in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let image = Rgb32FImage::from_pixel(1, 1, Rgb([invalid, 0.18, 0.2]));
+            assert!(nind_model_input(DynamicImage::ImageRgb32F(image)).is_err());
+        }
+    }
+
+    #[test]
+    fn nind_prepared_shadow_save_does_not_apply_another_tone_curve() {
+        let prepared = Rgb32FImage::from_pixel(2, 2, Rgb([0.0, 0.001292, 0.4613561]));
+        let encoded = nind_model_input(DynamicImage::ImageRgb32F(prepared)).unwrap();
+        assert!(!uses_default_raw_tone(true, "ai"));
+        assert!(!uses_default_raw_tone(false, "ai"));
+        assert!(uses_default_raw_tone(true, "bm3d"));
+        assert!(uses_default_raw_tone(true, "raw9"));
+        assert!(uses_default_raw_tone(true, "tree_best"));
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("result.tiff");
+        let result = DenoisedOutput::Image(DynamicImage::ImageRgb32F(encoded));
+        write_denoised_output(&result, &path, true, 1, None).unwrap();
+        let pixel = *image::open(&path).unwrap().to_rgb16().get_pixel(0, 0);
+        assert_eq!(pixel[0], 0);
+        assert!(
+            (pixel[1] as i32 - 85).abs() <= 1,
+            "faint signal was crushed: {pixel:?}"
+        );
+        assert!(
+            (pixel[2] as i32 - 30235).abs() <= 1,
+            "tone curve baked into save: {pixel:?}"
+        );
+    }
+
+    #[test]
+    #[ignore = "Local NIND encoding integration; set RAPIDROOM_NIND_MODEL and RAPIDROOM_NIND_OUTPUT, under flock"]
+    fn real_nind_encoded_rgb_smoke() {
+        let model = std::env::var("RAPIDROOM_NIND_MODEL").unwrap();
+        let session = Mutex::new(
+            Session::builder()
+                .unwrap()
+                .with_intra_threads(4)
+                .unwrap()
+                .commit_from_file(model)
+                .unwrap(),
+        );
+        let input = Rgb32FImage::from_fn(513, 257, |x, y| {
+            Rgb([
+                0.0001 + x as f32 / 6412.5,
+                0.0002 + y as f32 / 3212.5,
+                0.003,
+            ])
+        });
+        let encoded = nind_model_input(DynamicImage::ImageRgb32F(input)).unwrap();
+        let root = std::path::PathBuf::from(std::env::var("RAPIDROOM_NIND_OUTPUT").unwrap());
+        let original = DenoisedOutput::Image(DynamicImage::ImageRgb32F(encoded.clone()));
+        write_denoised_output(
+            &original,
+            &root.join("nind-encoded-input.tiff"),
+            true,
+            1,
+            None,
+        )
+        .unwrap();
+        for intensity in [0.1, 0.5, 0.9] {
+            let result = crate::ai_processing::run_ai_denoise(
+                &encoded,
+                intensity,
+                &session,
+                &DenoiseJob::testing(),
+            )
+            .unwrap();
+            let output = result.to_rgb32f();
+            assert_eq!(output.dimensions(), encoded.dimensions());
+            assert!(output.pixels().all(|p| p.0.iter().all(|v| v.is_finite())));
+            write_denoised_output(
+                &DenoisedOutput::Image(result),
+                &root.join(format!("nind-encoded-{}.tiff", (intensity * 100.0) as u32)),
+                true,
+                1,
+                None,
+            )
+            .unwrap();
+        }
+    }
+
     struct Lcg(u64);
 
     impl Lcg {
@@ -1654,6 +1937,66 @@ mod tests {
             .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
             .filter(|name| name.ends_with(".partial"))
             .collect()
+    }
+
+    #[test]
+    fn virtual_copy_batch_keeps_its_sidecar_and_pending_exposure_policy() {
+        let (dir, paths) = batch_dir();
+        let original_pixels = fs::read(&paths[0]).unwrap();
+        let selected = format!("{}?vc=legacy-look", paths[0]);
+        let (_, base_sidecar) = parse_virtual_path(&paths[0]);
+        let (_, selected_sidecar) = parse_virtual_path(&selected);
+        let base = crate::image_processing::ImageMetadata {
+            adjustments: serde_json::json!({
+                "baselineExposure": true, "cameraExposureCompensation": true,
+            }),
+            ..Default::default()
+        };
+        let virtual_copy = crate::image_processing::ImageMetadata {
+            adjustments: serde_json::json!({
+                "exposure": 1.25, "baselineExposure": true,
+                "cameraExposureCompensation": false,
+            }),
+            ..Default::default()
+        };
+        let base_bytes = serde_json::to_vec(&base).unwrap();
+        let copy_bytes = serde_json::to_vec(&virtual_copy).unwrap();
+        fs::write(&base_sidecar, &base_bytes).unwrap();
+        fs::write(&selected_sidecar, &copy_bytes).unwrap();
+        let pending_reset = HashMap::from([(
+            selected.clone(),
+            serde_json::json!({
+                "baselineExposure": true, "cameraExposureCompensation": true,
+            }),
+        )]);
+        let jobs = Arc::new(DenoiseJobs::default());
+        let (job, _) = job_with_events(&jobs, |_, _| false);
+        let saved = run_batch(&job, std::slice::from_ref(&selected), |path| {
+            assert_eq!(
+                selected_exposure_policy(path, &HashMap::new()),
+                virtual_copy.adjustments
+            );
+            assert_eq!(
+                selected_exposure_policy(path, &pending_reset),
+                pending_reset[&selected]
+            );
+            assert_eq!(
+                selected_exposure_policy(&paths[0], &pending_reset),
+                base.adjustments
+            );
+            Ok(DenoisedOutput::Image(image::open(&paths[0]).unwrap()))
+        });
+        let output = dir.path().join("a_Denoised.png");
+        assert_eq!(saved, vec![output.to_string_lossy().to_string()]);
+        assert_eq!(
+            image::open(output).unwrap().to_rgb8(),
+            image::open(&paths[0]).unwrap().to_rgb8()
+        );
+        let (_, output_sidecar) = parse_virtual_path(&saved[0]);
+        assert_eq!(fs::read(output_sidecar).unwrap(), copy_bytes);
+        assert_eq!(fs::read(&base_sidecar).unwrap(), base_bytes);
+        assert_eq!(fs::read(&selected_sidecar).unwrap(), copy_bytes);
+        assert_eq!(fs::read(&paths[0]).unwrap(), original_pixels);
     }
 
     #[test]
