@@ -1,0 +1,442 @@
+{
+  "adjustments": {
+    "color": {
+      "mixerPickerTooltip": "Selector del mesclador de colors: feu clic i arrossegueu amunt o avall a la foto",
+      "toggleMixerExpanded": "Mesclador de colors ampliat"
+    },
+    "details": {
+      "aiDenoiseHint": "For high-ISO RAW photos, use AI Denoise from the photo menu. These sliders are for light touch-ups.",
+      "quickNoiseReduction": "Quick noise reduction (basic)"
+    }
+  },
+  "contextMenus": {
+    "albums": {
+      "importLightroom": "Import Lightroom Collections…",
+      "lightroomCatalog": "Lightroom Catalog",
+      "relinkLightroom": "Relink Lightroom Folders…",
+      "selectLightroomCatalog": "Select Lightroom Catalog"
+    },
+    "dialogs": {
+      "importXmpAdjustmentsTitle": "Importar ajustaments XMP",
+      "xmpSidecar": "Fitxer XMP"
+    },
+    "editor": {
+      "importXmpAdjustments": "Importar ajustaments XMP"
+    },
+    "folders": {
+      "importMatchingXmpSidecars": "Importar ajustaments XMP"
+    },
+    "thumbnail": {
+      "importXmpAdjustments": "Importar ajustaments XMP"
+    },
+    "xmpImportReport": {
+      "calibrationWarning": "Lightroom import is uncalibrated: global adjustments and masks are not ready for real use until full import calibration (#31 and #133) is complete.",
+      "available": "Informe d'importació XMP: {{unchanged}} sense canvis, {{failed}} amb error. Feu clic per veure'n els detalls.",
+      "copied": "S'ha copiat l'informe d'importació.",
+      "copy": "Copiar l'informe",
+      "failed": "Amb error ({{total}})",
+      "folder": "Carpeta: {{folder}}",
+      "notTransferred": "Imported, but some Lightroom settings were not transferred ({{total}})",
+      "notTransferredAvailable": "XMP import report: some Lightroom settings were not transferred ({{total}}). Click to view details.",
+      "notTransferredForImage": "Not transferred from Lightroom: {{items}}.",
+      "notTransferredItems": {
+        "maskBrushTable": "Taules de pinzell no importades",
+        "aiDenoise": "AI Denoise",
+        "aiMasks": "AI masks (subject, sky, people, objects)",
+        "localAdjustments": "local adjustments RapidRAW has no slider for (such as moiré, defringe or colour tint)",
+        "masks": "masks of a kind RapidRAW can't import",
+        "pointColor": "Point Color",
+        "profileLook": "profile look (colour table)",
+        "unsupportedDevelopSettings": "Ajustos de revelatge de Lightroom sense control a RapidRoom",
+        "unsupportedProcessVersion": "Versió de procés de Lightroom no reconeguda (no se n’infereixen els valors predeterminats)",
+        "whiteBalance": "custom white balance (no as-shot values in the sidecar)"
+      },
+      "title": "Informe d'importació XMP",
+      "unchanged": "No importats — sense canvis compatibles ({{total}})",
+      "settings": {
+        "summary": "Lightroom settings: {{mapped}} mapped, {{approximated}} approximated, {{ignored}} ignored.",
+        "detail": "{{field}} — {{outcome}}: {{reason}}",
+        "omitted": "{{count}} additional settings omitted.",
+        "outcomes": {
+          "mapped": "mapped",
+          "approximated": "approximated",
+          "ignored": "ignored"
+        },
+        "reasons": {
+          "sharpenCompanion": "Lightroom sharpening radius/detail has no matching operator",
+          "noiseCompanion": "Lightroom noise detail/contrast/smoothness has no matching operator",
+          "calibration": "Camera calibration primaries and shadow tint are not supported",
+          "perspective": "Lightroom perspective/Upright transforms are not imported",
+          "defringe": "Lightroom defringe controls are not supported",
+          "manualLens": "Manual Adobe lens corrections are not imported",
+          "vignetteCompanion": "Lightroom vignette style/highlights has no matching operator",
+          "retouch": "Lightroom retouch/spot removal is not imported",
+          "parametricCurve": "Lightroom parametric curves are not imported",
+          "cameraProfile": "Adobe camera profiles are not available in the engine",
+          "aiEnhancement": "AI enhancement is not recreated; enhanced pixels may already contain it",
+          "pointColor": "Lightroom Point Color is not imported",
+          "invalidValue": "Invalid or non-finite setting value",
+          "whiteBalanceBaseline": "White balance was not converted; source baseline or supported mapping is missing",
+          "cropUnavailable": "Crop was not imported; geometry is unavailable or not included in presets",
+          "lensUnavailable": "Lens correction was not enabled or is not included in presets",
+          "notConverted": "No corresponding adjustment was produced by the converter",
+          "sharpnessScale": "Amount is scaled from 0-150 to 0-100; the sharpening operator differs",
+          "sharpenMasking": "Masking is approximated by the native sharpening threshold",
+          "hueScale": "Hue is scaled by 0.75; engine colour response differs",
+          "monochrome": "Monochrome is approximated with desaturation and HSL luminance",
+          "curveInterpolation": "Curve points are transferred; engine interpolation differs",
+          "lensfun": "Lensfun substitutes for the Adobe lens profile when a matching lens is available",
+          "nativeResponse": "Transferred to native controls; Lightroom rendering and units may differ",
+          "asShot": "The source requests as-shot white balance; no native override is imported",
+          "disabled": "The source disables this feature; no native adjustment is applied",
+          "cropGeometry": "Converted to native crop geometry",
+          "unsupported": "No supported mapping for this CRS setting",
+          "superseded": "The newer process-version setting takes precedence",
+          "inactive": "This setting is inactive in the source conversion mode",
+          "alreadyApplied": "The photo marks development settings AlreadyApplied; existing native edits are preserved"
+        }
+      },
+      "alreadyAppliedPhoto": "Development settings skipped: the photo packet marks them AlreadyApplied. Existing RapidRoom edits are preserved.",
+      "metadataOnly": "XMP checked; no development settings applied. Existing RapidRoom edits are preserved.",
+      "concurrentEditsPreserved": "Newer editor changes made during import were preserved.",
+      "brushTableGroup": "Grup de pinzell \"{{name}}\": {{reason}}",
+      "unchangedForImage": "S’han mantingut les edicions existents; no s’ha importat cap ajust compatible."
+    },
+    "toasts": {
+      "albumFilesUnreachable": "None of this album's files can be found. Connect the drive, or relink the folders if they moved.",
+      "failedImportLightroomCollections": "Failed to import Lightroom collections: {{err}}",
+      "failedImportMatchingXmpSidecars": "No s'han pogut importar els fitxers XMP coincidents: {{err}}",
+      "failedImportXmpAdjustments": "No s'han pogut importar els ajustaments XMP: {{err}}",
+      "failedMatchingXmpSidecars_one": "No s'ha pogut importar {{count}} fitxer XMP coincident.",
+      "failedMatchingXmpSidecars_many": "No s'han pogut importar {{count}} fitxers XMP coincidents.",
+      "failedMatchingXmpSidecars_other": "No s'han pogut importar {{count}} fitxers XMP coincidents.",
+      "importedLightroomCollections": "Imported Lightroom collections from {{name}}.",
+      "importedMatchingXmpSidecars_one": "S'ha importat {{count}} fitxer XMP coincident.",
+      "importedMatchingXmpSidecars_many": "S'han importat {{count}} fitxers XMP coincidents.",
+      "importedMatchingXmpSidecars_other": "S'han importat {{count}} fitxers XMP coincidents.",
+      "importedXmpAdjustments": "S'han importat els ajustaments XMP.",
+      "importingMatchingXmpSidecars": "S'estan important els fitxers XMP coincidents…",
+      "noMatchingXmpSidecars": "No s'ha trobat cap fitxer XMP coincident.",
+      "unchangedMatchingXmpSidecars": "S'han omès {{count}} fitxers XMP coincidents sense canvis importables."
+    }
+  },
+  "editor": {
+    "presets": {
+      "favorites": "Preferits",
+      "tooltips": {
+        "favorite": "Afegeix als preferits",
+        "unfavorite": "Treu dels preferits"
+      },
+      "appliedFolder": "Aplicats",
+      "bakedIn": "integrat",
+      "bakedInNotice": "Aplicat anteriorment i integrat a l’edició. En eliminar-lo es conserva l’edició."
+    },
+    "referenceView": {
+      "active": "Activa",
+      "cancel": "Cancel·la",
+      "chooseHint": "Feu clic a una foto de la tira per utilitzar-la com a referència.",
+      "clear": "Treu la referència",
+      "close": "Tanca la vista de referència",
+      "readOnly": "Només lectura",
+      "reference": "Referència",
+      "replace": "Tria una altra referència",
+      "unavailable": "La imatge de referència no està disponible"
+    },
+    "toolbar": {
+      "tooltips": {
+        "referenceView": "Vista de referència (Maj+R)",
+        "showEdited": "Mostrar editat (B)",
+        "showOriginal": "Mostrar original (B)"
+      }
+    },
+    "embeddedPreviewWarning": "Ha fallat el revelatge RAW; es mostra la previsualització incrustada.",
+    "viewer": {
+      "windowTitle": "Visor del RapidRoom"
+    }
+  },
+  "export": {
+    "overwrite": {
+      "label": "Replace existing exports",
+      "title": "Replace existing exports?",
+      "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
+    }
+  },
+  "library": {
+    "filters": {
+      "flag": {
+        "unflagged": "Sense marca"
+      },
+      "rating": {
+        "fourOnly": "Només 4",
+        "matchAtLeastTooltip": "Es mostra aquesta valoració i superiors. Feu clic per mostrar només aquesta valoració.",
+        "matchExactlyTooltip": "Es mostra només aquesta valoració. Feu clic per incloure valoracions superiors.",
+        "oneOnly": "Només 1",
+        "threeOnly": "Només 3",
+        "twoOnly": "Només 2"
+      }
+    },
+    "import": {
+      "complete": "Importació completada!",
+      "failed": "Importació fallida!",
+      "progress": "S'està important... ({{current}}/{{total}})"
+    },
+    "splash": {
+      "brand": "RapidRoom"
+    },
+    "photoCounts": {
+      "folderHint": "Photos directly in this folder. + means the bounded scan found at least this many.",
+      "emptyFolder": "No photos directly in this folder.",
+      "descendants_one": "{{count}} photo in subfolders.",
+      "descendants_other": "{{count}} photos in subfolders.",
+      "descendantsPartial_one": "At least {{count}} photo in subfolders.",
+      "descendantsPartial_other": "At least {{count}} photos in subfolders.",
+      "checking": "Checking subfolders…",
+      "scanLimited": "This folder is large. Open subfolders to see all photos.",
+      "showSubfolders": "Show photos in subfolders",
+      "total_one": "{{count}} photo",
+      "total_other": "{{count}} photos",
+      "filtered_one": "{{count}} of {{total}} photos",
+      "filtered_other": "{{count}} of {{total}} photos",
+      "recursive": "(incl. subfolders)",
+      "albumCountsLabel": "Album image counts",
+      "albumCountsDesc": "Show image totals next to albums. Folder photo counts are always shown.",
+      "checkFailed": "Could not check subfolders. Refresh the folder to try again.",
+      "descendants_many": "{{count}} photos in subfolders.",
+      "descendantsPartial_many": "At least {{count}} photos in subfolders.",
+      "total_many": "{{count}} photos",
+      "filtered_many": "{{count}} of {{total}} photos"
+    }
+  },
+  "modals": {
+    "copyPaste": {
+      "groups": {
+        "exposureToneMapper": "Exposició i Mapejador de tons",
+        "tone": "Tons"
+      }
+    },
+    "denoise": {
+      "batchProgressText": "S'està reduint el soroll de {{current}} de {{total}}...",
+      "btnBatchDenoise": "Reduir soroll per lots i desar",
+      "btnRetry": "Tornar-ho a intentar",
+      "btnSave": "Desar",
+      "btnStart": "Iniciar",
+      "cancel": "Cancel·lar",
+      "close": "Tancar",
+      "denoised": "Sense soroll",
+      "denoisingProgress": "Reducció de soroll en curs",
+      "description": "Elimineu el soroll de la imatge mitjançant una reducció de soroll basada en IA o tradicional.",
+      "downloadingText": "S'està baixant {{status}}...",
+      "fewerMethods": "Fewer methods",
+      "gpuWarningTooltip": "La reducció de soroll NIND encara no admet acceleració per GPU a causa de limitacions de dependències.",
+      "initializing": "S'està inicialitzant...",
+      "legacyAi": "NIND (legacy AI)",
+      "methodAi": "NIND (IA - Millor per a RAW)",
+      "methodBm3d": "BM3D (Tradicional - Tots els formats)",
+      "methodLabel": "Mètode",
+      "methodRaw9": "Apple RAW 9 (Neural Engine)",
+      "moreMethods": "More methods",
+      "openInEditor": "Obrir a l'editor",
+      "original": "Original",
+      "panZoomEnabled": "Desplaçament i zoom activats",
+      "presetBest": "Best",
+      "presetFast": "Fast",
+      "processingFailed": "El processament ha fallat",
+      "qualityTileSizeLabel": "Qualitat / Mida del mosaic",
+      "rawHint": "Denoise the original Bayer RAW. Save creates an editable DNG. Models download on first use.",
+      "rawSpeedTooltip": "Processing runs locally and may take several minutes. The saved DNG can be edited without running AI again.",
+      "reset": "Restablir",
+      "saveSuccess": "Imatge desada correctament!",
+      "sharpen": "Sharpen",
+      "speedNotice": "Això pot trigar uns minuts depenent de la mida de la imatge i del mètode seleccionat.",
+      "strengthLabel": "Força",
+      "titleBatch": "Reduir soroll de les imatges",
+      "titleSingle": "Reduir soroll de la imatge"
+    },
+    "lensCorrection": {
+      "sourceApplied": "Aplicat: {{source}}",
+      "sourceAvailable": "Disponible: {{source}}",
+      "sourceCameraData": "Dades de la càmera",
+      "sourceExistingRecipe": "edició desada",
+      "sourceNoData": "Sense dades de correcció",
+      "sourceUnavailable": "Fonts de correcció no disponibles",
+      "sourceChecking": "Comprovant les fonts de correcció…"
+    },
+    "lightroomImport": {
+      "addRootFolders": "Also add the found root folders to Folders",
+      "besideCatalog": "Found next to the catalog",
+      "collectionSets": "Collection sets",
+      "collections": "Collections",
+      "copied": "List copied.",
+      "copyList": "Copy List",
+      "found": "Found",
+      "imagesFound": "Images found",
+      "imagesMissing": "Images missing",
+      "import": "Import",
+      "importing": "Importing…",
+      "missingFiles": "Missing files: {{total}}",
+      "missingFilesHint": "Missing files stay in their albums and show up again once their folder is found or relinked.",
+      "missingFilesMore": "…and {{total}} more",
+      "missingRoots": "Root folders not found: {{total}}. Their images are imported as missing until you relink them.",
+      "notFound": "Not found",
+      "nothingToImport": "This catalog has no collections to import.",
+      "reading": "Reading the catalog…",
+      "relink": "Relink…",
+      "relinkTitle": "Find the folder for {{path}}",
+      "relinked": "Relinked",
+      "replacesPrevious": "This catalog was imported before. Importing again refreshes its albums where you put them; your other albums stay as they are.",
+      "rootFolders": "Root folders",
+      "rootFoldersHint": "Where the catalog's folders are on this computer. Relink a folder that moved or comes from another computer. The catalog itself is only read, never changed.",
+      "rootImages": "Images: {{images}}, missing: {{missing}}",
+      "skippedOther": "Books, slideshows, prints and web galleries, not imported: {{total}}",
+      "smartCollections": "Smart collections, not imported: {{total}}",
+      "title": "Import Lightroom Collections"
+    },
+    "renameFile": {
+      "conflictExisting": "nom ja en ús",
+      "conflictInBatch": "nom repetit",
+      "conflicts_many": "{{count}} noms de fitxer coincideixen. Canvia la plantilla.",
+      "conflicts_one": "{{count}} nom de fitxer coincideix amb un altre. Canvia la plantilla.",
+      "conflicts_other": "{{count}} noms de fitxer coincideixen. Canvia la plantilla.",
+      "groupAuto": "Automàtic: fotos a menys de",
+      "groupSeconds": "Segons entre fotos d’un grup",
+      "groupSelection": "Tota la selecció és un grup",
+      "groups": "Grups per a {group} i {member}",
+      "preview": "Previsualització",
+      "renamed_many": "{{count}} fitxers reanomenats",
+      "renamed_one": "{{count}} fitxer reanomenat",
+      "renamed_other": "{{count}} fitxers reanomenats",
+      "seconds": "segons entre si",
+      "summary": "Fotos: {{photos}} · Fitxers: {{files}}",
+      "undo": "Desfés",
+      "undoFailed": "No s’ha pogut desfer el canvi de nom: {{err}}",
+      "undoLast_many": "Desfés l’últim canvi de nom ({{count}} fotos)",
+      "undoLast_one": "Desfés l’últim canvi de nom ({{count}} foto)",
+      "undoLast_other": "Desfés l’últim canvi de nom ({{count}} fotos)",
+      "undone": "S’ha desfet el canvi de nom"
+    }
+  },
+  "settings": {
+    "data": {
+      "clearAiDenoise": "Esborra la memòria cau de reducció de soroll IA",
+      "clearAiDenoiseButton": "Esborra",
+      "clearAiDenoiseDesc": "Elimina els resultats desats de la reducció de soroll IA ({{size}}). Les imatges amb la reducció de soroll IA activada la tornaran a calcular la propera vegada que s'obrin.",
+      "clearSidecars": "Esborrar tots els fitxers sidecar",
+      "clearSidecarsButton": "Esborrar",
+      "clearSidecarsDesc": "Això suprimirà tots els fitxers .rrdata (que contenen les vostres edicions) dins de les carpetes arrel:",
+      "clearThumbnail": "Esborrar memòria cau de miniatures",
+      "clearThumbnailButton": "Esborrar",
+      "clearThumbnailDesc": "Això eliminarà totes les imatges en miniatura de la memòria cau. Es regeneraran automàticament mentre navegueu per la biblioteca.",
+      "cacheUsage": "Miniatures i previsualitzacions: {{size}} · Fitxers: {{files}}",
+      "cacheUsageError": "No s’ha pogut llegir l’ús de la memòria cau.",
+      "loading": "S'està carregant...",
+      "logs": "Veure els registres de l'aplicació",
+      "logsButton": "Obrir",
+      "logsDesc": "Consulteu el fitxer de registre de l'aplicació per solucionar problemes. El registre es troba a:",
+      "modals": {
+        "confirmCacheTitle": "Confirmar eliminació de la memòria cau",
+        "confirmClearCache": "Esborrar memòria cau"
+      },
+      "resetLayoutButton": "Restablir disseny",
+      "statuses": {
+        "clearingAi": "S'estan esborrant les etiquetes d'IA de tots els fitxers sidecar...",
+        "clearingAiDenoise": "Esborrant la memòria cau de reducció de soroll IA...",
+        "clearingAll": "S'estan esborrant totes les etiquetes dels fitxers sidecar...",
+        "clearingCache": "S'està esborrant la memòria cau de miniatures...",
+        "deleting": "S'estan suprimint els fitxers sidecar, espereu si us plau...",
+        "failedToGetPath": "No s'ha pogut recuperar el camí del fitxer de registre.",
+        "processing": "S'està processant...",
+        "resettingLayout": "Restablint l'espai de treball..."
+      }
+    },
+    "general": {
+      "autoAdvance": "Avançar després de valorar",
+      "autoAdvanceDesc": "Quan valoreu una sola imatge amb una drecera de teclat, es passa a la imatge següent.",
+      "compactAdjustments": "Controls lliscants compactes",
+      "compactAdjustmentsDesc": "Col·loca cada control lliscant de revelat en una sola fila, amb l'etiqueta i el valor al costat de la barra, perquè hi càpiguen més controls en pantalles petites.",
+      "enableAutoAdvance": "Activar l'avanç automàtic",
+      "enableCompactAdjustments": "Activa els controls compactes",
+      "writeJpegMetadata": "Write ratings and labels into JPEG files",
+      "writeJpegMetadataDesc": "Embed ratings, color labels and reject flags in original JPEGs without re-encoding pixels. Off by default; other formats keep using sidecars."
+    },
+    "keybinds": {
+      "actions": {
+        "flag_pick": "Marca com a seleccionada",
+        "flag_reject": "Marca com a rebutjada",
+        "cycle_lights_out": "Canvia el mode Lights Out",
+        "cycle_lights_out_reverse": "Canvia el mode Lights Out enrere",
+        "toggle_reference_view": "Commuta la vista de referència",
+        "toggle_denoise_mark": "Toggle denoise mark"
+      }
+    },
+    "processing": {
+      "preprocessing": {
+        "autoLensCorrection": "Correcció automàtica de l’objectiu per a RAW nous",
+        "autoLensCorrectionDesc": "Aplica les correccions disponibles en obrir per primer cop o restablir una foto RAW. Les edicions desades conserven la configuració.",
+        "enableAutoLensCorrection": "Utilitza la correcció automàtica de l’objectiu per defecte",
+        "baselineExposureDesc": "Aplica un augment fix de l’exposició a les edicions antigues que utilitzen l’exposició base. Les edicions RAW noves o restablertes utilitzen la compensació d’exposició de la càmera/DNG en lloc d’aquest augment fix."
+      }
+    },
+    "tagging": {
+      "clearAiTagsButton": "Esborrar",
+      "clearAiTagsDesc": "Això eliminarà totes les etiquetes generades per IA dels vostres fitxers .rrdata a totes les carpetes arrel actives. Es mantindran les etiquetes afegides pels usuaris.",
+      "clearAiTagsTitle": "Esborrar etiquetes d'IA",
+      "clearAllTagsDesc": "Això eliminarà totes les etiquetes generades per IA i les afegides pels usuaris dels vostres fitxers .rrdata a totes les carpetes arrel actives. Es mantindran les etiquetes de color.",
+      "clearAllTagsTitle": "Esborrar totes les etiquetes"
+    },
+    "thanks": {
+      "list": {
+        "u2net": "Per proporcionar la robusta arquitectura utilitzada per a les capacitats de detecció de cel i primer pla per IA."
+      }
+    }
+  },
+  "denoiseQueue": {
+    "title": "Denoise marked photos…",
+    "marked": "Marked for denoise",
+    "done": "Denoised",
+    "mark": "Mark for denoise",
+    "unmark": "Remove denoise mark",
+    "toggle": "Toggle denoise mark",
+    "filter": "Denoise status",
+    "all": "All photos",
+    "chooseFolder": "Choose a library folder first.",
+    "method": "Method",
+    "methods": {
+      "best": "Best · sensor DNG",
+      "fast": "Fast · sensor DNG",
+      "nind": "NIND · TIFF / PNG",
+      "bm3d": "Basic · TIFF / PNG",
+      "raw9": "Apple RAW 9 · TIFF"
+    },
+    "sharpen": "Sharpen (optional)",
+    "strength": "Strength / quality",
+    "recursive": "Include subfolders",
+    "hint": "Runs one photo at a time in the background and skips valid results. Fast/Best retain RAW edits; other methods require unedited RAWs. Install AI models in the Denoise dialog first.",
+    "close": "Close",
+    "start": "Start queue",
+    "cancel": "Cancel",
+    "summary": "{{completed}} completed · {{skipped}} skipped · {{failed}} failed",
+    "cancelled": "Cancelled. Run the queue again to resume.",
+    "errors": "Errors"
+  },
+  "captureTime": {
+    "folderShift": "Folder display time shift…",
+    "description": "Shift displayed capture times for photos directly in this folder. Original files, capture-time sorting and auto-stack stay unchanged. Enter 0 to reset.",
+    "hours": "Hours to add",
+    "example": "Hawaii camera clock in Japan: +19 hours. Half and quarter hours are supported.",
+    "cameraZone": "Camera zone: {{zone}}",
+    "shifted": "{{shift}} display shift",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "jpegMetadata": {
+    "write": "Write metadata to files",
+    "undo": "Undo last metadata write",
+    "written_one": "Wrote JPEG metadata to {{count}} file.",
+    "written_other": "Wrote JPEG metadata to {{count}} files.",
+    "restored_one": "Restored metadata for {{count}} file.",
+    "restored_other": "Restored metadata for {{count}} files.",
+    "failed": "Metadata write failed: {{error}}",
+    "written_many": "Wrote JPEG metadata to {{count}} files.",
+    "restored_many": "Restored metadata for {{count}} files."
+  }
+}

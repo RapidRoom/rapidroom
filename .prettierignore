@@ -4,3 +4,5 @@ src-tauri/target
 src-tauri/gen
 src-tauri/rawler
 data
+# Upstream-owned catalogs are copied byte-for-byte; format RapidRoom overlays instead.
+src/i18n/locales/*.json

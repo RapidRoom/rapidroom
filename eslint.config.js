@@ -2,7 +2,7 @@ const js = require('@eslint/js');
 const tseslint = require('typescript-eslint');
 const i18next = require('eslint-plugin-i18next');
 
-const tsFiles = ['**/*.{ts,tsx}'];
+const tsFiles = ['**/*.{ts,tsx,mts}'];
 
 const jsRecommendedForTs = {
   ...js.configs.recommended,

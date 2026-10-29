@@ -8,10 +8,14 @@ import effectsSource from '../components/adjustments/Effects.tsx?raw';
 import cropPanelSource from '../components/panel/right/CropPanel.tsx?raw';
 import masksPanelSource from '../components/panel/right/MasksPanel.tsx?raw';
 import lutControlSource from '../components/ui/LUTControl.tsx?raw';
-import enMessages from '../i18n/locales/en.json';
+import upstreamEn from '../i18n/locales/en.json';
+import rapidroomEn from '../i18n/locales/rapidroom/en.json';
+import { deepMerge } from '../i18n/rapidroom.mjs';
 import { buildAdjustmentReference, collectSliderRanges, parseSliderProps, sliderPath } from './adjustmentReference';
 import { ADJUSTMENT_NOTES, MASK_TYPE_NOTES } from './adjustmentReferenceNotes';
 import { Mask } from '../components/panel/right/Masks';
+
+const enMessages = deepMerge(upstreamEn, rapidroomEn);
 
 // The reference ships with the RapidRoom skill. Paths are relative to this file for the
 // snapshot and to the repository root (Vitest's working directory) for Prettier.
