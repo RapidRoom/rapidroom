@@ -1067,6 +1067,18 @@ fn composite_patches_cow<'a>(
     Ok(Cow::Owned(composited_image))
 }
 
+/// A background re-decode may replace the open photo only when it is still
+/// the same file. Tethering reuses paths, so the size and the fingerprint
+/// both have to agree with the provisional buffer.
+fn exact_redecode_can_replace(
+    current_dimensions: (u32, u32),
+    decoded_dimensions: (u32, u32),
+    fingerprint_before: &Option<DecodeFingerprint>,
+    fingerprint_after: &Option<DecodeFingerprint>,
+) -> bool {
+    current_dimensions == decoded_dimensions && fingerprint_before == fingerprint_after
+}
+
 fn is_cancelled(cancel_token: &Option<(Arc<AtomicUsize>, usize)>) -> bool {
     cancel_token
         .as_ref()
@@ -1083,8 +1095,11 @@ pub fn get_or_decode_pristine(
     let fingerprint = DecodeFingerprint::for_file(source_path, settings);
     loop {
         if let Some(fp) = &fingerprint
-            && let Some(hit) = state.decoded_image_cache.lock().unwrap().get(&path_str, fp)
-            && hit.3
+            && let Some(hit) = state
+                .decoded_image_cache
+                .lock()
+                .unwrap()
+                .get_exact(&path_str, fp)
         {
             return Ok(hit);
         }
@@ -1142,9 +1157,9 @@ pub fn get_or_decode_pristine(
         };
 
         let image = Arc::new(image);
-        if is_cancelled(&cancel_token) {
-            return Err("Load cancelled".to_string());
-        }
+        // A flip during demosaic used to throw this buffer away. The caller
+        // still refuses to install it once the generation has moved, and the
+        // next visit can reuse it.
         if let Some(fp) = fingerprint {
             state.decoded_image_cache.lock().unwrap().insert(
                 path_str,
@@ -1352,8 +1367,10 @@ fn spawn_exact_redecode(
         }
 
         let started = Instant::now();
+        let fingerprint_before = DecodeFingerprint::for_file(&source_path, &settings);
         let app_for_decode = app_handle.clone();
         let path_for_decode = source_path.clone();
+        let settings_for_decode = settings.clone();
         let generation = state.load_image_generation.clone();
         let decoded = tauri::async_runtime::spawn_blocking(move || {
             let _decode_permit = decode_permit;
@@ -1361,7 +1378,7 @@ fn spawn_exact_redecode(
             get_or_decode_pristine(
                 &state,
                 &path_for_decode,
-                &settings,
+                &settings_for_decode,
                 Some((generation, my_generation)),
             )
         })
@@ -1373,6 +1390,9 @@ fn spawn_exact_redecode(
         if !exact || state.load_image_generation.load(Ordering::SeqCst) != my_generation {
             return;
         }
+        // Tethering reuses the path. A changed file must not replace the open photo.
+        let fingerprint_after = DecodeFingerprint::for_file(&source_path, &settings);
+        let decoded_dimensions = image.dimensions();
 
         let epoch = {
             let mut loaded = state
@@ -1385,7 +1405,14 @@ fn spawn_exact_redecode(
             let Some(current) = loaded.as_mut() else {
                 return;
             };
-            if current.path != virtual_path {
+            if current.path != virtual_path
+                || !exact_redecode_can_replace(
+                    current.image.dimensions(),
+                    decoded_dimensions,
+                    &fingerprint_before,
+                    &fingerprint_after,
+                )
+            {
                 return;
             }
             let epoch = state.decoded_source_epoch.fetch_add(1, Ordering::SeqCst) + 1;
@@ -1407,11 +1434,9 @@ fn spawn_exact_redecode(
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clear();
-        state
-            .patch_cache
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clear();
+        // patch_cache holds AI masks, patch pixels and effect maps. Those are
+        // not derived from this buffer, and the frontend will not send them
+        // again until the photo changes. Leave them in place.
         state
             .geometry_cache
             .lock()
@@ -1678,5 +1703,31 @@ mod embedded_preview_tests {
             let result = panic::catch_unwind(|| embedded_preview(&case, Some(100)));
             assert!(result.is_ok(), "{name} panicked");
         }
+    }
+
+    #[test]
+    fn exact_redecode_requires_matching_dimensions_and_fingerprint() {
+        assert!(exact_redecode_can_replace((8, 8), (8, 8), &None, &None));
+        assert!(!exact_redecode_can_replace((8, 8), (7, 8), &None, &None));
+
+        let dir = tempfile::tempdir().unwrap();
+        let first = dir.path().join("same-name.ARW");
+        let second = dir.path().join("other-name.ARW");
+        std::fs::write(&first, [1u8, 2, 3, 4]).unwrap();
+        std::fs::write(&second, [1u8, 2, 3, 4, 5]).unwrap();
+        let settings = AppSettings::default();
+        let before = DecodeFingerprint::for_file(&first, &settings);
+        let after = DecodeFingerprint::for_file(&second, &settings);
+        assert!(before.is_some());
+        assert_ne!(before, after);
+        assert!(exact_redecode_can_replace((4, 4), (4, 4), &before, &before));
+        assert!(!exact_redecode_can_replace((4, 4), (4, 4), &before, &after));
+        assert!(!exact_redecode_can_replace(
+            (4, 4),
+            (5, 4),
+            &before,
+            &before
+        ));
+        assert!(!exact_redecode_can_replace((4, 4), (4, 4), &before, &None));
     }
 }

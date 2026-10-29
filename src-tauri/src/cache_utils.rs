@@ -358,8 +358,10 @@ pub fn calculate_full_job_hash(path: &str, adjustments: &serde_json::Value) -> u
 /// so a lossy hit is not treated as the first-visit pixels.
 pub type DecodedImageCacheHit = (Arc<DynamicImage>, HashMap<String, String>, bool, bool);
 
-/// The open photo and the two opened before it stay at full precision. That
-/// covers a three-photo cull with no extra decode. Older entries are f16.
+/// How many cached photos stay at full precision, including the one about to
+/// be inserted. A three-photo cull then needs no extra decode. Older entries
+/// are f16. `compact_except` reserves one of these slots for a path that is
+/// not cached yet.
 pub(crate) const FULL_PRECISION_WINDOW: usize = 3;
 
 const HALF_CONVERSION_CHUNK: usize = 64 * 1024;
@@ -539,15 +541,40 @@ impl DecodedImageCache {
         Some((image, exif, used_embedded_preview, exact))
     }
 
+    /// Like `get`, but a half-float entry is left in place and reported as a miss.
+    /// Callers that will decode again must not pay for an expand they discard.
+    pub fn get_exact(
+        &mut self,
+        path: &str,
+        fingerprint: &DecodeFingerprint,
+    ) -> Option<DecodedImageCacheHit> {
+        let pos = self.items.iter().position(|e| e.path == path)?;
+        if self.items[pos].fingerprint != *fingerprint {
+            self.items.remove(pos);
+            return None;
+        }
+        if !matches!(self.items[pos].image, CachedImage::Full(_)) {
+            return None;
+        }
+        self.get(path, fingerprint)
+    }
+
     pub fn compact_except(&mut self, keep_path: &str) {
+        let already_cached = self.items.iter().any(|e| e.path == keep_path);
         if let Some(pos) = self.items.iter().position(|e| e.path == keep_path) {
             let item = self.items.remove(pos);
             self.items.push(item);
         }
-        let compact_until = self.items.len().saturating_sub(FULL_PRECISION_WINDOW);
+        // The caller inserts a missing photo after this returns, and that
+        // insert is one of the full-precision slots.
+        let keep_full = if already_cached {
+            FULL_PRECISION_WINDOW
+        } else {
+            FULL_PRECISION_WINDOW.saturating_sub(1)
+        };
+        let compact_until = self.items.len().saturating_sub(keep_full);
         for item in self.items.iter_mut().take(compact_until) {
-            let cached = std::mem::replace(&mut item.image, CachedImage::Full(Arc::default()));
-            item.image = cached.compact();
+            Self::compact_item(item);
         }
         self.evict();
     }
@@ -577,19 +604,49 @@ impl DecodedImageCache {
         self.evict();
     }
 
+    fn compact_item(item: &mut DecodedEntry) {
+        // Half is only a placeholder so the current image can be taken by value.
+        let cached = std::mem::replace(
+            &mut item.image,
+            CachedImage::Half {
+                width: 0,
+                height: 0,
+                channels: 0,
+                data: Vec::new(),
+            },
+        );
+        item.image = cached.compact();
+    }
+
+    fn total_bytes(&self) -> usize {
+        self.items.iter().map(|e| e.image.byte_size()).sum()
+    }
+
     fn evict(&mut self) {
+        self.evict_with_budget(*DECODED_CACHE_BUDGET_BYTES);
+    }
+
+    /// Count comes off the front. While over the byte budget, halve the oldest
+    /// full image first so a return still has an f16 frame. Drop an entry only
+    /// when halving it would not shrink the cache. The newest image stays full.
+    fn evict_with_budget(&mut self, budget: usize) {
         while self.items.len() > self.capacity.max(1) {
             self.items.remove(0);
         }
-        while self.items.len() > 1
-            && self
-                .items
+        while self.items.len() > 1 && self.total_bytes() > budget {
+            let last = self.items.len() - 1;
+            let oldest_full = self.items[..last]
                 .iter()
-                .map(|e| e.image.byte_size())
-                .sum::<usize>()
-                > *DECODED_CACHE_BUDGET_BYTES
-        {
-            self.items.remove(0);
+                .position(|e| matches!(e.image, CachedImage::Full(_)));
+            if let Some(pos) = oldest_full {
+                let before = self.items[pos].image.byte_size();
+                Self::compact_item(&mut self.items[pos]);
+                if self.items[pos].image.byte_size() >= before {
+                    self.items.remove(pos);
+                }
+            } else {
+                self.items.remove(0);
+            }
         }
     }
 }
@@ -939,13 +996,23 @@ mod tests {
         assert_eq!(editor_preview_bytes(&returned), first_visit);
         drop(returned);
 
+        // Opening D keeps three full images (C, A, and D), not four.
         // The kept Arc would block compaction. A real visit drops it on the way out.
         drop(original);
         open(&mut cache, "D", solid(0.6));
+        let (still_open, _, _, exact) = cache.get("A", &fp).unwrap();
+        assert!(exact);
+        assert_eq!(editor_preview_bytes(&still_open), first_visit);
+        drop(still_open);
+        let (oldest, _, _, exact) = cache.get("B", &fp).unwrap();
+        assert!(!exact, "the photo before the window of three is f16");
+        drop(oldest);
+
+        // E then F push A out of the window. G is not required.
         open(&mut cache, "E", solid(0.8));
         open(&mut cache, "F", solid(0.15));
-        open(&mut cache, "G", solid(0.55));
         cache.compact_except("A");
+        assert!(cache.get_exact("A", &fp).is_none());
         let (provisional, _, _, exact) = cache.get("A", &fp).unwrap();
         assert!(!exact);
         assert_ne!(
@@ -956,10 +1023,13 @@ mod tests {
         drop(provisional);
 
         // Reading the half entry must not launder the lossy buffer into a full one.
+        assert!(cache.get_exact("A", &fp).is_none());
         let (still_half, _, _, exact) = cache.get("A", &fp).unwrap();
         assert!(!exact);
         drop(still_half);
 
+        // A finished exact decode is stored by the caller. This insert stands in
+        // for that store. It does not run load_image or the background re-decode.
         cache.insert(
             "A".to_string(),
             fp.clone(),
@@ -974,5 +1044,33 @@ mod tests {
             calculate_image_cache_hash("A", 1, 0),
             calculate_image_cache_hash("A", 1, 1)
         );
+    }
+
+    #[test]
+    fn over_budget_halves_the_oldest_full_image_instead_of_dropping_it() {
+        let mut cache = DecodedImageCache::new(5);
+        let fp = fingerprint();
+        // 4×4 RGB f32 is 192 bytes. 300 bytes holds one full image plus one half.
+        cache.insert(
+            "old".to_string(),
+            fp.clone(),
+            solid(0.2),
+            HashMap::new(),
+            false,
+        );
+        cache.insert(
+            "new".to_string(),
+            fp.clone(),
+            solid(0.4),
+            HashMap::new(),
+            false,
+        );
+        cache.evict_with_budget(300);
+        assert!(cache.get_exact("old", &fp).is_none());
+        let (old, _, _, exact) = cache.get("old", &fp).unwrap();
+        assert!(!exact);
+        drop(old);
+        let (_, _, _, exact) = cache.get("new", &fp).unwrap();
+        assert!(exact);
     }
 }
