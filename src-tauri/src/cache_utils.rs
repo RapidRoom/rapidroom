@@ -499,6 +499,9 @@ struct DecodedEntry {
 
 pub struct DecodedImageCache {
     capacity: usize,
+    /// Source path of the photo in the editor. Eviction may halve other
+    /// entries, and it must not drop this one while it is open.
+    pinned_path: Option<String>,
     items: Vec<DecodedEntry>,
 }
 
@@ -506,8 +509,13 @@ impl DecodedImageCache {
     pub fn new(capacity: usize) -> Self {
         Self {
             capacity,
+            pinned_path: None,
             items: Vec::with_capacity(capacity),
         }
+    }
+
+    pub fn set_pinned_path(&mut self, path: Option<String>) {
+        self.pinned_path = path;
     }
 
     pub fn set_capacity(&mut self, capacity: usize) {
@@ -557,6 +565,29 @@ impl DecodedImageCache {
             return None;
         }
         self.get(path, fingerprint)
+    }
+
+    /// A full-precision hit that does not become the newest entry.
+    /// Background work uses this so a lookup cannot push viewed photos out of
+    /// the window. A half entry and a fingerprint miss stay where they are.
+    pub fn peek_exact(
+        &self,
+        path: &str,
+        fingerprint: &DecodeFingerprint,
+    ) -> Option<DecodedImageCacheHit> {
+        let entry = self.items.iter().find(|entry| entry.path == path)?;
+        if entry.fingerprint != *fingerprint {
+            return None;
+        }
+        let CachedImage::Full(image) = &entry.image else {
+            return None;
+        };
+        Some((
+            Arc::clone(image),
+            entry.exif.clone(),
+            entry.used_embedded_preview,
+            true,
+        ))
     }
 
     pub fn compact_except(&mut self, keep_path: &str) {
@@ -626,26 +657,38 @@ impl DecodedImageCache {
         self.evict_with_budget(*DECODED_CACHE_BUDGET_BYTES);
     }
 
-    /// Count comes off the front. While over the byte budget, halve the oldest
-    /// full image first so a return still has an f16 frame. Drop an entry only
-    /// when halving it would not shrink the cache. The newest image stays full.
+    /// Count comes off the oldest entry that is not the open photo. While over
+    /// the byte budget, halve the oldest full image that is neither newest nor
+    /// open, so a return still has an f16 frame. A shared buffer cannot be
+    /// halved; drop that entry only when it is not the open photo. The newest
+    /// image and the open photo stay.
     fn evict_with_budget(&mut self, budget: usize) {
+        let pinned = self.pinned_path.clone();
+        let is_open = |path: &str| pinned.as_deref() == Some(path);
         while self.items.len() > self.capacity.max(1) {
-            self.items.remove(0);
+            let Some(pos) = self.items.iter().position(|entry| !is_open(&entry.path)) else {
+                break;
+            };
+            self.items.remove(pos);
         }
         while self.items.len() > 1 && self.total_bytes() > budget {
             let last = self.items.len() - 1;
-            let oldest_full = self.items[..last]
-                .iter()
-                .position(|e| matches!(e.image, CachedImage::Full(_)));
+            let oldest_full = self.items[..last].iter().position(|entry| {
+                !is_open(&entry.path) && matches!(entry.image, CachedImage::Full(_))
+            });
             if let Some(pos) = oldest_full {
                 let before = self.items[pos].image.byte_size();
                 Self::compact_item(&mut self.items[pos]);
                 if self.items[pos].image.byte_size() >= before {
                     self.items.remove(pos);
                 }
+            } else if let Some(pos) = self.items[..last]
+                .iter()
+                .position(|entry| !is_open(&entry.path))
+            {
+                self.items.remove(pos);
             } else {
-                self.items.remove(0);
+                break;
             }
         }
     }
@@ -661,6 +704,16 @@ pub struct DecodeFlights {
 pub struct Flight {
     done: Mutex<bool>,
     finished: Condvar,
+    /// Set by the leader before waiters are woken. A background decode that
+    /// does not enter the cache still has to hand its buffer to a waiter.
+    outcome: Mutex<Option<Result<Arc<SharedDecode>, String>>>,
+}
+
+/// One pristine decode shared by every caller waiting on the same path.
+pub struct SharedDecode {
+    pub image: Arc<DynamicImage>,
+    pub exif: HashMap<String, String>,
+    pub used_embedded_preview: bool,
 }
 
 impl Flight {
@@ -682,6 +735,25 @@ pub struct FlightGuard<'a> {
     flights: &'a DecodeFlights,
     path: String,
     flight: Arc<Flight>,
+}
+
+impl FlightGuard<'_> {
+    pub fn publish(&self, outcome: Result<Arc<SharedDecode>, String>) {
+        *self
+            .flight
+            .outcome
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(outcome);
+    }
+}
+
+impl Flight {
+    pub fn outcome(&self) -> Option<Result<Arc<SharedDecode>, String>> {
+        self.outcome
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
 }
 
 impl Drop for FlightGuard<'_> {
@@ -1072,5 +1144,95 @@ mod tests {
         drop(old);
         let (_, _, _, exact) = cache.get("new", &fp).unwrap();
         assert!(exact);
+    }
+
+    #[test]
+    fn peek_exact_does_not_make_a_background_hit_the_newest_photo() {
+        let mut cache = DecodedImageCache::new(5);
+        let fp = fingerprint();
+        cache.insert(
+            "A".to_string(),
+            fp.clone(),
+            solid(0.2),
+            HashMap::new(),
+            false,
+        );
+        cache.insert(
+            "B".to_string(),
+            fp.clone(),
+            solid(0.4),
+            HashMap::new(),
+            false,
+        );
+        cache.insert(
+            "C".to_string(),
+            fp.clone(),
+            solid(0.6),
+            HashMap::new(),
+            false,
+        );
+        let (hit, _, _, exact) = cache.peek_exact("A", &fp).unwrap();
+        assert!(exact);
+        drop(hit);
+        // A is still the oldest. Reserving a slot for a photo that is not
+        // cached halves A and leaves C full.
+        cache.compact_except("incoming");
+        assert!(cache.peek_exact("A", &fp).is_none());
+        let (halved, _, _, exact) = cache.get("A", &fp).unwrap();
+        assert!(!exact);
+        drop(halved);
+        let (_, _, _, exact) = cache.get("C", &fp).unwrap();
+        assert!(exact);
+    }
+
+    #[test]
+    fn eviction_keeps_a_pinned_open_photo_that_is_not_last() {
+        let mut cache = DecodedImageCache::new(2);
+        let fp = fingerprint();
+        let open = solid(0.2);
+        let middle = solid(0.4);
+        cache.insert(
+            "open".to_string(),
+            fp.clone(),
+            Arc::clone(&open),
+            HashMap::new(),
+            false,
+        );
+        cache.set_pinned_path(Some("open".to_string()));
+        cache.insert(
+            "middle".to_string(),
+            fp.clone(),
+            Arc::clone(&middle),
+            HashMap::new(),
+            false,
+        );
+        cache.insert(
+            "newest".to_string(),
+            fp.clone(),
+            solid(0.6),
+            HashMap::new(),
+            false,
+        );
+        // Capacity 2 would drop the oldest unpinned entry. The open photo
+        // stays even though it is first. middle is the one that goes.
+        assert!(cache.peek_exact("middle", &fp).is_none());
+        assert!(Arc::ptr_eq(
+            &cache.peek_exact("open", &fp).unwrap().0,
+            &open
+        ));
+        assert!(cache.peek_exact("newest", &fp).is_some());
+
+        // A shared Arc cannot be halved. The open photo is not removed to
+        // make room; a later shared entry that is not open is.
+        cache.evict_with_budget(100);
+        assert!(Arc::ptr_eq(
+            &cache.peek_exact("open", &fp).unwrap().0,
+            &open
+        ));
+        assert!(cache.peek_exact("middle", &fp).is_none());
+        let (_, _, _, exact) = cache.peek_exact("newest", &fp).unwrap();
+        assert!(exact);
+        drop(open);
+        drop(middle);
     }
 }

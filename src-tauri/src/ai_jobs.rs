@@ -788,10 +788,16 @@ struct JobResults {
 fn decode_source(app_handle: &AppHandle, source_path: &Path) -> Result<Arc<DynamicImage>, String> {
     let state = app_handle.state::<AppState>();
     let settings = crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default();
-    // Same flight and cache as the editor re-decode, so a returned photo with
-    // a pending AI job is not decoded twice. A half entry is a miss here.
-    let (image, _, _, _) =
-        crate::image_loader::get_or_decode_pristine(&state, source_path, &settings, None)?;
+    // Same flight as the editor, so a returned photo with a pending AI job is
+    // not decoded twice. A half entry is a miss. The job must not insert:
+    // a background Full entry pushes the photos just viewed out of the window.
+    let (image, _, _, _) = crate::image_loader::get_or_decode_pristine(
+        &state,
+        source_path,
+        &settings,
+        None,
+        crate::image_loader::PristineCachePolicy::Reuse,
+    )?;
     Ok(image)
 }
 
