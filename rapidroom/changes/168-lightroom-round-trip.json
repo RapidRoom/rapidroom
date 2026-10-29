@@ -1,0 +1,13 @@
+{
+  "id": "lightroom-full-edit-round-trip",
+  "title": "Restore full RapidRoom edits from Lightroom XMP sidecars",
+  "category": "feature",
+  "landed": "2026-10-29",
+  "authors": ["yojen7", "skymanbp"],
+  "source": "rapidroom (original implementation with Kimi Code; MIT AutoShade payload and named-loss design)",
+  "commits": ["https://github.com/skymanbp/autoshade/commit/cbca12b5a903ff8d71faf25a3966ed3712e839ba"],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Develop export and local MCP review named Lightroom projection losses before writing. Photo XMP stores a bounded, compressed, SHA-256-checked full RapidRoom edit beside mapped Camera Raw fields. Import restores the exact edit only when the source image hash matches and otherwise retains CRS fallback. Foreign XMP properties are preserved; raster masks are bounded and external LUT files are not embedded. Reimporting a native payload can change rendering compared with the previous lossy CRS import. Actual Lightroom Classic payload preservation remains a human acceptance gate."
+}

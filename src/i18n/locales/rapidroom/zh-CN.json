@@ -155,6 +155,16 @@
       "label": "Replace existing exports",
       "title": "Replace existing exports?",
       "confirm": "Existing files with the same export names will be replaced. Source photos are protected. Continue?"
+    },
+    "xmp": {
+      "title": "Lightroom XMP sidecar",
+      "description": "Keep the full RapidRoom edit beside settings Lightroom can read. Review settings stored only for RapidRoom before writing.",
+      "preview": "Review sidecar next to photo",
+      "chooseDestination": "Choose another destination",
+      "working": "Preparing XMP sidecar…",
+      "stored": "Stored in the RapidRoom payload",
+      "write": "Write XMP sidecar",
+      "written": "XMP sidecar written."
     }
   },
   "library": {
