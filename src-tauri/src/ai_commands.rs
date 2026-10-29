@@ -1067,6 +1067,7 @@ mod effect_map_source_tests {
             ))),
             is_raw: false,
             as_shot: crate::as_shot::AsShot::reference(),
+            source_epoch: 0,
         }
     }
 
