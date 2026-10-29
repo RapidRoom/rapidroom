@@ -1043,7 +1043,7 @@
     "embeddedPreviewWarning": "Die RAW-Entwicklung ist fehlgeschlagen. Stattdessen wird die eingebettete Vorschau angezeigt.",
     "viewer": {
       "openFailed": "Das zweite Fenster konnte nicht geöffnet werden: {{error}}",
-      "windowTitle": "RapidRAW-Betrachter"
+      "windowTitle": "RapidRoom-Betrachter"
     }
   },
   "export": {

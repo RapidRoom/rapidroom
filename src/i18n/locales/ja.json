@@ -1038,7 +1038,7 @@
     "embeddedPreviewWarning": "RAW現像に失敗したため、埋め込みプレビューを表示しています。",
     "viewer": {
       "openFailed": "セカンドウィンドウを開けませんでした: {{error}}",
-      "windowTitle": "RapidRAW ビューアー"
+      "windowTitle": "RapidRoom ビューアー"
     }
   },
   "export": {

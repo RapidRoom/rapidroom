@@ -1,0 +1,14 @@
+{
+  "id": "viewer-window-title",
+  "title": "The second viewer window is titled RapidRoom, matching the main window",
+  "category": "fix",
+  "landed": "2026-10-28",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "editor.viewer.windowTitle still said RapidRAW in every locale. open_viewer_window already applies that string. The app identifier, crate name and code identifiers are unchanged."
+}

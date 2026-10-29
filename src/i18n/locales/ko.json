@@ -1038,7 +1038,7 @@
     "embeddedPreviewWarning": "RAW 현상에 실패하여 내장 미리보기를 표시합니다.",
     "viewer": {
       "openFailed": "보조 창을 열 수 없습니다: {{error}}",
-      "windowTitle": "RapidRAW 뷰어"
+      "windowTitle": "RapidRoom 뷰어"
     }
   },
   "export": {
