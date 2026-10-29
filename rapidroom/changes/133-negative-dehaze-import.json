@@ -1,0 +1,13 @@
+{
+  "id": "133-negative-dehaze-import",
+  "title": "Calibrate negative Lightroom Dehaze imports",
+  "category": "fix",
+  "landed": "2026-10-29",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "RAW Lightroom sidecars now import negative Dehaze at 0.125 strength, calibrated against three Lightroom-edited night photos. Clarity, Texture, positive Dehaze, rendered sources, reusable presets, and default renders are unchanged. Full Lightroom parity remains uncalibrated."
+}

@@ -1301,6 +1301,8 @@ fn parse_xmp_attributes(xmp_content: &str) -> Result<HashMap<String, String>, St
     Ok(scalar_attributes(&properties))
 }
 
+const RAW_NEGATIVE_DEHAZE_TO_RAPIDRAW: f64 = 0.125;
+
 pub(crate) const BASIC_MAPPINGS: &[(&str, &str)] = &[
     ("Exposure2012", "exposure"),
     ("Contrast2012", "contrast"),
@@ -1438,6 +1440,18 @@ fn convert_xmp_to_preset_with_crop(
                 adjustments.insert(rr_key.to_string(), json_val);
             }
         }
+    }
+
+    if image_kind == Some(XmpImageKind::Raw)
+        && let Some(dehaze) = adjustments
+            .get("dehaze")
+            .and_then(Value::as_f64)
+            .filter(|value| *value < 0.0)
+    {
+        adjustments.insert(
+            "dehaze".to_string(),
+            json!(dehaze * RAW_NEGATIVE_DEHAZE_TO_RAPIDRAW),
+        );
     }
 
     import_legacy_basic_adjustments(&attrs, &mut adjustments, image_kind);
@@ -2852,6 +2866,29 @@ mod tests {
         assert_eq!(pv67.adjustments["saturation"], json!(2));
         assert_eq!(pv67.adjustments["vibrance"], json!(33));
         assert!(pv67.adjustments.get("toneMapper").is_none());
+    }
+
+    #[test]
+    fn scales_only_negative_dehaze_for_raw_sidecars() {
+        let xmp = r#"<rdf:Description
+            crs:Dehaze="-40" crs:Clarity2012="-20" crs:Texture="-20" />"#;
+        let raw = convert_adobe_camera_raw_xmp_to_preset(xmp, XmpImageKind::Raw).unwrap();
+        assert_eq!(raw.adjustments["dehaze"], json!(-5.0));
+        assert_eq!(raw.adjustments["clarity"], json!(-20));
+        assert_eq!(raw.adjustments["structure"], json!(-20));
+
+        let positive = convert_adobe_camera_raw_xmp_to_preset(
+            &xmp.replace("Dehaze=\"-40\"", "Dehaze=\"+40\""),
+            XmpImageKind::Raw,
+        )
+        .unwrap();
+        assert_eq!(positive.adjustments["dehaze"], json!(40));
+
+        let preset = convert_xmp_to_preset(xmp).unwrap();
+        assert_eq!(preset.adjustments["dehaze"], json!(-40));
+        let rendered =
+            convert_adobe_camera_raw_xmp_to_preset(xmp, XmpImageKind::RenderedJpeg).unwrap();
+        assert_eq!(rendered.adjustments["dehaze"], json!(-40));
     }
 
     #[test]
