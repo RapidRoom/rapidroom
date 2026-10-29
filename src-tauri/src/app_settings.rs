@@ -672,6 +672,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub editor_neutral_grey_bg: Option<bool>,
     #[serde(default)]
+    pub editor_canvas_background: Option<String>,
+    #[serde(default)]
     pub canvas_input_mode: Option<String>,
     #[serde(default)]
     pub compare_mode: Option<String>,
@@ -846,6 +848,7 @@ impl Default for AppSettings {
             #[cfg(not(any(target_os = "linux", target_os = "android")))]
             use_wgpu_renderer: Some(true),
             editor_neutral_grey_bg: Some(false),
+            editor_canvas_background: None,
             canvas_input_mode: Some("mouse".to_string()),
             compare_mode: None,
             white_balance_mode: None,
@@ -1085,5 +1088,18 @@ mod tests {
 
         let reloaded: AppSettings = serde_json::from_value(saved).unwrap();
         assert_eq!(reloaded.adjustment_density.as_deref(), Some("compact"));
+    }
+
+    #[test]
+    fn editor_canvas_background_round_trips() {
+        let mut saved = serde_json::to_value(AppSettings::default()).unwrap();
+        saved["editorCanvasBackground"] = serde_json::json!("white");
+
+        let reloaded: AppSettings = serde_json::from_value(saved).unwrap();
+        assert_eq!(reloaded.editor_canvas_background.as_deref(), Some("white"));
+        assert_eq!(
+            serde_json::to_value(reloaded).unwrap()["editorCanvasBackground"],
+            "white"
+        );
     }
 }
