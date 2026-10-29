@@ -269,6 +269,7 @@ pub fn generate_transformed_preview(
     let adjustments = resolved.as_ref();
     let mut hasher = DefaultHasher::new();
     loaded_image.path.hash(&mut hasher);
+    loaded_image.source_epoch.hash(&mut hasher);
     calculate_transform_hash(adjustments).hash(&mut hasher);
     preview_dim.hash(&mut hasher);
     let cache_key = hasher.finish();
@@ -322,7 +323,7 @@ fn compute_transformed_preview(
     adjustments: &serde_json::Value,
     preview_dim: u32,
 ) -> Result<TransformedPreview, String> {
-    let patched_key = patched_cache_key(&loaded_image.path, adjustments);
+    let patched_key = patched_cache_key(&loaded_image.path, loaded_image.source_epoch, adjustments);
 
     let patched = get_or_compute_stage(&state.patched_cache, patched_key, || {
         compute_patched(loaded_image, adjustments)
@@ -382,6 +383,7 @@ fn compute_transformed_preview(
 
     let mut hasher = DefaultHasher::new();
     loaded_image.path.hash(&mut hasher);
+    loaded_image.source_epoch.hash(&mut hasher);
     calculate_geometry_hash(adjustments).hash(&mut hasher);
     working.dimensions().hash(&mut hasher);
     (target_w, target_h).hash(&mut hasher);
@@ -451,9 +453,10 @@ fn compute_transformed_preview(
     Ok((preview, scale_for_gpu, unscaled_crop_offset))
 }
 
-fn patched_cache_key(path: &str, adjustments: &serde_json::Value) -> u64 {
+fn patched_cache_key(path: &str, source_epoch: u64, adjustments: &serde_json::Value) -> u64 {
     let mut hasher = DefaultHasher::new();
     path.hash(&mut hasher);
+    source_epoch.hash(&mut hasher);
     crate::cache_utils::calculate_patch_hash(adjustments).hash(&mut hasher);
     hasher.finish()
 }
@@ -472,7 +475,7 @@ pub fn cached_patched_image(
         return None;
     }
 
-    let key = patched_cache_key(&loaded_image.path, adjustments);
+    let key = patched_cache_key(&loaded_image.path, loaded_image.source_epoch, adjustments);
     let cache = state
         .patched_cache
         .lock()
@@ -565,8 +568,11 @@ pub fn get_cached_full_warped_image_for_path(
 
     let resolved = crate::camera_lens::resolved_snapshot(js_adjustments, &loaded_image.path, state);
     let js_adjustments = resolved.as_ref();
-    let cache_key =
-        calculate_image_cache_hash(&loaded_image.path, calculate_geometry_hash(js_adjustments));
+    let cache_key = calculate_image_cache_hash(
+        &loaded_image.path,
+        calculate_geometry_hash(js_adjustments),
+        loaded_image.source_epoch,
+    );
 
     let cached = || {
         let mut cache_lock = state
@@ -752,6 +758,7 @@ fn process_preview_job(
     let new_transform_hash = calculate_image_cache_hash(
         &loaded_image.path,
         calculate_transform_hash(&adjustments_clone),
+        loaded_image.source_epoch,
     );
     let live_quality = settings.live_preview_quality.as_deref().unwrap_or("high");
 
@@ -1315,13 +1322,11 @@ async fn generate_uncropped_preview(
         let settings = load_settings(app_handle.clone()).unwrap_or_default();
         let target_dim = settings.editor_preview_resolution.unwrap_or(1920);
 
-        let mut hasher = DefaultHasher::new();
-        path.hash(&mut hasher);
-        crate::cache_utils::calculate_patch_hash(&adjustments_clone).hash(&mut hasher);
-        let patched_key = hasher.finish();
+        let patched_key = patched_cache_key(&path, loaded_image.source_epoch, &adjustments_clone);
 
         let mut hasher = DefaultHasher::new();
         patched_key.hash(&mut hasher);
+        loaded_image.source_epoch.hash(&mut hasher);
         crate::cache_utils::calculate_effects_hash(&adjustments_clone).hash(&mut hasher);
         target_dim.hash(&mut hasher);
         let base_key = hasher.finish();
@@ -3182,6 +3187,7 @@ pub fn run() {
             thumbnail_geometry_cache: Mutex::new(HashMap::new()),
             lens_db: Mutex::new(None),
             load_image_generation: Arc::new(AtomicUsize::new(0)),
+            decoded_source_epoch: AtomicU64::new(0),
             full_warped_cache: Mutex::new(None),
             full_warped_build_lock: Mutex::new(()),
             wgpu_presented_generation: AtomicUsize::new(usize::MAX),
