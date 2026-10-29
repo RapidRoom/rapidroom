@@ -17,7 +17,7 @@ use crate::ai_processing::{AiDepthMaskParameters, AiMaskModel, get_or_init_ai_mo
 use crate::app_state::AppState;
 use crate::cache_utils::GEOMETRY_KEYS;
 use crate::effect_maps::{EffectMapKind, is_map_reference, is_map_valid_for};
-use crate::file_management::{parse_virtual_path, read_file_mapped};
+use crate::file_management::parse_virtual_path;
 use crate::image_processing::is_effect_enabled;
 
 const JOURNAL_FILE: &str = "ai_jobs.json";
@@ -787,41 +787,18 @@ struct JobResults {
 
 fn decode_source(app_handle: &AppHandle, source_path: &Path) -> Result<Arc<DynamicImage>, String> {
     let state = app_handle.state::<AppState>();
-    let source_path_str = source_path.to_string_lossy().to_string();
     let settings = crate::app_settings::load_settings(app_handle.clone()).unwrap_or_default();
-    if let Some(fingerprint) =
-        crate::cache_utils::DecodeFingerprint::for_file(source_path, &settings)
-        && let Some((image, _, _, exact)) = state
-            .decoded_image_cache
-            .lock()
-            .unwrap()
-            .get(&source_path_str, &fingerprint)
-        && exact
-    {
-        return Ok(image);
-    }
-
-    let image = match read_file_mapped(source_path) {
-        Ok(mmap) => crate::image_loader::load_base_image_from_bytes(
-            &mmap,
-            &source_path_str,
-            false,
-            &settings,
-            None,
-        ),
-        Err(_) => {
-            let bytes = fs::read(source_path).map_err(|e| e.to_string())?;
-            crate::image_loader::load_base_image_from_bytes(
-                &bytes,
-                &source_path_str,
-                false,
-                &settings,
-                None,
-            )
-        }
-    }
-    .map_err(|e| e.to_string())?;
-    Ok(Arc::new(image))
+    // Same flight as the editor, so a returned photo with a pending AI job is
+    // not decoded twice. A half entry is a miss. The job must not insert:
+    // a background Full entry pushes the photos just viewed out of the window.
+    let (image, _, _, _) = crate::image_loader::get_or_decode_pristine(
+        &state,
+        source_path,
+        &settings,
+        None,
+        crate::image_loader::PristineCachePolicy::Reuse,
+    )?;
+    Ok(image)
 }
 
 fn open_image_path(app_handle: &AppHandle) -> Option<String> {

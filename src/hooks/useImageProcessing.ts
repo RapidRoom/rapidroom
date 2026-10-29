@@ -347,7 +347,12 @@ export function useImageProcessing(
       if (!path || editor.selectedImage?.path !== path || !editor.selectedImage.isReady) return;
       const targetRes = calculateTargetRes();
       currentResRef.current = targetRes;
-      applyAdjustments(editor.previewOverride ?? editor.adjustments, false, targetRes);
+      const renderAdjustments = editor.previewOverride ?? editor.adjustments;
+      applyAdjustments(renderAdjustments, false, targetRes);
+      const ui = useUIStore.getState();
+      if (ui.activeView === 'editor' && ui.activePanel === Panel.Crop) {
+        generateUncroppedPreview(renderAdjustments);
+      }
     }).then((stop) => {
       if (active) unlisten = stop;
       else stop();
@@ -356,7 +361,7 @@ export function useImageProcessing(
       active = false;
       unlisten?.();
     };
-  }, [applyAdjustments, calculateTargetRes, currentResRef]);
+  }, [applyAdjustments, calculateTargetRes, currentResRef, generateUncroppedPreview]);
 
   const requestHiFiZoom = useMemo(
     () =>

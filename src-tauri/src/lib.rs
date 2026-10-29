@@ -1384,13 +1384,11 @@ async fn generate_uncropped_preview(
         let settings = load_settings(app_handle.clone()).unwrap_or_default();
         let target_dim = settings.editor_preview_resolution.unwrap_or(1920);
 
-        let mut hasher = DefaultHasher::new();
-        path.hash(&mut hasher);
-        crate::cache_utils::calculate_patch_hash(&adjustments_clone).hash(&mut hasher);
-        let patched_key = hasher.finish();
+        let patched_key = patched_cache_key(&path, loaded_image.source_epoch, &adjustments_clone);
 
         let mut hasher = DefaultHasher::new();
         patched_key.hash(&mut hasher);
+        loaded_image.source_epoch.hash(&mut hasher);
         crate::cache_utils::calculate_effects_hash(&adjustments_clone).hash(&mut hasher);
         target_dim.hash(&mut hasher);
         let base_key = hasher.finish();
