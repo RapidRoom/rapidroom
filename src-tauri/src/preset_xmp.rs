@@ -39,6 +39,30 @@ pub fn unavailable_reason(xmp: &str) -> Result<Option<String>, String> {
     crate::xmp::element_text(xmp, RR, "UnavailableReason").map_err(|e| e.to_string())
 }
 
+fn lightroom_curve_points(points: &[Value]) -> Result<Vec<(u8, u8)>, String> {
+    let mut rounded = std::collections::BTreeMap::new();
+    for point in points {
+        let x = point["x"].as_f64().ok_or("Invalid curve X")?;
+        let y = point["y"].as_f64().ok_or("Invalid curve Y")?;
+        if !x.is_finite()
+            || !y.is_finite()
+            || !(0.0..=255.0).contains(&x)
+            || !(0.0..=255.0).contains(&y)
+        {
+            return Err("Curve points must be finite values between 0 and 255".into());
+        }
+        rounded.insert(x.round() as u8, y.round() as u8);
+    }
+    if rounded.len() < 2 {
+        return Err("A Lightroom point curve needs at least two distinct integer X values".into());
+    }
+    let first_y = *rounded.first_key_value().unwrap().1;
+    let last_y = *rounded.last_key_value().unwrap().1;
+    rounded.entry(0).or_insert(first_y);
+    rounded.entry(255).or_insert(last_y);
+    Ok(rounded.into_iter().collect())
+}
+
 /// CRS settings use the existing import mappings; RapidRoom's own payload
 /// preserves all settings exactly when the file is reimported here.
 pub fn serialize(preset: &Preset) -> Result<(String, Vec<String>), String> {
@@ -87,6 +111,26 @@ pub fn serialize(preset: &Preset) -> Result<(String, Vec<String>), String> {
         }
         mapped.insert("hsl");
     }
+    if let Some(grading) = obj.get("colorGrading").and_then(Value::as_object) {
+        for &(tag, wheel, channel) in crate::preset_converter::COLOR_GRADING_MAPPINGS {
+            if let Some(value) = grading
+                .get(wheel)
+                .and_then(|v| v.get(channel))
+                .and_then(Value::as_f64)
+            {
+                body.push_str(&format!(" crs:{tag}=\"{value}\""));
+            }
+        }
+        for (tag, key) in [
+            ("ColorGradeBlending", "blending"),
+            ("SplitToningBalance", "balance"),
+        ] {
+            if let Some(value) = grading.get(key).and_then(Value::as_f64) {
+                body.push_str(&format!(" crs:{tag}=\"{value}\""));
+            }
+        }
+        mapped.insert("colorGrading");
+    }
     let mut curves = String::new();
     if let Some(obj) = obj.get("curves").and_then(Value::as_object) {
         for (key, tag) in [
@@ -97,14 +141,13 @@ pub fn serialize(preset: &Preset) -> Result<(String, Vec<String>), String> {
         ] {
             if let Some(points) = obj.get(key).and_then(Value::as_array) {
                 curves.push_str(&format!("<crs:{tag}><rdf:Seq>"));
-                for point in points {
-                    let x = point["x"].as_f64().ok_or("Invalid curve X")?;
-                    let y = point["y"].as_f64().ok_or("Invalid curve Y")?;
+                for (x, y) in lightroom_curve_points(points)? {
                     curves.push_str(&format!("<rdf:li>{x}, {y}</rdf:li>"));
                 }
                 curves.push_str(&format!("</rdf:Seq></crs:{tag}>"));
             }
         }
+        body.push_str(" crs:ToneCurveName2012=\"Custom\"");
         mapped.insert("curves");
     }
     unsupported.extend(obj.keys().filter(|k| !mapped.contains(k.as_str())).cloned());

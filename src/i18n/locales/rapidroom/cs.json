@@ -210,5 +210,17 @@
     "failed": "Zápis metadat selhal: {{error}}",
     "written_many": "Metadata JPEG byla zapsána do {{count}} souborů.",
     "restored_many": "Metadata byla obnovena pro {{count}} souborů."
+  },
+  "export": {
+    "xmp": {
+      "title": "Lightroom XMP sidecar",
+      "description": "Keep the full RapidRoom edit beside settings Lightroom can read. Review settings stored only for RapidRoom before writing.",
+      "preview": "Review sidecar next to photo",
+      "chooseDestination": "Choose another destination",
+      "working": "Preparing XMP sidecar…",
+      "stored": "Stored in the RapidRoom payload",
+      "write": "Write XMP sidecar",
+      "written": "XMP sidecar written."
+    }
   }
 }

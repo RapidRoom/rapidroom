@@ -625,6 +625,7 @@ struct ImportedXmpSidecar {
     sidecar_path: PathBuf,
     metadata: ImageMetadata,
     not_transferred: Vec<&'static str>,
+    restored_payload: bool,
     adjustments_applied: bool,
     metadata_applied: bool,
     already_applied: bool,
@@ -3672,21 +3673,33 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
             &source_path,
         )?;
     let already_applied = preset_converter::adobe_camera_raw_already_applied(&xmp_content)?;
-
-    let has_supported_adjustments = converted_preset
-        .adjustments
-        .as_object()
-        .is_some_and(|adjustments| !adjustments.is_empty());
-    let has_supported_metadata = extract_xmp_rating(&xmp_content).is_some()
-        || extract_xmp_label(&xmp_content).is_some()
-        || !extract_xmp_tags(&xmp_content).is_empty();
     let settings_report = crate::lightroom_report::settings_report(&xmp_content, &converted_preset);
-    let unchanged = !has_supported_adjustments && !has_supported_metadata;
     let not_transferred = preset_converter::lightroom_settings_not_transferred_with_mask_summary(
         &xmp_content,
         &converted_preset,
         &mask_summary,
     );
+    let restored = if already_applied {
+        None
+    } else {
+        match crate::xmp_roundtrip::restore(&xmp_content, &source_path) {
+            Ok(restored) => restored,
+            Err(error) => {
+                log::warn!("Ignoring invalid RapidRoom XMP payload: {error}");
+                None
+            }
+        }
+    };
+    let restored_payload = restored.is_some();
+    let imported_adjustments = restored.unwrap_or_else(|| converted_preset.adjustments.clone());
+    let has_supported_adjustments = restored_payload
+        || imported_adjustments
+            .as_object()
+            .is_some_and(|adjustments| !adjustments.is_empty());
+    let has_supported_metadata = extract_xmp_rating(&xmp_content).is_some()
+        || extract_xmp_label(&xmp_content).is_some()
+        || !extract_xmp_tags(&xmp_content).is_empty();
+    let unchanged = !has_supported_adjustments && !has_supported_metadata;
     if unchanged
         && !already_applied
         && settings_report.settings.is_empty()
@@ -3704,6 +3717,7 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
             not_transferred,
             brush_table_refusals: mask_summary.brush_table_refusals,
             mask_failures: mask_summary.failures,
+            restored_payload,
             adjustments_applied: false,
             metadata_applied: false,
             already_applied,
@@ -3727,27 +3741,31 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
             settings,
             lens_db,
         );
-        let before = metadata.adjustments.clone();
-        let imported = converted_preset.adjustments;
-        merge_imported_adjustments(&mut metadata.adjustments, imported.clone());
-        normalize_lens_policy_version(&before, &imported, &mut metadata.adjustments, 100.0);
-        let imported_exposure_without_policy = imported.get("exposure").is_some()
-            && imported.get("cameraExposureCompensation").is_none();
-        if imported_exposure_without_policy
-            && metadata
-                .adjustments
-                .get("cameraExposureCompensation")
-                .and_then(Value::as_bool)
-                == Some(true)
-        {
-            metadata.adjustments["cameraExposureCompensation"] = Value::Bool(false);
+        if restored_payload {
+            metadata.adjustments = imported_adjustments;
+        } else {
+            let before = metadata.adjustments.clone();
+            let imported = imported_adjustments;
+            merge_imported_adjustments(&mut metadata.adjustments, imported.clone());
+            normalize_lens_policy_version(&before, &imported, &mut metadata.adjustments, 100.0);
+            let imported_exposure_without_policy = imported.get("exposure").is_some()
+                && imported.get("cameraExposureCompensation").is_none();
+            if imported_exposure_without_policy
+                && metadata
+                    .adjustments
+                    .get("cameraExposureCompensation")
+                    .and_then(Value::as_bool)
+                    == Some(true)
+            {
+                metadata.adjustments["cameraExposureCompensation"] = Value::Bool(false);
+            }
+            resolve_lens_params_in_adjustments(
+                &mut metadata.adjustments,
+                &metadata.exif,
+                lens_db,
+                &source_path,
+            );
         }
-        resolve_lens_params_in_adjustments(
-            &mut metadata.adjustments,
-            &metadata.exif,
-            lens_db,
-            &source_path,
-        );
     }
     let draft_preserved = !has_supported_adjustments && pending_adjustments.is_some();
     let preserved_adjustments =
@@ -3769,6 +3787,7 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
         not_transferred,
         brush_table_refusals: mask_summary.brush_table_refusals,
         mask_failures: mask_summary.failures,
+        restored_payload,
         adjustments_applied: has_supported_adjustments,
         metadata_applied: has_supported_metadata,
         already_applied,
@@ -3791,12 +3810,14 @@ fn hydrate_imported_xmp_exif(
     let (source_path, _) = parse_virtual_path(path);
     let mut metadata =
         crate::exif_processing::load_sidecar_with_exif(&imported.sidecar_path, &source_path);
-    resolve_lens_params_in_adjustments(
-        &mut metadata.adjustments,
-        &metadata.exif,
-        lens_db,
-        &source_path,
-    );
+    if !imported.restored_payload {
+        resolve_lens_params_in_adjustments(
+            &mut metadata.adjustments,
+            &metadata.exif,
+            lens_db,
+            &source_path,
+        );
+    }
     let json = serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?;
     write_file_atomically(&imported.sidecar_path, json).map_err(|error| error.to_string())?;
     imported.metadata = metadata;
@@ -6743,6 +6764,10 @@ pub fn sync_metadata_to_xmp(
     if ensure_card_writable(source_path).is_err() {
         return;
     }
+    let Ok(_xmp_lock) = crate::xmp_roundtrip::WRITE_LOCK.lock() else {
+        log::error!("XMP writer is unavailable");
+        return;
+    };
     let existing = resolve_xmp_path(source_path);
     if existing.is_none() && !create_if_missing {
         return;
@@ -6832,6 +6857,27 @@ mod xmp_safety_tests {
             ..Default::default()
         };
         sync_metadata_to_xmp(path, &path.with_extension("arw.rrdata"), &metadata, true);
+    }
+
+    #[test]
+    fn ordinary_metadata_sync_preserves_the_native_edit_payload() {
+        let _card = card_mode_test_support::CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("sample.arw");
+        let xmp = raw.with_extension("xmp");
+        fs::write(&raw, b"raw bytes").unwrap();
+        let adjustments = serde_json::json!({"exposure":0.1234567,"halationAmount":23});
+        let document =
+            crate::xmp_roundtrip::serialize(crate::xmp::SKELETON, &adjustments, &raw).unwrap();
+        fs::write(&xmp, document.xml).unwrap();
+        write_metadata(&raw);
+        let content = crate::xmp::read(&xmp).unwrap();
+        assert_eq!(extract_xmp_rating(&content), Some(3));
+        assert_eq!(extract_xmp_label(&content).as_deref(), Some("Red"));
+        assert_eq!(
+            crate::xmp_roundtrip::restore(&content, &raw).unwrap(),
+            Some(adjustments)
+        );
     }
 
     #[test]
@@ -8429,6 +8475,107 @@ mod lightroom_xmp_import_tests {
                     .is_some_and(|name| name.to_string_lossy().starts_with(".rapidraw-"))
             })
             .collect()
+    }
+
+    #[test]
+    fn native_payload_round_trip_is_exact_and_invalid_or_mismatched_payload_uses_crs() {
+        let _mode = CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.ARW");
+        let xmp = dir.path().join("photo.xmp");
+        fs::write(&raw, b"raw bytes").unwrap();
+        let adjustments = serde_json::json!({
+            "exposure": 0.1234567,
+            "halationAmount": 23,
+            "autoLensCorrections": true,
+            "masks": [{"id":"native","name":"Paint","subMasks":[]}]
+        });
+        let document =
+            crate::xmp_roundtrip::serialize(crate::xmp::SKELETON, &adjustments, &raw).unwrap();
+        fs::write(&xmp, &document.xml).unwrap();
+        let imported = import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).unwrap();
+        assert!(imported.restored_payload);
+        assert_eq!(imported.metadata.adjustments, adjustments);
+
+        fs::remove_file(&imported.sidecar_path).unwrap();
+        fs::write(&raw, b"different raw bytes").unwrap();
+        let mismatched = import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).unwrap();
+        assert!(!mismatched.restored_payload);
+        assert_eq!(adjustment(&mismatched.metadata, "exposure"), 0.1234567);
+        assert!(
+            mismatched
+                .metadata
+                .adjustments
+                .get("halationAmount")
+                .is_none()
+        );
+
+        fs::remove_file(&mismatched.sidecar_path).unwrap();
+        fs::write(&raw, b"raw bytes").unwrap();
+        let corrupt = crate::xmp::replace_image_properties(
+            &document.xml,
+            crate::xmp_payload::URI,
+            "rr",
+            &["RecipeSha256"],
+            &[("RecipeSha256", "wrong".into())],
+        )
+        .unwrap();
+        fs::write(&xmp, corrupt).unwrap();
+        let fallback = import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).unwrap();
+        assert!(!fallback.restored_payload);
+        assert_eq!(adjustment(&fallback.metadata, "exposure"), 0.1234567);
+        assert!(
+            fallback
+                .metadata
+                .adjustments
+                .get("halationAmount")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn already_applied_native_payload_cannot_replace_the_live_draft() {
+        let _mode = CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.ARW");
+        let xmp = dir.path().join("photo.xmp");
+        fs::write(&raw, b"raw bytes").unwrap();
+        let payload = serde_json::json!({"exposure": 3.0, "halationAmount": 25});
+        let document =
+            crate::xmp_roundtrip::serialize(crate::xmp::SKELETON, &payload, &raw).unwrap();
+        let applied = crate::xmp::replace_image_properties(
+            &document.xml,
+            "http://ns.adobe.com/camera-raw-settings/1.0/",
+            "crs",
+            &["AlreadyApplied"],
+            &[("AlreadyApplied", "True".into())],
+        )
+        .unwrap();
+        let applied = crate::xmp::replace_image_properties(
+            &applied,
+            "http://ns.adobe.com/xap/1.0/",
+            "xmp",
+            &["Rating"],
+            &[("Rating", "5".into())],
+        )
+        .unwrap();
+        fs::write(&xmp, &applied).unwrap();
+        let pending = serde_json::json!({"exposure": 0.75, "contrast": 12});
+        let imported = import_xmp_adjustments_to_sidecar_with_draft(
+            &path_str(&raw),
+            &xmp,
+            None,
+            Some(&pending),
+            &AppSettings::default(),
+        )
+        .unwrap();
+        assert!(imported.already_applied);
+        assert!(!imported.restored_payload);
+        assert!(!imported.adjustments_applied);
+        assert!(imported.draft_preserved);
+        assert_eq!(imported.metadata.adjustments, pending);
+        assert_eq!(imported.metadata.rating, 5);
+        assert_eq!(fs::read_to_string(&xmp).unwrap(), applied);
     }
 
     #[test]
