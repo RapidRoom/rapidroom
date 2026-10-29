@@ -1535,6 +1535,7 @@ const ImageCanvas = memo(
   }: ImageCanvasProps) => {
     const interactivePatch = useEditorStore((state) => state.interactivePatch);
     const isGuidedPerspectiveActive = useEditorStore((state) => state.isGuidedPerspectiveActive);
+    const softProof = useEditorStore((state) => state.softProof);
     const isRelightPickerActive = useEditorStore((state) => state.isRelightPickerActive);
     const activeRelightLightId = useEditorStore((state) => state.activeRelightLightId);
     const activeCenterMarker = useEditorStore((state) => state.activeCenterMarker);
@@ -1595,7 +1596,8 @@ const ImageCanvas = memo(
     const [isCtrlPressed, setIsCtrlPressed] = useState(false);
     const retainedPatchRef = useRef<typeof interactivePatch>(null);
 
-    const isWgpuActive = appSettings?.useWgpuRenderer !== false && selectedImage?.isReady && hasRenderedFirstFrame;
+    const isWgpuActive =
+      !softProof && appSettings?.useWgpuRenderer !== false && selectedImage?.isReady && hasRenderedFirstFrame;
     const { t } = useTranslation();
     const osPlatform = useOsPlatform();
     const modifierKey = osPlatform === 'macos' ? 'Cmd' : 'Ctrl';

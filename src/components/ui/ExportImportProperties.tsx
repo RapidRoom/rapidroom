@@ -1,3 +1,4 @@
+import type { PrintProfileOptions } from '../../utils/printProfile';
 import { Progress } from './AppProperties';
 
 export enum FileFormats {
@@ -96,6 +97,7 @@ export interface InstagramFrame {
 }
 
 export interface ExportSettings {
+  printProfile?: PrintProfileOptions | null;
   instagram?: { ratio: InstagramRatio; framesByPath: Record<string, InstagramFrame> } | null;
   overwriteExisting?: boolean;
   filenameTemplate: string | null;

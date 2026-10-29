@@ -34,6 +34,7 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
 
   const setEditor = useEditorStore((s) => s.setEditor);
   const restoreHistory = useEditorStore((s) => s.restoreHistory);
+  const softProof = useEditorStore((s) => s.softProof);
   const setLibrary = useLibraryStore((s) => s.setLibrary);
   const appSettings = useSettingsStore((s) => s.appSettings);
 
@@ -144,7 +145,7 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
   ]);
 
   useEffect(() => {
-    if (selectedImage?.path && selectedImage.isReady && (finalPreviewUrl || isWgpuActive)) {
+    if (!softProof && selectedImage?.path && selectedImage.isReady && (finalPreviewUrl || isWgpuActive)) {
       cachedEditStateRef.current = {
         adjustments,
         histogram,
@@ -168,6 +169,7 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
     originalSize,
     previewSize,
     isWgpuActive,
+    softProof,
     cachedEditStateRef,
   ]);
 }

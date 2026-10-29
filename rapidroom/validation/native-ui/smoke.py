@@ -407,6 +407,9 @@ class Smoke:
                  "GPU-processed editor preview")
         baseline = self.stable_preview("preview")
         self.step("native preview", {"roi": self.roi, "capture": str(baseline.relative_to(self.case))})
+        if (self.case / "print-proof-test.json").exists():
+            from print_proof import run_proof_checks
+            run_proof_checks(self, wait_for, baseline)
         if (self.case / "zoom-test.json").exists():
             from zoom import run_zoom_checks
             run_zoom_checks(self, wait_for)
@@ -489,6 +492,9 @@ class Smoke:
         self.key("KeyE", "e")
         wait_for(lambda: self.execute("return [...document.querySelectorAll('button[aria-haspopup=listbox]')]"
                                       ".some(e=>e.innerText.trim()==='Custom folder');"), "Export panel")
+        if (self.case / "print-proof-test.json").exists():
+            from print_proof import prepare_export
+            prepare_export(self, wait_for)
         self.execute("""[...document.querySelectorAll('button[aria-haspopup=listbox]')]
           .find(e=>e.innerText.trim()==='Custom folder').click();return true;""")
         wait_for(lambda: self.execute("return !!document.querySelector('[role=listbox]');"), "destination choices")
@@ -508,6 +514,9 @@ class Smoke:
             image.load()
             if image.format != "JPEG" or image.size != (4608, 3072):
                 raise RuntimeError("Incorrect JPEG format or dimensions")
+        if (self.case / "print-proof-test.json").exists():
+            from print_proof import check_export
+            check_export(self, files[0])
         self.capture("export-done")
         self.step("GUI JPEG export", {"file": str(files[0].relative_to(self.case)), "sha256": sha(files[0])})
         if (self.case / "atomic-exports-test.json").exists():
@@ -689,6 +698,13 @@ def launch(args):
         save(case / "mcp-history-test.json", {"issue": 115, "real_model_requests": True})
     if args.mcp_packaging:
         save(case / "mcp-packaging-test.json", {"issue": 135, "control_default": False})
+    if args.print_proof_profile:
+        (case / "profiles").mkdir()
+        proof = args.print_proof_profile.resolve()
+        output = args.print_export_profile.resolve()
+        shutil.copy2(proof, case / "profiles/proof.icc")
+        shutil.copy2(output, case / "profiles/output.icc")
+        save(case / "print-proof-test.json", {"issue": 122, "proof_sha256":sha(proof), "output_sha256":sha(output)})
     if args.style_stack:
         save(case / "style-stack-test.json", {"issue": 378, "io_mocked": False})
     if args.presets:
@@ -840,6 +856,8 @@ def main():
     parser.add_argument("--compare-read-only", action="store_true", help="Check real Original/pinned comparison rendering never writes sidecars or legacy EXIF")
     parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
     parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
+    parser.add_argument("--print-proof-profile", type=Path, help="Local output ICC for proof on/off native checks")
+    parser.add_argument("--print-export-profile", type=Path, help="Local RGB ICC for native export conversion checks")
     parser.add_argument("--style-stack", action="store_true", help="Check ordered Style stack, manual edits, shared MCP, Undo and reload")
     parser.add_argument("--presets", action="store_true", help="Check grouped preset search, hover, Amount and creation")
     parser.add_argument("--jpeg-metadata", action="store_true", help="Check opt-in JPEG culling writes and Undo with independent ExifTool/pixel checks")
@@ -852,6 +870,8 @@ def main():
     parser.add_argument("--palette", action="store_true", help="Keyboard-only palette edits, aliases, preview/cancel and Undo")
     parser.add_argument("--inside", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if bool(args.print_proof_profile) != bool(args.print_export_profile):
+        parser.error("Both --print-proof-profile and --print-export-profile are required together")
     global WIDTH, HEIGHT
     if args.viewport:
         if not args.zoom or min(args.viewport) < 700:

@@ -107,6 +107,7 @@ mod photo_stacks;
 mod preset_application;
 mod preset_converter;
 mod preset_xmp;
+mod print_proof;
 mod raw_processing;
 mod relight;
 mod starter_presets;
@@ -707,6 +708,7 @@ fn process_preview_job(
     request_analytics: bool,
     compute_waveform: bool,
     active_waveform_channel: Option<&str>,
+    soft_proof: Option<&print_proof::PrintProfileOptions>,
     target: PreviewTarget,
 ) -> Result<Vec<u8>, String> {
     let fn_start = std::time::Instant::now();
@@ -759,6 +761,7 @@ fn process_preview_job(
     let preview_dim = target_resolution.unwrap_or(default_preview_dim);
     let use_wgpu_renderer = settings.wgpu_renderer_enabled();
 
+    let use_wgpu_renderer = use_wgpu_renderer && soft_proof.is_none();
     let has_roi = roi.is_some();
     let (interactive_divisor, interactive_quality) = match live_quality {
         "performance" => (if has_roi { 1.4_f32 } else { 1.2_f32 }, 75_u8),
@@ -906,8 +909,11 @@ fn process_preview_job(
     drop(mask_span);
 
     let parse_span = perf_trace::span("job.parse_adjustments");
-    let final_adjustments =
+    let mut final_adjustments =
         get_all_adjustments_from_json(&adjustments_clone, is_raw, loaded_image.as_shot, render);
+    if soft_proof.is_some() {
+        final_adjustments.global.show_clipping = 0;
+    }
     drop(parse_span);
     let lut_path = adjustments_clone["lutPath"].as_str();
     let lut = lut_path.and_then(|p| lut_processing::get_or_load_lut(&state, p).ok());
@@ -1009,6 +1015,11 @@ fn process_preview_job(
             return Ok(b"WGPU_RENDER".to_vec());
         }
 
+        let final_processed_image = if let Some(options) = soft_proof {
+            print_proof::soft_proof(&final_processed_image, options)?
+        } else {
+            final_processed_image
+        };
         let final_processed_image = Arc::new(final_processed_image);
         let final_rgba_image = match &*final_processed_image {
             DynamicImage::ImageRgba8(img) => img,
@@ -1159,12 +1170,13 @@ fn run_editor_job(app_handle: &tauri::AppHandle, job: PreviewJob) {
             job.request_analytics,
             job.compute_waveform,
             job.active_waveform_channel.as_deref(),
+            job.soft_proof.as_ref(),
             PreviewTarget::Editor,
         )
     });
     match result {
         Ok(bytes) => {
-            let _ = responder.send(bytes);
+            let _ = responder.send(Ok(bytes));
             if job.layer == DisplayLayer::Edited && !job.is_interactive {
                 viewer_window::schedule_viewer_render(app_handle);
             }
@@ -1194,6 +1206,7 @@ fn run_viewer_job(app_handle: &tauri::AppHandle) {
             None,
             false,
             false,
+            None,
             None,
             PreviewTarget::Viewer,
         )
@@ -1254,6 +1267,7 @@ async fn apply_adjustments(
     request_analytics: bool,
     compute_waveform: bool,
     active_waveform_channel: Option<String>,
+    soft_proof: Option<print_proof::PrintProfileOptions>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Response, String> {
     let (tx, rx) = tokio::sync::oneshot::channel();
@@ -1274,6 +1288,7 @@ async fn apply_adjustments(
                 request_analytics,
                 compute_waveform,
                 active_waveform_channel,
+                soft_proof,
                 responder: tx,
             };
             worker_tx
@@ -1285,7 +1300,7 @@ async fn apply_adjustments(
     }
 
     match rx.await {
-        Ok(bytes) => Ok(Response::new(bytes)),
+        Ok(bytes) => bytes.map(Response::new),
         Err(_) => Err("Superseded or worker failed".to_string()),
     }
 }
@@ -1293,6 +1308,7 @@ async fn apply_adjustments(
 #[tauri::command]
 async fn generate_uncropped_preview(
     js_adjustments: serde_json::Value,
+    soft_proof: Option<print_proof::PrintProfileOptions>,
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<Response, String> {
@@ -1418,6 +1434,11 @@ async fn generate_uncropped_preview(
             },
             "generate_uncropped_preview",
         ) {
+            let processed_image = if let Some(options) = &soft_proof {
+                print_proof::soft_proof(&processed_image, options)?
+            } else {
+                processed_image
+            };
             let (width, height) = processed_image.dimensions();
             let rgb_pixels = processed_image.to_rgb8().into_vec();
 
@@ -3208,6 +3229,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             apply_adjustments,
+            print_proof::validate_print_profile,
             subscribe_analytics,
             generate_preview_for_path,
             culling_preview::begin_culling_preview_batch,

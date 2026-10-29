@@ -1,3 +1,4 @@
+import type { PrintProfileOptions } from '../utils/printProfile';
 import { describeHistoryChange, sameAdjustmentValue, type HistoryDetails } from '../utils/editHistory';
 import { create } from 'zustand';
 import { Adjustments, INITIAL_ADJUSTMENTS, MaskContainer, AiPatch } from '../utils/adjustments';
@@ -44,6 +45,9 @@ interface EditorState {
   historyIndex: number;
   historyPath: string | null;
   photoHistories: ReadonlyMap<string, PhotoHistory>;
+
+  softProof: PrintProfileOptions | null;
+  softProofError: string | null;
 
   // Previews & Overlays
   finalPreviewUrl: string | null;
@@ -149,6 +153,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   historyPath: null,
   photoHistories: new Map(),
 
+  softProof: null,
+  softProofError: null,
   finalPreviewUrl: null,
   uncroppedAdjustedPreviewUrl: null,
   previewRenderVersion: 0,

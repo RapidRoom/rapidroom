@@ -277,6 +277,7 @@ pub fn preset_to_export_settings(preset: &ExportPreset) -> Result<ExportSettings
         return Err("DPI must be between 1 and 65535".to_string());
     }
     Ok(ExportSettings {
+        print_profile: None,
         instagram: preset
             .instagram_ratio
             .map(|ratio| crate::export_framing::InstagramExport {

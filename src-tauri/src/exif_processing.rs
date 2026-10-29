@@ -2074,7 +2074,25 @@ fn write_exif_metadata(
 
     metadata.set_tag(ExifTag::Software("RapidRAW".to_string()));
     metadata.set_tag(ExifTag::Orientation(vec![1u16]));
-    metadata.set_tag(ExifTag::ColorSpace(vec![1u16]));
+    // An embedded output ICC takes precedence over a copied source sRGB marker.
+    let custom_profile = image::ImageReader::new(Cursor::new(image_bytes.as_slice()))
+        .with_guessed_format()
+        .ok()
+        .and_then(|reader| reader.into_decoder().ok())
+        .and_then(|mut decoder| {
+            image::ImageDecoder::icc_profile(&mut decoder)
+                .ok()
+                .flatten()
+        })
+        .is_some_and(|profile| profile != include_bytes!("../icc/sRGB-v2-magic.icc"));
+    metadata.set_tag(ExifTag::ColorSpace(vec![if custom_profile {
+        65535u16
+    } else {
+        1u16
+    }]));
+    if custom_profile {
+        metadata.remove_tag(ExifTag::InteroperabilityIndex(String::new()));
+    }
     metadata.set_tag(ExifTag::ExifVersion(b"0232".to_vec()));
     metadata.set_tag(ExifTag::FlashpixVersion(b"0100".to_vec()));
     if matches!(file_type, FileExtension::JPEG) {

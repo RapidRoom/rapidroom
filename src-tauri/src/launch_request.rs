@@ -24,6 +24,7 @@ pub struct HeadlessExportSession {
     pub format: Option<String>,
     pub quality: Option<u8>,
     pub tiff_bit_depth: Option<TiffBitDepth>,
+    pub print_profile: Option<crate::print_proof::PrintProfileOptions>,
     pub keep_metadata: Option<bool>,
     pub adjustments_override: Option<String>,
     pub preset: Option<String>,
@@ -122,6 +123,10 @@ pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
         let mut adjustments_override = None;
         let mut preset = None;
         let mut sharpening = None;
+        let mut icc_profile = None;
+        let mut icc_intent = crate::print_proof::PrintIntent::Relative;
+        let mut icc_bpc = true;
+        let mut icc_options_given = false;
 
         if let Some(src) = iter.next()
             && !src.starts_with('-')
@@ -166,6 +171,33 @@ pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
                     };
                     tiff_bit_depth = Some(value);
                 }
+                "--icc-profile" => {
+                    let Some(path) = iter
+                        .next()
+                        .filter(|value| !value.starts_with('-') && !value.is_empty())
+                    else {
+                        return LaunchRequest::InvalidHeadless(
+                            "Missing local profile path for --icc-profile".into(),
+                        );
+                    };
+                    icc_profile = Some(path.clone());
+                }
+                "--icc-intent" => {
+                    icc_options_given = true;
+                    icc_intent = match iter.next().map(String::as_str) {
+                        Some("relative") => crate::print_proof::PrintIntent::Relative,
+                        Some("perceptual") => crate::print_proof::PrintIntent::Perceptual,
+                        _ => {
+                            return LaunchRequest::InvalidHeadless(
+                                "--icc-intent expects relative or perceptual".into(),
+                            );
+                        }
+                    };
+                }
+                "--no-icc-bpc" => {
+                    icc_options_given = true;
+                    icc_bpc = false;
+                }
                 "--keep-metadata" => keep_metadata = Some(true),
                 "--preset" => {
                     let Some(name) = iter.next() else {
@@ -197,12 +229,24 @@ pub fn parse_launch_args(args: &[String]) -> LaunchRequest {
             }
         }
 
+        if icc_options_given && icc_profile.is_none() {
+            return LaunchRequest::InvalidHeadless(
+                "ICC intent/BPC options require --icc-profile".into(),
+            );
+        }
         return LaunchRequest::HeadlessExport(HeadlessExportSession {
             source,
             output,
             format,
             quality,
             tiff_bit_depth,
+            print_profile: icc_profile.map(|profile_path| {
+                crate::print_proof::PrintProfileOptions {
+                    profile_path,
+                    intent: icc_intent,
+                    black_point_compensation: icc_bpc,
+                }
+            }),
             keep_metadata,
             adjustments_override,
             preset,
@@ -331,6 +375,37 @@ mod tests {
         match parse(args) {
             LaunchRequest::HeadlessExport(session) => session,
             other => panic!("expected a headless export, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn icc_export_flags_are_opt_in_and_validate_values() {
+        assert!(
+            headless(&["export", "in.dng", "--output", "out"])
+                .print_profile
+                .is_none()
+        );
+        let session = headless(&[
+            "export",
+            "in.dng",
+            "--output",
+            "out",
+            "--icc-profile",
+            "paper.icc",
+            "--icc-intent",
+            "perceptual",
+            "--no-icc-bpc",
+        ]);
+        let profile = session.print_profile.unwrap();
+        assert_eq!(profile.profile_path, "paper.icc");
+        assert_eq!(profile.intent, crate::print_proof::PrintIntent::Perceptual);
+        assert!(!profile.black_point_compensation);
+        for args in [
+            vec!["export", "in.dng", "--icc-profile"],
+            vec!["export", "in.dng", "--icc-profile", "--output"],
+            vec!["export", "in.dng", "--icc-intent", "unknown"],
+        ] {
+            assert!(matches!(parse(&args), LaunchRequest::InvalidHeadless(_)));
         }
     }
 

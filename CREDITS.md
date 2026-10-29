@@ -237,6 +237,10 @@ The AlreadyApplied photo-versus-preset policy and metadata-only pending-draft/hi
   (MIT), adapted by Yojen with Codex/kano. The complete notice remains in
   `src-tauri/resources/licenses/autoshade-mask-semantics.txt`.
 
+## Print colour management
+
+Phase 1 print transforms use [lcms2 6.2.0](https://crates.io/crates/lcms2), the Rust wrapper by Kornel Lesiński, with [LittleCMS](https://www.littlecms.com/) by Marti Maria Saguer, statically bundled through lcms2-sys 4.0.7. Both are MIT licensed; notices are retained in [lcms2-MIT](rapidroom/LICENSES/lcms2-6.2.0-MIT.txt) and [LittleCMS-MIT](rapidroom/LICENSES/LittleCMS-MIT.txt). No profile supplier’s calibration data is implied by the library licence.
+
 ### Sigma 20–200 mm Sony E measured profile
 
 Distortion and vignetting data by [mpasson](https://github.com/mpasson/RapidRAW/commit/e8811879180122e571ad229a59997aed648dca11), measured/fitted from 207 Sony ILCE-7CM2 ARWs and distributed under [CC-BY-SA 3.0](rapidroom/LICENSES/sigma-20-200-CC-BY-SA-3.0.txt). RapidRoom's adaptation leaves polynomial TCA out of the active database and labels it “TCA not included”; enabling it requires separate lens validation even though the evaluator supports that format. The [unchanged licensed source](rapidroom/lens-profiles/sigma-20-200/source/local-sigma-20-200.README.md) is retained. Original native-wrapper/tests/database digests were not imported. Integration and synthetic verification use Codex; real-lens file validation remains pending.
