@@ -132,6 +132,8 @@ const ImageCompare = ({ original, denoised }: { original: string; denoised: stri
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       e.preventDefault();
+      setIsResizingSlider(false);
+      setIsTouchDragging(true);
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       touchState.current = {
@@ -148,8 +150,9 @@ const ImageCompare = ({ original, denoised }: { original: string; denoised: stri
         isSliding: false,
       };
     } else if (e.touches.length === 1) {
-      const target = e.target as HTMLElement;
-      const isSlider = target.closest('[data-slider]');
+      const touch = e.touches[0];
+      const target = touch.target;
+      const isSlider = target instanceof Element && !!target.closest('[data-slider]');
       if (isSlider) {
         e.preventDefault();
         touchState.current = {
@@ -159,6 +162,7 @@ const ImageCompare = ({ original, denoised }: { original: string; denoised: stri
           isSliding: true,
         };
         setIsResizingSlider(true);
+        setIsTouchDragging(false);
         const rect = containerRef.current?.getBoundingClientRect();
         if (rect) {
           const x = Math.max(0, Math.min(e.touches[0].clientX - rect.left, rect.width));
@@ -174,6 +178,7 @@ const ImageCompare = ({ original, denoised }: { original: string; denoised: stri
           isPanning: true,
           isSliding: false,
         };
+        setIsResizingSlider(false);
         setIsTouchDragging(true);
       }
     }
@@ -223,19 +228,15 @@ const ImageCompare = ({ original, denoised }: { original: string; denoised: stri
       setIsResizingSlider(false);
     } else if (e.touches.length === 1) {
       touchState.current.isPinching = false;
-      const target = e.target as HTMLElement;
-      const isSlider = target.closest('[data-slider]');
-      if (isSlider) {
-        touchState.current.isSliding = true;
-        touchState.current.isPanning = false;
-        setIsResizingSlider(true);
-      } else {
-        touchState.current.isPanning = true;
-        touchState.current.isSliding = false;
-        touchState.current.lastTouchX = e.touches[0].clientX;
-        touchState.current.lastTouchY = e.touches[0].clientY;
-        setIsTouchDragging(true);
-      }
+      const touch = e.touches[0];
+      const target = touch.target;
+      const isSlider = target instanceof Element && !!target.closest('[data-slider]');
+      touchState.current.lastTouchX = touch.clientX;
+      touchState.current.lastTouchY = touch.clientY;
+      touchState.current.isSliding = isSlider;
+      touchState.current.isPanning = !isSlider;
+      setIsResizingSlider(isSlider);
+      setIsTouchDragging(!isSlider);
     }
   };
 

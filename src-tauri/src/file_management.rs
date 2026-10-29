@@ -7,6 +7,7 @@ use std::fs;
 use std::hash::{Hash, Hasher};
 use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
 use std::process::Command;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, LazyLock, RwLock};
@@ -1193,6 +1194,9 @@ pub fn add_to_album(
     paths: Vec<String>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    if let Some(result) = crate::immich::add_to_album(&app_handle, &album_id, &paths) {
+        return result;
+    }
     let mut tree = get_albums(app_handle.clone())?;
 
     fn add_recursive(items: &mut [AlbumItem], target_id: &str, paths_to_add: &Vec<String>) -> bool {
@@ -1866,7 +1870,7 @@ impl AtomicWriteTemp for tempfile::NamedTempFile {
     }
 
     fn sync_all(&mut self) -> std::io::Result<()> {
-        self.as_file_mut().sync_all()
+        sync_file(self.as_file())
     }
 
     fn persist(self, target: &Path) -> std::io::Result<()> {
@@ -1976,6 +1980,31 @@ fn can_use_embedded_preview(
 /// Upstream's atomic writer name; RapidRoom's write_file_atomically does the work.
 pub fn write_file_atomic(path: &Path, contents: &[u8]) -> std::io::Result<()> {
     write_file_atomically(path, contents)
+}
+
+fn sync_file(file: &fs::File) -> std::io::Result<()> {
+    match file.sync_all() {
+        #[cfg(unix)]
+        Err(e) if is_sync_unsupported(&e) => {
+            #[cfg(target_vendor = "apple")]
+            {
+                use std::os::fd::AsRawFd;
+                if unsafe { libc::fsync(file.as_raw_fd()) } != 0 {
+                    let e = std::io::Error::last_os_error();
+                    if !is_sync_unsupported(&e) {
+                        return Err(e);
+                    }
+                }
+            }
+            Ok(())
+        }
+        result => result,
+    }
+}
+
+#[cfg(unix)]
+fn is_sync_unsupported(e: &std::io::Error) -> bool {
+    matches!(e.raw_os_error(), Some(code) if code == libc::ENOTSUP || code == libc::EOPNOTSUPP)
 }
 
 fn thumbnail_embedded_preview(
@@ -3379,40 +3408,57 @@ fn move_files_on_disk(
 }
 
 #[tauri::command]
-pub fn save_metadata_and_update_thumbnail(
+pub async fn save_metadata_and_update_thumbnail(
     path: String,
     adjustments: Value,
     app_handle: AppHandle,
-    state: tauri::State<AppState>,
 ) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        save_metadata_and_update_thumbnail_blocking(path, adjustments, app_handle)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+fn save_metadata_and_update_thumbnail_blocking(
+    path: String,
+    adjustments: Value,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    let state = app_handle.state::<AppState>();
     let (source_path, sidecar_path) = parse_virtual_path(&path);
     ensure_card_writable(&source_path)?;
     let lens_db = state.lens_db.lock().unwrap().clone();
     let source_id = crate::ai_jobs::source_id(&source_path);
 
-    let loaded = crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path);
-    let had_ai_work = crate::ai_jobs::needs_generation(&loaded.adjustments, &source_path);
-    let mut final_adjustments = adjustments;
-    let stripped_ai_results = source_id.as_ref().is_some_and(|source_id| {
-        crate::ai_jobs::reconcile_ai_results(
-            &mut final_adjustments,
-            &loaded.adjustments,
-            source_id,
-            true,
-        )
+    let settings = load_settings(app_handle.clone()).unwrap_or_else(|_| AppSettings {
+        enable_xmp_sync: Some(false),
+        ..Default::default()
     });
-    resolve_lens_params_in_adjustments(
-        &mut final_adjustments,
-        &loaded.exif,
-        lens_db.as_deref(),
-        &source_path,
-    );
-
-    let metadata = update_sidecar(&sidecar_path, |current| {
-        current.adjustments = final_adjustments.clone();
+    let exif = crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path).exif;
+    let mut had_ai_work = false;
+    let mut stripped_ai_results = false;
+    let metadata = save_develop_metadata(&source_path, &sidecar_path, &settings, |current| {
         if current.exif.is_none() {
-            current.exif = loaded.exif.clone();
+            current.exif = exif;
         }
+        had_ai_work = crate::ai_jobs::needs_generation(&current.adjustments, &source_path);
+        let mut final_adjustments = adjustments;
+        stripped_ai_results = source_id.as_ref().is_some_and(|source_id| {
+            crate::ai_jobs::reconcile_ai_results(
+                &mut final_adjustments,
+                &current.adjustments,
+                source_id,
+                true,
+            )
+        });
+        resolve_lens_params_in_adjustments(
+            &mut final_adjustments,
+            &current.exif,
+            lens_db.as_deref(),
+            &source_path,
+        );
+        current.adjustments = final_adjustments;
     })?;
 
     if stripped_ai_results {
@@ -3422,14 +3468,7 @@ pub fn save_metadata_and_update_thumbnail(
         crate::ai_jobs::resolve(&app_handle, std::slice::from_ref(&path));
     }
 
-    if let Ok(settings) = load_settings(app_handle.clone())
-        && settings.enable_xmp_sync.unwrap_or(false)
-    {
-        let create_if_missing = settings.create_xmp_if_missing.unwrap_or(false);
-        sync_metadata_to_xmp(&source_path, &sidecar_path, &metadata, create_if_missing);
-    }
-
-    queue_import_thumbnail_refresh(path, app_handle, &state);
+    queue_import_thumbnail_refresh(path, app_handle.clone(), &state);
     Ok(())
 }
 
@@ -3798,7 +3837,7 @@ pub fn import_xmp_adjustments_for_image(
 
     let draft_preserved = imported.draft_preserved;
     if adjustments_applied || imported.metadata_applied || draft_preserved {
-        queue_import_thumbnail_refresh(path, app_handle, &state);
+        queue_import_thumbnail_refresh(path, app_handle.clone(), &state);
     }
 
     log::info!(
@@ -4505,6 +4544,27 @@ async fn update_sidecars_from_images(
     .map_err(|e| e.to_string())
 }
 
+/// Serialize ordinary develop autosaves with JPEG culling Undo before reading
+/// the sidecar, so a queued save merges into the restored culling state.
+pub(crate) fn save_develop_metadata(
+    source: &Path,
+    sidecar: &Path,
+    settings: &crate::app_settings::AppSettings,
+    update: impl FnOnce(&mut ImageMetadata),
+) -> Result<ImageMetadata, String> {
+    let _guard = crate::jpeg_culling::action_guard()?;
+    let metadata = update_sidecar(sidecar, update)?;
+    if settings.enable_xmp_sync.unwrap_or(false) {
+        sync_metadata_to_xmp(
+            source,
+            sidecar,
+            &metadata,
+            settings.create_xmp_if_missing.unwrap_or(false),
+        );
+    }
+    Ok(metadata)
+}
+
 fn metadata_bytes_preserving_owned(
     path: &Path,
     metadata: &ImageMetadata,
@@ -4585,7 +4645,7 @@ pub async fn apply_auto_straighten_to_paths(
 
 pub(crate) fn update_sidecar(
     sidecar_path: &Path,
-    update: impl Fn(&mut ImageMetadata),
+    update: impl FnOnce(&mut ImageMetadata),
 ) -> Result<ImageMetadata, String> {
     let _guard = lock_sidecar(sidecar_path).map_err(|e| e.to_string())?;
     let mut metadata = crate::exif_processing::load_sidecar_unlocked(sidecar_path);
@@ -4612,20 +4672,50 @@ fn update_metadata_for_paths(
         .enable_xmp_sync
         .unwrap_or(false)
         .then(|| settings.create_xmp_if_missing.unwrap_or(false));
-    update_metadata(paths, xmp_sync, update)
+    let _guard = crate::jpeg_culling::action_guard()?;
+    let before = settings
+        .write_jpeg_metadata
+        .unwrap_or(false)
+        .then(|| crate::jpeg_culling::capture(paths));
+    update_metadata_with_jpeg(
+        paths,
+        xmp_sync,
+        settings.write_jpeg_metadata.unwrap_or(false),
+        update,
+    )?;
+    if let Some(before) = before {
+        crate::jpeg_culling::sync(paths, before, app_handle, true);
+    }
+    Ok(())
 }
 
 /// `xmp_sync` is `Some(create_if_missing)` when XMP sync is on.
+#[cfg(test)]
 fn update_metadata(
     paths: &[String],
     xmp_sync: Option<bool>,
+    update: impl Fn(&mut ImageMetadata) + Sync,
+) -> Result<(), String> {
+    update_metadata_with_jpeg(paths, xmp_sync, false, update)
+}
+
+fn update_metadata_with_jpeg(
+    paths: &[String],
+    xmp_sync: Option<bool>,
+    embed_jpeg: bool,
     update: impl Fn(&mut ImageMetadata) + Sync,
 ) -> Result<(), String> {
     ensure_card_writable_for_paths(paths)?;
     paths.par_iter().try_for_each(|path| {
         let (source_path, sidecar_path) = parse_virtual_path(path);
 
-        let metadata = update_sidecar(&sidecar_path, &update)?;
+        let metadata = update_sidecar(&sidecar_path, |metadata| {
+            if embed_jpeg && crate::jpeg_culling::is_jpeg(&source_path) {
+                // Preserve a camera rating before a reject replaces its embedded value with -1.
+                metadata.rating = exif_processing::resolve_rating(&source_path, metadata);
+            }
+            update(metadata);
+        })?;
 
         if let Some(create_xmp_if_missing) = xmp_sync {
             sync_metadata_to_xmp(
@@ -4640,25 +4730,29 @@ fn update_metadata(
 }
 
 #[tauri::command]
-pub fn set_color_label_for_paths(
+pub async fn set_color_label_for_paths(
     paths: Vec<String>,
     color: Option<String>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    update_metadata_for_paths(&paths, &app_handle, |metadata| {
-        let mut tags = metadata.tags.take().unwrap_or_default();
-        tags.retain(|tag| !tag.starts_with(COLOR_TAG_PREFIX));
+    tauri::async_runtime::spawn_blocking(move || {
+        update_metadata_for_paths(&paths, &app_handle, |metadata| {
+            let mut tags = metadata.tags.take().unwrap_or_default();
+            tags.retain(|tag| !tag.starts_with(COLOR_TAG_PREFIX));
 
-        if let Some(c) = &color
-            && !c.is_empty()
-        {
-            tags.push(format!("{}{}", COLOR_TAG_PREFIX, c));
-        }
+            if let Some(c) = &color
+                && !c.is_empty()
+            {
+                tags.push(format!("{}{}", COLOR_TAG_PREFIX, c));
+            }
 
-        if !tags.is_empty() {
-            metadata.tags = Some(tags);
-        }
+            if !tags.is_empty() {
+                metadata.tags = Some(tags);
+            }
+        })
     })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 fn apply_user_rating(metadata: &mut ImageMetadata, rating: u8) {
@@ -4677,6 +4771,30 @@ fn apply_user_flag(metadata: &mut ImageMetadata, flag: Option<ImageFlag>) {
 }
 
 #[cfg(test)]
+mod jpeg_rating_preservation_tests {
+    use super::*;
+    #[test]
+    fn opt_in_reject_keeps_the_previous_embedded_star_rating_in_the_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("rated.jpg");
+        let mut bytes = Vec::new();
+        image::codecs::jpeg::JpegEncoder::new(&mut bytes)
+            .encode(&[30; 12], 2, 2, image::ExtendedColorType::Rgb8)
+            .unwrap();
+        fs::write(&path, bytes).unwrap();
+        crate::jpeg_metadata::write(&path, 3, None).unwrap();
+        let name = path.to_string_lossy().into_owned();
+        update_metadata_with_jpeg(std::slice::from_ref(&name), None, true, |metadata| {
+            apply_user_flag(metadata, Some(ImageFlag::Reject))
+        })
+        .unwrap();
+        let metadata = exif_processing::load_sidecar(&parse_virtual_path(&name).1);
+        assert_eq!(metadata.rating, 3);
+        assert_eq!(metadata.flag, Some(ImageFlag::Reject));
+    }
+}
+
+#[cfg(test)]
 fn store_user_rating(sidecar_path: &Path, rating: u8) -> ImageMetadata {
     update_sidecar(sidecar_path, |metadata| apply_user_rating(metadata, rating)).unwrap()
 }
@@ -4688,6 +4806,9 @@ pub async fn set_rating_for_paths(
     apply_to_stack: Option<bool>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    if rating > 5 {
+        return Err("Rating must be between 0 and 5".into());
+    }
     tauri::async_runtime::spawn_blocking(move || {
         let paths = if apply_to_stack.unwrap_or(false) {
             crate::photo_stacks::metadata_paths(&paths)?
@@ -5172,6 +5293,7 @@ fn get_internal_library_root_path(app_handle: &AppHandle) -> Result<std::path::P
     }
     #[cfg(target_os = "android")]
     {
+        let _ = app_handle;
         crate::android_integration::get_android_internal_library_root()
     }
 }
@@ -5671,15 +5793,20 @@ pub fn show_in_finder(path: String) -> Result<(), String> {
 
     #[cfg(target_os = "android")]
     {
-        return Err("Show in File Manager is not natively supported via CLI on Android.".into());
+        let _ = source_path;
+        Err("Show in File Manager is not natively supported via CLI on Android.".into())
     }
 
     #[cfg(target_os = "ios")]
     {
-        return Err("Show in File Manager is not supported on iOS.".into());
+        let _ = source_path;
+        Err("Show in File Manager is not supported on iOS.".into())
     }
 
-    Ok(())
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        Ok(())
+    }
 }
 
 #[tauri::command]
@@ -6895,15 +7022,15 @@ mod atomic_write_tests {
     fn assert_injected_failure_preserves_existing_file(failure: InjectedFailure) -> io::Error {
         let dir = tempfile::tempdir().unwrap();
         let target = dir.path().join("photo.cr3.rrdata");
-        fs::write(&target, "original").unwrap();
+        fs::write(&target, br#"{"rating":1}"#).unwrap();
         let error = write_file_atomically_with_backend(
             &target,
-            b"replacement contents",
+            br#"{"rating":2,"adjustments":{"exposure":1}}"#,
             &mut InjectedBackend { failure },
         )
         .unwrap_err();
 
-        assert_eq!(fs::read(&target).unwrap(), b"original");
+        assert_eq!(fs::read(&target).unwrap(), br#"{"rating":1}"#);
         assert_eq!(leftover_temp_files(dir.path()), 0);
         error
     }
@@ -6943,17 +7070,17 @@ mod atomic_write_tests {
         let dir = tempfile::tempdir().unwrap();
         let target = dir.path().join("shared.rrdata");
         let link = dir.path().join("photo.cr3.rrdata");
-        fs::write(&target, "old").unwrap();
+        fs::write(&target, r#"{"rating":1}"#).unwrap();
         std::os::unix::fs::symlink(&target, &link).unwrap();
 
-        write_file_atomically(&link, "new").unwrap();
+        write_file_atomically(&link, r#"{"rating":2}"#).unwrap();
         assert!(
             fs::symlink_metadata(&link)
                 .unwrap()
                 .file_type()
                 .is_symlink()
         );
-        assert_eq!(fs::read_to_string(&target).unwrap(), "new");
+        assert_eq!(fs::read_to_string(&target).unwrap(), r#"{"rating":2}"#);
     }
 
     #[test]
@@ -10099,6 +10226,26 @@ mod unreadable_sidecar_tests {
         assert_eq!(saved["exif"]["Make"], "SONY");
         assert_eq!(saved["version"], 1);
         assert_eq!(saved["rating"], 0);
+        assert_eq!(saved["unknown"], serde_json::json!({"keep":true}));
+    }
+
+    #[test]
+    fn write_before_first_read_preserves_unreadable_sidecars() {
+        let dir = tempfile::tempdir().unwrap();
+        for (index, bytes) in [
+            br#"{"adjustments":{"exposure":1},"exif":{"Make":5}}"#.as_slice(),
+            br#"{"adjustments": {"exposure": 1}, "#.as_slice(),
+            b"[1,2,3]".as_slice(),
+            &[0xff, 0xfe, 0x7b],
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let sidecar = dir.path().join(format!("unopened-{index}.jpg.rrdata"));
+            fs::write(&sidecar, bytes).unwrap();
+            assert!(set_sidecar_flag_for_test(&sidecar).is_err());
+            assert_eq!(fs::read(&sidecar).unwrap(), bytes);
+        }
     }
 
     #[test]

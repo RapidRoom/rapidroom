@@ -62,6 +62,27 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
     '+ shifts the band towards the next colour (reds → orange, yellows → green, blues → purple, magentas → red), up to ±60°.',
   'hsl.<band>.saturation': '+ more colour in that band only; −100 removes it. Neutral greys are not affected.',
   'hsl.<band>.luminance': '+ brightens, − darkens that colour (for example blues −20 for a deeper sky).',
+  monochromeEnabled:
+    'Turns on the Black & White mode (global only). Colour presence, the colour mixer, colour grading and calibration are then bypassed; the film, filter, `monochromeMix` and `monochromeToning` shape the result.',
+  monochromeFilm:
+    'Spectral response used for the conversion: `neutral` (default, perceived brightness), `panchromatic`, `balanced`, `orthoPanchromatic`, `extendedRed`, `orthochromatic` or `infrared`.',
+  monochromeFilterHue:
+    'Hue of the colour filter in degrees, 0–360 (0 red, 120 green, 225 blue). Lightens that colour and darkens its opposite. Needs a `monochromeFilterStrength` above 0.',
+  monochromeFilterStrength: 'How strongly the colour filter is applied, 0–100. 0 is no filter.',
+  'monochromeMix.reds': 'B&W mixer: + lightens red tones, − darkens them (−100 to 100).',
+  'monochromeMix.oranges': 'B&W mixer: + lightens orange tones, − darkens them. Skin lives here.',
+  'monochromeMix.yellows': 'B&W mixer: + lightens yellow tones, − darkens them.',
+  'monochromeMix.greens': 'B&W mixer: + lightens green tones, − darkens them (foliage).',
+  'monochromeMix.aquas': 'B&W mixer: + lightens aqua tones, − darkens them.',
+  'monochromeMix.blues': 'B&W mixer: + lightens blue tones, − darkens them (−20 for a deeper sky).',
+  'monochromeMix.purples': 'B&W mixer: + lightens purple tones, − darkens them.',
+  'monochromeMix.magentas': 'B&W mixer: + lightens magenta tones, − darkens them.',
+  'monochromeToning.balance':
+    'Shifts the split between the shadow and highlight toning, −100 to 100. Only used in B&W mode.',
+  'monochromeToning.highlightHue': 'Hue of the highlight tone in degrees, 0–360. Default 40 (warm).',
+  'monochromeToning.highlightSaturation': 'Strength of the highlight tone, 0–100. 0 leaves the highlights neutral.',
+  'monochromeToning.shadowHue': 'Hue of the shadow tone in degrees, 0–360. Default 220 (cool).',
+  'monochromeToning.shadowSaturation': 'Strength of the shadow tone, 0–100. 0 leaves the shadows neutral.',
   'colorCalibration.shadowsTint': '+ magenta, − green, in the shadows only.',
   'colorCalibration.<primary>Hue':
     'Shifts the camera primary: red + towards orange, green + towards cyan, blue + towards magenta. Hidden in the GUI by default.',

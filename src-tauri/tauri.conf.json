@@ -35,7 +35,7 @@
         "base-uri": "'none'",
         "form-action": "'none'"
       },
-      "capabilities": ["default", "desktop-cloud"],
+      "capabilities": ["default", "desktop-cloud", "viewer"],
       "assetProtocol": {
         "enable": true,
         "scope": ["$APPCACHE/thumbnails/*"]

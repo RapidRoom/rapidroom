@@ -1,0 +1,22 @@
+{
+  "at": "2026-10-15T03:42:29.674076+00:00",
+  "cpu": "Intel Core Ultra 7 258V",
+  "threads": {
+    "intra": 4,
+    "inter": 1
+  },
+  "runtime": "Python ONNX Runtime 1.30.0",
+  "providers": ["CPUExecutionProvider"],
+  "model": "depth_anything_v2_vits.onnx",
+  "model_sha256": "d2b11a11c1d4a12b47608fa65a17ee9a4c605b55ee1730c8e3b526304f2562be",
+  "bytes": 99373606,
+  "input": [1, 3, 518, 518],
+  "output_shapes": [[1, 518, 518]],
+  "session_load_seconds": 0.47992518899263814,
+  "warm_runs": 5,
+  "seconds": [0.9979365600156598, 1.0044729100191034, 0.9051270330091938, 0.9218896449892782, 0.848889953980688],
+  "median_seconds": 0.9218896449892782,
+  "max_seconds": 1.0044729100191034,
+  "max_rss_kib": 496580,
+  "claim": "CPU graph timing on synthetic tensor, not full app latency, quality, SAM2/BiRefNet/DA3 timing or OpenVINO acceleration; other agents may compile concurrently"
+}

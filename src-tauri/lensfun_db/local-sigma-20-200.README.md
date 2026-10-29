@@ -14,11 +14,11 @@ for a 3:2 full-frame sensor, k1 = k1_sony / 3.25 and
 k2 = k2_sony / 3.25². RapidRoom's existing evaluator supplies the inverse
 radius conversion once. Existing Amount and auto-crop behavior are unchanged.
 
-**Polynomial TCA is unsupported.** All 51 donor TCA entries are excluded
-from the active database; the model selector reports “TCA unsupported”.
-RapidRoom currently supports constant channel scales but not the donor's
-nonzero br/bb terms. The original data is retained intact for issue #267,
-which must coordinate with subpixel CA issue #18. No constant-term partial
+**TCA is not included.** All 51 donor TCA entries remain excluded from the
+active database; the model selector reports “TCA not included”. RapidRoom's
+evaluator now supports the donor's polynomial format, but enabling these
+lens-specific entries requires a separate review and validation against real
+files. The original data is retained intact. No constant-term partial
 approximation is applied.
 
 **Unvalidated on real files in RapidRoom.** Synthetic coordinate/illumination

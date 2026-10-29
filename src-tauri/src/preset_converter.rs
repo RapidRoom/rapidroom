@@ -1421,7 +1421,6 @@ fn convert_xmp_to_preset_with_crop(
             include_crop_transform,
         ));
     }
-    let convert_to_grayscale = is_xmp_true(attrs.get("ConvertToGrayscale"));
 
     let mut adjustments = Map::new();
     let mut hsl_map = Map::new();
@@ -1445,12 +1444,6 @@ fn convert_xmp_to_preset_with_crop(
     scale_lightroom_exposure(&mut adjustments, SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS);
     apply_rendered_pv5_policy(&attrs, &mut adjustments, image_kind);
     apply_rendered_pv2012_policy(&attrs, &mut adjustments, image_kind);
-    if convert_to_grayscale {
-        // RapidRAW has no separate monochrome mode. Full desaturation produces
-        // a luminance image, while the HSL luminance controls below approximate
-        // Lightroom's per-color B&W mixer before that conversion.
-        adjustments.insert("saturation".to_string(), json!(-100.0));
-    }
 
     if let Some(sharpness_val) = get_attr_as_f64(&attrs, "Sharpness") {
         let scaled_sharpness = (sharpness_val / 150.0) * 100.0;
@@ -1529,32 +1522,24 @@ fn convert_xmp_to_preset_with_crop(
     ];
     for (src, dst) in colors {
         let mut color_map = Map::new();
-        if convert_to_grayscale {
-            if let Some(value) = get_attr_as_f64(&attrs, &format!("GrayMixer{}", src))
-                .filter(|value| value.is_finite())
-            {
-                color_map.insert("luminance".to_string(), json!(value.clamp(-100.0, 100.0)));
-            }
-        } else {
-            if let Some(raw) = attrs.get(&format!("HueAdjustment{}", src))
-                && let Some(num) = parse_num(raw.trim_start_matches('+'))
-                && let Some(Value::Number(number)) = num_to_json(num)
-                && let Some(value) = number.as_f64()
-            {
-                color_map.insert("hue".to_string(), json!(value * 0.75));
-            }
-            if let Some(raw) = attrs.get(&format!("SaturationAdjustment{}", src))
-                && let Some(num) = parse_num(raw.trim_start_matches('+'))
-                && let Some(json_val) = num_to_json(num)
-            {
-                color_map.insert("saturation".to_string(), json_val);
-            }
-            if let Some(raw) = attrs.get(&format!("LuminanceAdjustment{}", src))
-                && let Some(num) = parse_num(raw.trim_start_matches('+'))
-                && let Some(json_val) = num_to_json(num)
-            {
-                color_map.insert("luminance".to_string(), json_val);
-            }
+        if let Some(raw) = attrs.get(&format!("HueAdjustment{}", src))
+            && let Some(num) = parse_num(raw.trim_start_matches('+'))
+            && let Some(Value::Number(number)) = num_to_json(num)
+            && let Some(value) = number.as_f64()
+        {
+            color_map.insert("hue".to_string(), json!(value * 0.75));
+        }
+        if let Some(raw) = attrs.get(&format!("SaturationAdjustment{}", src))
+            && let Some(num) = parse_num(raw.trim_start_matches('+'))
+            && let Some(json_val) = num_to_json(num)
+        {
+            color_map.insert("saturation".to_string(), json_val);
+        }
+        if let Some(raw) = attrs.get(&format!("LuminanceAdjustment{}", src))
+            && let Some(num) = parse_num(raw.trim_start_matches('+'))
+            && let Some(json_val) = num_to_json(num)
+        {
+            color_map.insert("luminance".to_string(), json_val);
         }
         if !color_map.is_empty() {
             hsl_map.insert(dst.to_string(), Value::Object(color_map));
@@ -1563,6 +1548,41 @@ fn convert_xmp_to_preset_with_crop(
     if !hsl_map.is_empty() {
         adjustments.insert("hsl".to_string(), Value::Object(hsl_map));
     }
+
+    let grayscale = attrs
+        .get("ConvertToGrayscale")
+        .map(|v| is_xmp_true(Some(v)));
+    if let Some(is_monochrome) = grayscale {
+        adjustments.insert("monochromeEnabled".to_string(), json!(is_monochrome));
+    }
+    if grayscale == Some(true) {
+        let mut mix_map = Map::new();
+        for (src, dst) in colors {
+            if let Some(val) = get_attr_as_f64(&attrs, &format!("GrayMixer{}", src)) {
+                mix_map.insert(dst.to_string(), json!(val.clamp(-100.0, 100.0)));
+            }
+        }
+        if !mix_map.is_empty() {
+            adjustments.insert("monochromeMix".to_string(), Value::Object(mix_map));
+        }
+
+        let mut toning_map = Map::new();
+        for (xmp_key, rr_key) in [
+            ("SplitToningShadowHue", "shadowHue"),
+            ("SplitToningShadowSaturation", "shadowSaturation"),
+            ("SplitToningHighlightHue", "highlightHue"),
+            ("SplitToningHighlightSaturation", "highlightSaturation"),
+            ("SplitToningBalance", "balance"),
+        ] {
+            if let Some(val) = get_attr_as_f64(&attrs, xmp_key) {
+                toning_map.insert(rr_key.to_string(), json!(val));
+            }
+        }
+        if !toning_map.is_empty() {
+            adjustments.insert("monochromeToning".to_string(), Value::Object(toning_map));
+        }
+    }
+
     let mut shadows_map = Map::new();
     let mut midtones_map = Map::new();
     let mut highlights_map = Map::new();
@@ -2591,7 +2611,8 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(preset.adjustments["saturation"], json!(-100.0));
+        assert_eq!(preset.adjustments["monochromeEnabled"], json!(true));
+        assert_eq!(preset.adjustments["saturation"], json!(25));
         assert_eq!(preset.adjustments["toneMapper"], json!("basic"));
         assert_eq!(preset.adjustments["exposure"], json!(0.0));
         assert_eq!(preset.adjustments["brightness"], json!(0.8));
@@ -2614,13 +2635,20 @@ mod tests {
             ("magentas", 4.0),
         ];
         for (color, luminance) in expected_mix {
-            assert_eq!(
-                preset.adjustments["hsl"][color]["luminance"],
-                json!(luminance)
-            );
-            assert!(preset.adjustments["hsl"][color].get("hue").is_none());
-            assert!(preset.adjustments["hsl"][color].get("saturation").is_none());
+            assert_eq!(preset.adjustments["monochromeMix"][color], json!(luminance));
         }
+        assert_eq!(preset.adjustments["hsl"]["reds"]["hue"], json!(30.0));
+    }
+
+    #[test]
+    fn numeric_true_grayscale_flag_enables_monochrome() {
+        let preset = convert_adobe_camera_raw_xmp_to_preset(
+            r#"<rdf:Description crs:ConvertToGrayscale="1" crs:GrayMixerRed="-10" />"#,
+            XmpImageKind::RenderedJpeg,
+        )
+        .unwrap();
+        assert_eq!(preset.adjustments["monochromeEnabled"], json!(true));
+        assert_eq!(preset.adjustments["monochromeMix"]["reds"], json!(-10.0));
     }
 
     #[test]
