@@ -17,7 +17,6 @@ permissions:
 env:
   UPSTREAM: https://github.com/CyberTimon/RapidRAW.git
   BRANCH: upstream-sync
-  GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
   GH_REPO: ${{ github.repository }}
 
 jobs:
@@ -29,6 +28,8 @@ jobs:
         shell: bash
     steps:
       - name: Token present
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
             echo "::error::The UPSTREAM_SYNC_TOKEN secret is missing; see rapidroom/UPSTREAM-SYNC.md."
@@ -44,6 +45,8 @@ jobs:
 
       - name: Preserve human review and wait for the initial integration
         id: ready
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
         run: |
           set -euo pipefail
           if [ "$(gh api "repos/$GH_REPO/pulls/179" --jq .merged)" != true ]; then
@@ -57,6 +60,12 @@ jobs:
             echo "run=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          toolchain=$(sed -n 's/^channel = "\([^"]*\)"$/\1/p' src-tauri/rust-toolchain.toml)
+          if [ -z "$toolchain" ]; then
+            echo "::error::Could not read main's Rust toolchain."
+            exit 1
+          fi
+          echo "toolchain=$toolchain" >> "$GITHUB_OUTPUT"
           cp rapidroom/upstream-sync/gate.sh "$RUNNER_TEMP/upstream-sync-gate.sh"
           cp rapidroom/upstream-sync/resolve-generated.sh "$RUNNER_TEMP/upstream-sync-resolve-generated.sh"
           echo "run=true" >> "$GITHUB_OUTPUT"
@@ -87,7 +96,7 @@ jobs:
             echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           else
             git diff --name-only --diff-filter=U > "$RUNNER_TEMP/conflicts.txt"
-            if env -u GH_TOKEN bash "$RUNNER_TEMP/upstream-sync-resolve-generated.sh" "$RUNNER_TEMP/conflicts.txt" > "$RUNNER_TEMP/generated-resolution.log" 2>&1; then
+            if bash "$RUNNER_TEMP/upstream-sync-resolve-generated.sh" "$RUNNER_TEMP/conflicts.txt" "${{ steps.ready.outputs.toolchain }}" "$GITHUB_WORKSPACE/src-tauri/Cargo.toml" > "$RUNNER_TEMP/generated-resolution.log" 2>&1; then
               echo "result=merged" >> "$GITHUB_OUTPUT"
               echo "resolved=lock" >> "$GITHUB_OUTPUT"
               echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
@@ -106,6 +115,8 @@ jobs:
 
       - name: Report a conflict
         if: steps.merge.outputs.result == 'conflict'
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
         run: |
           title="Upstream sync needs conflict resolution"
           {
@@ -140,7 +151,10 @@ jobs:
       - name: Push the branch and open the PR
         id: pr
         if: steps.merge.outputs.result == 'merged'
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
         run: |
+          gh auth setup-git
           git push "--force-with-lease=refs/heads/$BRANCH:${{ steps.merge.outputs.previous }}" origin "HEAD:refs/heads/$BRANCH"
           {
             echo "Daily upstream sync: merges upstream RapidRAW \`${{ steps.merge.outputs.upstream }}\` (${{ steps.merge.outputs.behind }} commits) into main. May merge only after every required exact-head/base check passes and renders match the committed reference. Render changes stay open for human approval; no reference is re-blessed."
@@ -167,6 +181,8 @@ jobs:
 
       - name: Check the exact candidate and merge only unchanged rendering
         if: steps.merge.outputs.result == 'merged'
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
         run: |
           bash "$RUNNER_TEMP/upstream-sync-gate.sh" \
             "${{ steps.pr.outputs.number }}" "${{ steps.merge.outputs.base }}" "${{ steps.merge.outputs.head }}"

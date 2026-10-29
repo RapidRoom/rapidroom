@@ -66,17 +66,20 @@ class ResolveGeneratedTests(unittest.TestCase):
     def resolve(self, *, abort_on_failure=False):
         conflicts = Path(self.temp.name) / "conflicts.txt"
         conflicts.write_text(self.git("diff", "--name-only", "--diff-filter=U") + "\n")
+        manifest = self.repo / "src-tauri/Cargo.toml"
         env = {
             **os.environ,
             "PATH": str(self.bin) + ":" + os.environ["PATH"],
             "CALLS": str(self.calls),
             "GH_TOKEN": "must-not-reach-cargo",
+            "RUNNER_TEMP": self.temp.name,
+            "EXPECTED_MANIFEST": str(manifest),
         }
-        command = 'env -u GH_TOKEN bash "$1" "$2"'
+        command = 'env -u GH_TOKEN bash "$1" "$2" 1.98 "$3"'
         if abort_on_failure:
             command = f'if {command}; then exit 0; else git merge --abort; exit 1; fi'
         return subprocess.run(
-            ["bash", "-c", command, "test", str(RESOLVER), str(conflicts)],
+            ["bash", "-c", command, "test", str(RESOLVER), str(conflicts), str(manifest)],
             cwd=self.repo,
             env=env,
             capture_output=True,
@@ -88,12 +91,12 @@ class ResolveGeneratedTests(unittest.TestCase):
         self.merge()
         self.fake_cargo(
             "if [ -n \"${GH_TOKEN:-}\" ]; then echo 'token visible' >&2; exit 90; fi\n"
-            "case \" $* \" in *\" update \"*) ;; *) exit 91 ;; esac\n"
-            "case \" $* \" in *\" -w \"*) ;; *) exit 92 ;; esac\n"
-            "case \" $* \" in *\" --offline \"*) exit 93 ;; esac\n"
-            "if [ \"${PWD##*/}\" != src-tauri ]; then exit 94; fi\n"
-            "if [ \"$(cat Cargo.lock)\" != 'upstream lock' ]; then exit 95; fi\n"
-            "printf 'resolved lock\\n' > Cargo.lock"
+            "if [ \"$PWD\" != \"$RUNNER_TEMP\" ]; then exit 91; fi\n"
+            "if [ \"$*\" != \"+1.98 update -w --manifest-path $EXPECTED_MANIFEST\" ]; then exit 92; fi\n"
+            "starting=$(cat \"$(dirname \"$EXPECTED_MANIFEST\")/Cargo.lock\")\n"
+            "echo \"starting=$starting\" >> \"$CALLS\"\n"
+            "if [ \"$starting\" != 'upstream lock' ]; then exit 93; fi\n"
+            "printf 'resolved lock\\n' > \"$(dirname \"$EXPECTED_MANIFEST\")/Cargo.lock\""
         )
 
         result = self.resolve()
@@ -103,7 +106,11 @@ class ResolveGeneratedTests(unittest.TestCase):
         self.assertEqual(len(self.git("rev-list", "--parents", "-n", "1", "HEAD").split()), 3)
         self.assertEqual((self.repo / "src-tauri/Cargo.lock").read_text(), "resolved lock\n")
         self.assertNotIn("# Conflicts:", self.git("log", "-1", "--format=%B"))
-        self.assertEqual(self.calls.read_text(), "cargo update -w\n")
+        manifest = self.repo / "src-tauri/Cargo.toml"
+        self.assertEqual(
+            self.calls.read_text(),
+            f"cargo +1.98 update -w --manifest-path {manifest}\nstarting=upstream lock\n",
+        )
 
     def test_mixed_conflict_falls_back_without_modifying_merge(self):
         self.merge(mixed=True)
@@ -124,7 +131,7 @@ class ResolveGeneratedTests(unittest.TestCase):
         self.merge()
         before_head = self.git("rev-parse", "HEAD")
         self.fake_cargo(
-            "printf 'partial lock\\n' > Cargo.lock\n"
+            "printf 'partial lock\\n' > \"$(dirname \"$EXPECTED_MANIFEST\")/Cargo.lock\"\n"
             "echo 'simulated cargo failure' >&2\n"
             "exit 42"
         )

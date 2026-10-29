@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-conflicts_file=${1:?Usage: resolve-generated.sh <conflicts-file>}
+conflicts_file=${1:?Usage: resolve-generated.sh <conflicts-file> <toolchain> <manifest>}
+toolchain=${2:?Usage: resolve-generated.sh <conflicts-file> <toolchain> <manifest>}
+manifest=${3:?Usage: resolve-generated.sh <conflicts-file> <toolchain> <manifest>}
 mapfile -t conflicts < <(sed '/^$/d' "$conflicts_file")
 if [ "${#conflicts[@]}" -ne 1 ] || [ "${conflicts[0]}" != src-tauri/Cargo.lock ]; then
   echo "Mechanical resolution is limited to a lone src-tauri/Cargo.lock conflict."
@@ -10,8 +12,8 @@ fi
 
 git checkout --theirs -- src-tauri/Cargo.lock
 (
-  cd src-tauri
-  cargo update -w
+  cd "$RUNNER_TEMP"
+  cargo "+$toolchain" update -w --manifest-path "$manifest"
 )
 git add -- src-tauri/Cargo.lock
 remaining=$(git diff --name-only --diff-filter=U)

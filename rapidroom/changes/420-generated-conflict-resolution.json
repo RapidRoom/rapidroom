@@ -10,5 +10,5 @@
   "upstream_prs": [],
   "rendering_change": false,
   "rapidroom_only": true,
-  "notes": "Resolves a lone Cargo.lock sync conflict from upstream's pins with cargo update -w under src-tauri's pinned toolchain. The pre-merge resolver runs without checkout credentials or GH_TOKEN. Other conflicts and resolver failures abort with diagnostics; the unchanged exact-head gate applies to every mechanically resolved merge."
+  "notes": "Resolves a lone Cargo.lock conflict from upstream's pins using main's captured Rust toolchain and Cargo's absolute manifest path from RUNNER_TEMP, outside merged configuration. The merge step has no GH_TOKEN; gh auth setup-git runs only for the push/gate path. Other conflicts and resolver failures abort with diagnostics, and the exact-head gate is unchanged."
 }
