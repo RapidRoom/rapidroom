@@ -10,6 +10,7 @@ import { TextColors, TextVariants, TextWeights } from '../../types/typography';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { Invokes } from '../ui/AppProperties';
+import { useSettingsStore } from '../../store/useSettingsStore';
 
 export type DenoiseMethod = 'tree_best' | 'tree_fast' | 'ai' | 'bm3d' | 'raw9';
 
@@ -45,6 +46,20 @@ const ImageCompare = ({ original, denoised }: { original: string; denoised: stri
 
   const containerRef = useRef<HTMLDivElement>(null);
   const lastMousePos = useRef({ x: 0, y: 0 });
+  const [isTouchDragging, setIsTouchDragging] = useState(false);
+  const touchState = useRef({
+    initialPinchDist: 0,
+    initialZoom: 1,
+    initialPanX: 0,
+    initialPanY: 0,
+    lastCenterX: 0,
+    lastCenterY: 0,
+    lastTouchX: 0,
+    lastTouchY: 0,
+    isPinching: false,
+    isPanning: false,
+    isSliding: false,
+  });
 
   useEffect(() => {
     if (!isDragging && !isResizingSlider) return;
@@ -114,9 +129,120 @@ const ImageCompare = ({ original, denoised }: { original: string; denoised: stri
     setPan({ x: newPanX, y: newPanY });
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      setIsResizingSlider(false);
+      setIsTouchDragging(true);
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      touchState.current = {
+        initialPinchDist: Math.hypot(dx, dy),
+        initialZoom: zoom,
+        initialPanX: pan.x,
+        initialPanY: pan.y,
+        lastCenterX: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        lastCenterY: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+        lastTouchX: 0,
+        lastTouchY: 0,
+        isPinching: true,
+        isPanning: false,
+        isSliding: false,
+      };
+    } else if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      const target = touch.target;
+      const isSlider = target instanceof Element && !!target.closest('[data-slider]');
+      if (isSlider) {
+        e.preventDefault();
+        touchState.current = {
+          ...touchState.current,
+          isPinching: false,
+          isPanning: false,
+          isSliding: true,
+        };
+        setIsResizingSlider(true);
+        setIsTouchDragging(false);
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (rect) {
+          const x = Math.max(0, Math.min(e.touches[0].clientX - rect.left, rect.width));
+          setSliderPosition((x / rect.width) * 100);
+        }
+      } else {
+        e.preventDefault();
+        touchState.current = {
+          ...touchState.current,
+          lastTouchX: e.touches[0].clientX,
+          lastTouchY: e.touches[0].clientY,
+          isPinching: false,
+          isPanning: true,
+          isSliding: false,
+        };
+        setIsResizingSlider(false);
+        setIsTouchDragging(true);
+      }
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchState.current.isPinching && e.touches.length === 2) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const scale = dist / touchState.current.initialPinchDist;
+      const newZoom = Math.min(Math.max(0.5, touchState.current.initialZoom * scale), 4);
+
+      const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const cx = centerX - touchState.current.lastCenterX;
+      const cy = centerY - touchState.current.lastCenterY;
+
+      setZoom(newZoom);
+      setPan((prev) => ({ x: prev.x + cx, y: prev.y + cy }));
+      touchState.current.lastCenterX = centerX;
+      touchState.current.lastCenterY = centerY;
+    } else if (touchState.current.isPanning && e.touches.length === 1) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - touchState.current.lastTouchX;
+      const dy = e.touches[0].clientY - touchState.current.lastTouchY;
+      setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+      touchState.current.lastTouchX = e.touches[0].clientX;
+      touchState.current.lastTouchY = e.touches[0].clientY;
+    } else if (touchState.current.isSliding && e.touches.length === 1) {
+      e.preventDefault();
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) {
+        const x = Math.max(0, Math.min(e.touches[0].clientX - rect.left, rect.width));
+        setSliderPosition((x / rect.width) * 100);
+      }
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.touches.length === 0) {
+      touchState.current.isPinching = false;
+      touchState.current.isPanning = false;
+      touchState.current.isSliding = false;
+      setIsTouchDragging(false);
+      setIsResizingSlider(false);
+    } else if (e.touches.length === 1) {
+      touchState.current.isPinching = false;
+      const touch = e.touches[0];
+      const target = touch.target;
+      const isSlider = target instanceof Element && !!target.closest('[data-slider]');
+      touchState.current.lastTouchX = touch.clientX;
+      touchState.current.lastTouchY = touch.clientY;
+      touchState.current.isSliding = isSlider;
+      touchState.current.isPanning = !isSlider;
+      setIsResizingSlider(isSlider);
+      setIsTouchDragging(!isSlider);
+    }
+  };
+
   const imageTransformStyle = {
     transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-    transition: isDragging || isResizingSlider ? 'none' : 'transform 0.1s ease-out',
+    transition: isDragging || isResizingSlider || isTouchDragging ? 'none' : 'transform 0.1s ease-out',
     transformOrigin: 'center center',
   };
 
@@ -150,8 +276,12 @@ const ImageCompare = ({ original, denoised }: { original: string; denoised: stri
       <div
         ref={containerRef}
         className="flex-1 relative overflow-hidden cursor-grab active:cursor-grabbing select-none"
+        style={{ touchAction: 'none' }}
         onMouseDown={handleMouseDown}
         onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
           <div className="origin-center" style={imageTransformStyle}>
@@ -184,6 +314,7 @@ const ImageCompare = ({ original, denoised }: { original: string; denoised: stri
           className="absolute top-0 bottom-0 w-0.5 bg-white cursor-col-resize z-10 shadow-[0_0_8px_rgba(0,0,0,0.8)]"
           style={{ left: `${sliderPosition}%` }}
           onMouseDown={handleSliderMouseDown}
+          data-slider
         >
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center gap-0.5">
             <div className="w-0.5 h-3 bg-black/40 rounded-full"></div>
@@ -233,6 +364,7 @@ export default function DenoiseModal({
   targetPaths,
 }: DenoiseModalProps) {
   const { t } = useTranslation();
+  const isAiFree = useSettingsStore((s) => s.appSettings?.aiProvider === 'ai-free');
   const [isMounted, setIsMounted] = useState(false);
   const [show, setShow] = useState(false);
   const [intensity, setIntensity] = useState<number>(15);
@@ -250,23 +382,23 @@ export default function DenoiseModal({
 
   const targetPathsKey = targetPaths.join('\n');
 
-  const methodOptions = useMemo<Array<{ label: string; value: DenoiseMethod }>>(
+  const methodOptions = useMemo<Array<{ label: string; value: DenoiseMethod; disabled?: boolean }>>(
     () => [
       ...(isRaw
         ? [
-            { label: t('modals.denoise.presetBest'), value: 'tree_best' as const },
-            { label: t('modals.denoise.presetFast'), value: 'tree_fast' as const },
+            { label: t('modals.denoise.presetBest'), value: 'tree_best' as const, disabled: isAiFree },
+            { label: t('modals.denoise.presetFast'), value: 'tree_fast' as const, disabled: isAiFree },
           ]
-        : [{ label: t('modals.denoise.methodAi'), value: 'ai' as const }]),
+        : [{ label: t('modals.denoise.methodAi'), value: 'ai' as const, disabled: isAiFree }]),
       ...(moreMethods
         ? [
-            ...(isRaw ? [{ label: t('modals.denoise.legacyAi'), value: 'ai' as const }] : []),
+            ...(isRaw ? [{ label: t('modals.denoise.legacyAi'), value: 'ai' as const, disabled: isAiFree }] : []),
             { label: t('modals.denoise.methodBm3d'), value: 'bm3d' as const },
             ...(raw9Available ? [{ label: t('modals.denoise.methodRaw9'), value: 'raw9' as const }] : []),
           ]
         : []),
     ],
-    [t, raw9Available, isRaw, moreMethods],
+    [t, raw9Available, isRaw, moreMethods, isAiFree],
   );
 
   useEffect(() => {
@@ -294,16 +426,15 @@ export default function DenoiseModal({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, targetPathsKey]);
 
   useEffect(() => {
-    if (method === 'raw9' && !raw9Available) {
-      const fallback: DenoiseMethod = isRaw ? 'tree_best' : 'ai';
+    if ((method === 'raw9' && !raw9Available) || (isAiFree && (isTree || method === 'ai'))) {
+      const fallback: DenoiseMethod = isAiFree ? 'bm3d' : isRaw ? 'tree_best' : 'ai';
       setMethod(fallback);
       setIntensity(defaultIntensityFor(fallback));
     }
-  }, [method, raw9Available, isRaw]);
+  }, [method, raw9Available, isRaw, isAiFree, isTree]);
 
   const currentStatusText =
     isBatch && batchProgress
@@ -314,10 +445,11 @@ export default function DenoiseModal({
 
   useEffect(() => {
     if (isOpen) {
-      setMethod(isRaw ? 'tree_best' : 'ai');
-      setIntensity(50);
+      const initialMethod: DenoiseMethod = isAiFree ? 'bm3d' : isRaw ? 'tree_best' : 'ai';
+      setMethod(initialMethod);
+      setIntensity(defaultIntensityFor(initialMethod));
       setSharpen(true);
-      setMoreMethods(false);
+      setMoreMethods(isAiFree);
       setIsMounted(true);
       const timer = setTimeout(() => setShow(true), 10);
       return () => clearTimeout(timer);
@@ -332,7 +464,7 @@ export default function DenoiseModal({
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, isRaw]);
+  }, [isOpen, isRaw, isAiFree]);
 
   const handleClose = useCallback(() => {
     if (isSaving) return;
@@ -567,7 +699,7 @@ export default function DenoiseModal({
           )}
           <button
             type="button"
-            disabled={disabled}
+            disabled={disabled || isAiFree}
             className="text-sm text-text-secondary underline"
             onClick={() => {
               setMoreMethods(!moreMethods);

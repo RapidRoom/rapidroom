@@ -1,6 +1,7 @@
 name: Frontend Tests
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -18,8 +19,16 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      - name: Check assistant judge registry and policy
+        run: |
+          node rapidroom/assist/generate-controls.mjs --check
+          node --test rapidroom/assist/judge.test.mjs
+
       - name: Install dependencies
         run: npm ci
 
       - name: Run tests
         run: npm test
+
+      - name: Public MCP reproduction guards
+        run: node --test rapidroom/validation/mcp-gap-repro/contract.test.mjs

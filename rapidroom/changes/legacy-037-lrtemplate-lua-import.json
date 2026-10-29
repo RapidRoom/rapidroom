@@ -1,0 +1,13 @@
+{
+  "id": "lrtemplate-lua-import",
+  "title": "Import old Lightroom `.lrtemplate` presets stored as plain Lua tables, without running any Lua",
+  "category": "feature",
+  "landed": "2026-10-04",
+  "authors": ["laurensiusadi"],
+  "source": "laurensiusadi/RapidRAW",
+  "commits": ["https://github.com/laurensiusadi/RapidRAW/commit/bb60210c609c6939d34deba9c1043fe9d01bde92"],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Rewritten from the fork's regex converter as a bounded Lua-table parser that feeds the existing XMP preset mapping, so values match .xmp presets. Settings nested in Looks or local corrections are not read. Batch preset import lists what was not imported (profile look, masks, Point Color, camera or lens profile, custom white balance) using the same identifiers as the XMP sidecar report; malformed files or curves are rejected with a reason. Importing only adds a preset; photos change only when you apply it. Harvested with Claude Code."
+}

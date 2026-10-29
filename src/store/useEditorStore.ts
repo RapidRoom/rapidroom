@@ -1,4 +1,4 @@
-import type { HistoryDetails } from '../utils/editHistory';
+import { describeHistoryChange, sameAdjustmentValue, type HistoryDetails } from '../utils/editHistory';
 import { create } from 'zustand';
 import { Adjustments, INITIAL_ADJUSTMENTS, MaskContainer, AiPatch } from '../utils/adjustments';
 import { SelectedImage, WaveformData, BrushSettings, HistogramData } from '../components/ui/AppProperties';
@@ -12,6 +12,8 @@ import {
   ReferenceViewState,
   reduceReferenceView,
 } from '../utils/referenceView';
+
+export type CenterMarker = 'vignette' | 'centre';
 
 interface InteractivePatch {
   url: string;
@@ -40,6 +42,8 @@ interface EditorState {
   history: Adjustments[];
   historyDetails: Array<HistoryDetails | null>;
   historyIndex: number;
+  historyPath: string | null;
+  photoHistories: ReadonlyMap<string, PhotoHistory>;
 
   // Previews & Overlays
   finalPreviewUrl: string | null;
@@ -60,6 +64,7 @@ interface EditorState {
   // Interaction State
   isSliderDragging: boolean;
   zoom: number;
+  zoomRequest: { imagePath: string; percent: number | null; resetPosition?: boolean } | null;
   displaySize: ImageDimensions;
   previewSize: ImageDimensions;
   baseRenderSize: BaseRenderSize;
@@ -70,8 +75,12 @@ interface EditorState {
   overlayMode: OverlayMode;
   overlayRotation: number;
   isStraightenActive: boolean;
+  isAutoStraightening: boolean;
   isWbPickerActive: boolean;
   mixerPickerProperty: HslMixerProperty | null;
+  isRelightPickerActive: boolean;
+  activeRelightLightId: string | null;
+  activeCenterMarker: CenterMarker | null;
   isGuidedPerspectiveActive: boolean;
   liveRotation: number | null;
   brushSettings: BrushSettings | null;
@@ -84,6 +93,7 @@ interface EditorState {
   isMaskControlHovered: boolean;
   isGeneratingAiMask: boolean;
   isGeneratingAi: boolean;
+  aiDenoiseProgress: Record<string, number>;
   isAIConnectorConnected: boolean;
   hasRenderedFirstFrame: boolean;
   patchesSentToBackend: Set<string>;
@@ -92,16 +102,42 @@ interface EditorState {
   copiedSectionAdjustments: any | null;
   copiedMask: MaskContainer | null;
   copiedAdjustments: Partial<Adjustments> | null;
+  copiedAdjustmentDefaults: { adjustments: Partial<Adjustments>; defaults: Adjustments } | null;
 
   // Actions
   setEditor: (updater: Partial<EditorState> | ((state: EditorState) => Partial<EditorState>)) => void;
-  pushHistory: (newAdjustments: Adjustments, details?: HistoryDetails) => void;
+  pushHistory: (newAdjustments: Adjustments, details?: HistoryDetails | string) => void;
   undo: () => void;
   redo: () => void;
   resetHistory: (initialState: Adjustments) => void;
+  saveHistory: () => void;
+  restoreHistory: (initialState: Adjustments, options?: { keepSavedOnMismatch?: boolean }) => void;
   goToHistoryIndex: (index: number) => void;
   dispatchReferenceView: (command: ReferenceViewCommand) => void;
 }
+
+interface PhotoHistory {
+  history: Adjustments[];
+  historyDetails: Array<HistoryDetails | null>;
+  historyIndex: number;
+}
+
+const MAX_PHOTO_HISTORIES = 50;
+
+const rememberPhotoHistory = (
+  photoHistories: ReadonlyMap<string, PhotoHistory>,
+  path: string,
+  photoHistory: PhotoHistory,
+) => {
+  const next = new Map(photoHistories);
+  next.delete(path);
+  next.set(path, photoHistory);
+  if (next.size > MAX_PHOTO_HISTORIES) {
+    const oldest = next.keys().next().value;
+    if (oldest !== undefined) next.delete(oldest);
+  }
+  return next;
+};
 
 export const useEditorStore = create<EditorState>((set) => ({
   selectedImage: null,
@@ -110,6 +146,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   history: [INITIAL_ADJUSTMENTS],
   historyDetails: [null],
   historyIndex: 0,
+  historyPath: null,
+  photoHistories: new Map(),
 
   finalPreviewUrl: null,
   uncroppedAdjustedPreviewUrl: null,
@@ -131,6 +169,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   activeAiSubMaskId: null,
 
   zoom: 1,
+  zoomRequest: null,
   displaySize: { width: 0, height: 0 },
   previewSize: { width: 0, height: 0 },
   baseRenderSize: {
@@ -148,8 +187,12 @@ export const useEditorStore = create<EditorState>((set) => ({
   overlayMode: 'thirds',
   overlayRotation: 0,
   isStraightenActive: false,
+  isAutoStraightening: false,
   isWbPickerActive: false,
   mixerPickerProperty: null,
+  isRelightPickerActive: false,
+  activeRelightLightId: null,
+  activeCenterMarker: null,
   isGuidedPerspectiveActive: false,
   liveRotation: null,
 
@@ -157,10 +200,12 @@ export const useEditorStore = create<EditorState>((set) => ({
   copiedMask: null,
   brushSettings: { size: 50, feather: 50, tool: ToolType.Brush },
   copiedAdjustments: null,
+  copiedAdjustmentDefaults: null,
 
   isGeneratingAiMask: false,
   isAIConnectorConnected: false,
   isGeneratingAi: false,
+  aiDenoiseProgress: {},
   isMaskControlHovered: false,
   hasRenderedFirstFrame: false,
   patchesSentToBackend: new Set<string>(),
@@ -174,7 +219,18 @@ export const useEditorStore = create<EditorState>((set) => ({
         .slice(0, state.historyIndex + 1)
         .map((_, index) => state.historyDetails[index] ?? null);
       newHistory.push(newAdj);
-      historyDetails.push(details ?? null);
+      const recorded =
+        details && typeof details === 'object'
+          ? details
+          : {
+              ...describeHistoryChange(
+                state.history[state.historyIndex] ?? INITIAL_ADJUSTMENTS,
+                newAdj,
+                typeof details === 'string' && details.startsWith('AI:') ? 'assistant' : 'user',
+              ),
+              ...(typeof details === 'string' && details.trim() ? { label: details } : {}),
+            };
+      historyDetails.push(recorded);
       if (newHistory.length > 50) {
         newHistory.shift();
         historyDetails.shift();
@@ -201,11 +257,52 @@ export const useEditorStore = create<EditorState>((set) => ({
     }),
 
   resetHistory: (initialState) =>
-    set({
-      history: [initialState],
-      historyDetails: [null],
-      historyIndex: 0,
-      adjustments: initialState,
+    set((state) => {
+      const photoHistories = new Map(state.photoHistories);
+      if (state.selectedImage) photoHistories.delete(state.selectedImage.path);
+      return {
+        history: [initialState],
+        historyDetails: [null],
+        historyIndex: 0,
+        historyPath: state.selectedImage?.path ?? null,
+        adjustments: initialState,
+        photoHistories,
+      };
+    }),
+
+  saveHistory: () =>
+    set((state) => {
+      const path = state.selectedImage?.path;
+      if (!path || state.historyPath !== path) return state;
+      return {
+        photoHistories: rememberPhotoHistory(state.photoHistories, path, {
+          history: [...state.history],
+          historyDetails: [...state.historyDetails],
+          historyIndex: state.historyIndex,
+        }),
+      };
+    }),
+
+  restoreHistory: (initialState, { keepSavedOnMismatch = false } = {}) =>
+    set((state) => {
+      const path = state.selectedImage?.path;
+      const saved = path ? state.photoHistories.get(path) : undefined;
+      if (path && saved && sameAdjustmentValue(saved.history[saved.historyIndex], initialState)) {
+        return {
+          ...saved,
+          historyPath: path,
+          adjustments: initialState,
+          photoHistories: rememberPhotoHistory(state.photoHistories, path, saved),
+        };
+      }
+      const fresh = { history: [initialState], historyDetails: [null], historyIndex: 0 };
+      return {
+        ...fresh,
+        historyPath: path ?? null,
+        adjustments: initialState,
+        photoHistories:
+          path && !keepSavedOnMismatch ? rememberPhotoHistory(state.photoHistories, path, fresh) : state.photoHistories,
+      };
     }),
 
   goToHistoryIndex: (index) =>

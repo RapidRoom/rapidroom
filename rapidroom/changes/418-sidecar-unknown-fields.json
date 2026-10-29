@@ -1,0 +1,12 @@
+{
+  "id": "sidecar-unknown-fields-and-write-guard",
+  "title": "Preserve unknown sidecar fields and validate existing edits before every write",
+  "category": "fix",
+  "landed": "2026-10-27",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Typed metadata retains unknown top-level JSON keys. The atomic writer checks current sidecar parseability even before any session read, preserving unreadable bytes across restarts; blank and legacy readable sidecars remain writable."
+}

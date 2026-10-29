@@ -1,0 +1,12 @@
+{
+  "id": "square-edge-to-edge-editor",
+  "title": "Show the full fitted photo with square editor corners",
+  "category": "fix",
+  "landed": "2026-10-15",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Remove the image viewport corner clipping and its decorative inset. Keep toolbar spacing separate so landscape, portrait and 4:3 images fit without an extra frame; genuine aspect-ratio letterboxing remains. Fixes #305."
+}

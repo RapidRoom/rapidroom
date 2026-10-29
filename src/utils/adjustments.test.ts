@@ -86,7 +86,7 @@ describe('stored partial adjustment defaults', () => {
       curves: { ...INITIAL_ADJUSTMENTS.curves, luma: edited },
       pointCurves: INITIAL_ADJUSTMENTS.pointCurves,
     });
-    expect(result.pointCurves.luma).toEqual(edited);
+    expect(result.pointCurves!.luma).toEqual(edited);
   });
 
   it('preserves raw pointCurves when a point-mode Look is retained', () => {
@@ -124,6 +124,25 @@ describe('stored partial adjustment defaults', () => {
         },
       ],
     });
-    expect(result.masks[0].adjustments.pointCurves.luma).toEqual(edited);
+    expect(result.masks[0].adjustments.pointCurves!.luma).toEqual(edited);
+  });
+});
+
+describe('stored GUI drawing placeholders (issue359)', () => {
+  it('loads the actual GUI radial fixture without retaining unused line sentinels or changing its geometry', async () => {
+    const fixture = (await import('../../rapidroom/validation/mcp-session-359/gui-radial-before.json')).default;
+    const before = JSON.stringify(fixture.mask);
+    const result = normalize({ masks: [fixture.mask] }).masks[0];
+    const original = fixture.mask.subMasks[0].parameters;
+    expect(result.subMasks[0].parameters).toEqual({
+      centerX: original.centerX,
+      centerY: original.centerY,
+      radiusX: original.radiusX,
+      radiusY: original.radiusY,
+      rotation: original.rotation,
+      feather: original.feather,
+    });
+    expect(result.adjustments).toEqual(fixture.mask.adjustments);
+    expect(JSON.stringify(fixture.mask)).toBe(before);
   });
 });

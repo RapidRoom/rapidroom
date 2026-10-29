@@ -3,6 +3,10 @@
 // image_processing.rs; keep them short, they end up in table cells. The test fails if a key has
 // no note or a note's key no longer exists.
 export const ADJUSTMENT_NOTES: Record<string, string> = {
+  baselineExposure:
+    'Eligibility marker for baseline/highlight-preservation compensation. Fresh/reset images use true; older sidecars without it use false. With cameraExposureCompensation=false, the original Settings baseline path is retained. Does not change the Exposure slider.',
+  cameraExposureCompensation:
+    'Fresh/reset RAW baseline policy: DNG BaselineExposure plus Offset takes precedence, including explicit zero; otherwise supported Sony A7C II/A7R V use +0.35 EV. Does not add the generic Settings scene lift. Missing/false on saved recipes keeps legacy behavior; baselineExposure still controls eligibility.',
   exposure:
     '+ brightens linear light before tone mapping: ×2^(value/0.8), so 1.0 is about +1.25 EV. The first slider for overall brightness.',
   toneMapper:
@@ -10,10 +14,13 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   brightness:
     '+ lifts the midtones after tone mapping; black and white stay put. Use after exposure, for the feel rather than the level.',
   contrast: '+ S-curve around middle grey. Keep moderate; contrast between regions comes from masks.',
-  highlights: '− recovers detail in bright areas (sky, snow); + brightens them. Starts above about 10 % linear luma.',
+  highlights:
+    '− recovers bright-area detail; + brightens it. Uses a log-space edge-aware base and mid-scale detail reinjection.',
   shadows: '+ lifts and opens the shadows with some local detail; − deepens them.',
   whites:
-    'A gain on the whole image, not only the whites (applied before shadows and contrast): +100 ≈ ×6, −100 ≈ ×0.55. Small steps.',
+    'Selectively lifts or compresses bright tones above an edge-aware base, with local and mid-scale detail reinjection. It no longer applies a uniform gain to the whole image.',
+  whiteBalance:
+    'Optional absolute Kelvin baseline {temperature: 2000–50000, tint: −150–150}; null uses the camera as-shot baseline. The relative temperature/tint offsets apply on top. Set both offsets to0 when setting an absolute target, as the GUI does.',
   blacks: '+ lifts the deepest tones (faded look); − deepens them.',
   'curves.<channel>':
     'Points `{x, y}` from 0 to 255, sorted by x, at most 16, after tone mapping. `luma` is applied to R, G and B alike. The renderer reads only `curves`.',
@@ -57,6 +64,27 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
     '+ shifts the band towards the next colour (reds → orange, yellows → green, blues → purple, magentas → red), up to ±60°.',
   'hsl.<band>.saturation': '+ more colour in that band only; −100 removes it. Neutral greys are not affected.',
   'hsl.<band>.luminance': '+ brightens, − darkens that colour (for example blues −20 for a deeper sky).',
+  monochromeEnabled:
+    'Turns on the Black & White mode (global only). Colour presence, the colour mixer, colour grading and calibration are then bypassed; the film, filter, `monochromeMix` and `monochromeToning` shape the result.',
+  monochromeFilm:
+    'Spectral response used for the conversion: `neutral` (default, perceived brightness), `panchromatic`, `balanced`, `orthoPanchromatic`, `extendedRed`, `orthochromatic` or `infrared`.',
+  monochromeFilterHue:
+    'Hue of the colour filter in degrees, 0–360 (0 red, 120 green, 225 blue). Lightens that colour and darkens its opposite. Needs a `monochromeFilterStrength` above 0.',
+  monochromeFilterStrength: 'How strongly the colour filter is applied, 0–100. 0 is no filter.',
+  'monochromeMix.reds': 'B&W mixer: + lightens red tones, − darkens them (−100 to 100).',
+  'monochromeMix.oranges': 'B&W mixer: + lightens orange tones, − darkens them. Skin lives here.',
+  'monochromeMix.yellows': 'B&W mixer: + lightens yellow tones, − darkens them.',
+  'monochromeMix.greens': 'B&W mixer: + lightens green tones, − darkens them (foliage).',
+  'monochromeMix.aquas': 'B&W mixer: + lightens aqua tones, − darkens them.',
+  'monochromeMix.blues': 'B&W mixer: + lightens blue tones, − darkens them (−20 for a deeper sky).',
+  'monochromeMix.purples': 'B&W mixer: + lightens purple tones, − darkens them.',
+  'monochromeMix.magentas': 'B&W mixer: + lightens magenta tones, − darkens them.',
+  'monochromeToning.balance':
+    'Shifts the split between the shadow and highlight toning, −100 to 100. Only used in B&W mode.',
+  'monochromeToning.highlightHue': 'Hue of the highlight tone in degrees, 0–360. Default 40 (warm).',
+  'monochromeToning.highlightSaturation': 'Strength of the highlight tone, 0–100. 0 leaves the highlights neutral.',
+  'monochromeToning.shadowHue': 'Hue of the shadow tone in degrees, 0–360. Default 220 (cool).',
+  'monochromeToning.shadowSaturation': 'Strength of the shadow tone, 0–100. 0 leaves the shadows neutral.',
   'colorCalibration.shadowsTint': '+ magenta, − green, in the shadows only.',
   'colorCalibration.<primary>Hue':
     'Shifts the camera primary: red + towards orange, green + towards cyan, blue + towards magenta. Hidden in the GUI by default.',
@@ -67,11 +95,27 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   dehaze: '+ removes haze and adds saturation; − adds a bluish haze. Mild per unit.',
   centré:
     'Centre emphasis: + adds contrast, about 0.2 EV and colour in a central ellipse and quietens the edges; − the reverse. Not in masks.',
+  centréX: 'Normalized horizontal centre position for Centré (0–1); default 0.5.',
+  centréY: 'Normalized vertical centre position for Centré (0–1); default 0.5.',
   sharpness: '+ sharpens with halo limiting; − softens. Sharpen the subject, not the background.',
   sharpnessThreshold: 'Higher sharpens only stronger edges (keeps skies and noise clean).',
   lumaNoiseReduction:
     '+ smooths luminance noise. In a mask, the value is added to the global one, so a negative mask value only reduces global NR there.',
   colorNoiseReduction: '+ removes colour blotches. Masks work as for luma noise reduction.',
+  aiDenoiseEnabled:
+    'Turns on upstream non-destructive AI denoise: the model runs once per photo (cached on disk) and is blended into the base image. Global only. Separate from the Library denoise queue.',
+  aiDenoiseMethod:
+    '`ai` runs the NIND model; `bm3d` runs the model-free BM3D denoiser (upstream, the default in AI-free mode). Needs `aiDenoiseEnabled`.',
+  aiDenoiseAmount: 'Blend of the AI-denoised base, 0–100; 0 leaves the image unchanged. Needs `aiDenoiseEnabled`.',
+  aiDenoiseDetail:
+    '+ keeps more of the original luminance texture while colour noise stays removed (0–100). Needs `aiDenoiseEnabled`.',
+  negativeConversionEnabled:
+    'Treats the photo as a film negative and inverts it non-destructively before all other adjustments.',
+  negativeExposure: 'Brightness of the converted positive. Only used with `negativeConversionEnabled`.',
+  negativeContrast: 'Contrast of the converted positive; 1 is neutral. Only used with `negativeConversionEnabled`.',
+  negativeRedWeight: 'Red channel balance for removing the film base cast; 1 is neutral. Negative conversion only.',
+  negativeGreenWeight: 'Green channel balance for removing the film base cast; 1 is neutral. Negative conversion only.',
+  negativeBlueWeight: 'Blue channel balance for removing the film base cast; 1 is neutral. Negative conversion only.',
   chromaticAberrationRedCyan:
     'Scales the red channel against green by up to 1 %. Try both signs and check high-contrast edges; which sign fixes a lens varies.',
   chromaticAberrationBlueYellow: 'Scales the blue channel against green by up to 1 %. Try both signs, as above.',
@@ -79,6 +123,8 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   vignetteFeather: 'Width of the transition: higher is softer.',
   vignetteMidpoint: 'Where the transition sits: higher pushes it towards the corners.',
   vignetteRoundness: 'Changes the shape between rectangular and round.',
+  vignetteCenterX: 'Normalized horizontal vignette centre (0–1); default 0.5.',
+  vignetteCenterY: 'Normalized vertical vignette centre (0–1); default 0.5.',
   grainAmount: '+ more film grain, mostly in the midtones. Applied last, after the LUT.',
   grainRoughness: 'Higher mixes in a coarser, less even grain.',
   grainSize: 'Higher is coarser grain.',
@@ -94,7 +140,8 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   lutIsSceneReferred:
     '`true` applies the LUT before tone mapping (built-in film looks use this), `false` after the curves.',
   crop: '`{"unit": "px", "x", "y", "width", "height"}` in full-resolution pixels after rotation and flips; `null` for none.',
-  aspectRatio: 'Crop width / height (for example 0.8 for 4:5), or `null` for free.',
+  aspectRatio:
+    '`0` follows the oriented image (Original); `null` is Free; positive numbers are fixed crop width / height (for example 0.8 for 4:5).',
   rotation: 'Fine straightening in degrees; + turns the image clockwise.',
   flipHorizontal: 'Mirror left–right.',
   flipVertical: 'Mirror top–bottom.',
@@ -127,22 +174,49 @@ export const ADJUSTMENT_NOTES: Record<string, string> = {
   lensBlurDiffusion: 'Softens the blur discs.',
   lensBlurShape: 'Bokeh shape: `circle`, `hexagon`, `octagon` or `ring`.',
   lensBlurDepthMap: 'Depth map the GUI generates when lens blur is turned on. Without it the blur does nothing.',
+  relightEnabled:
+    'Enables relight using a source-space normal map; the GUI generates it on explicit activation. Off by default.',
+  relightNormalMap: 'Generated source-space normal map. Set by the GUI; leave its encoded data alone.',
+  relightLights:
+    'Array of point, spot or directional lights. Replacing the array replaces all lights; preserve existing entries and stable IDs.',
+  relightAmbient: 'Adds ambient illumination to the relit surface.',
+  relightSoftness: 'Softens local relight contrast.',
+  relightShine: 'Increases the specular highlight contribution.',
+  relightShadows: 'Enables shadows cast by relight lights.',
+  relightShadowSoftness: 'Softens relight shadow edges.',
+  fogEnabled: 'Enables atmospheric fog using a generated depth map. Off by default.',
+  fogDepthMap: 'Generated source-space depth map. Set by the GUI; leave its encoded data alone.',
+  fogAmount: 'Increases the fog blend strength; 0 leaves the image unchanged.',
+  fogStart: 'Moves the start of fog farther into the depth range.',
+  fogDensity: 'Increases optical fog density.',
+  fogHeight: 'Controls the height-dependent fog distribution.',
+  fogVariation: 'Increases spatial variation in the fog.',
+  fogGlow: 'Increases light scattered into the fog.',
+  fogTemperature: '+ warms the fog colour; − cools it.',
+  fogTint: '+ magenta, − green, in the fog colour.',
+  'relightLights.<light>.id':
+    'Stable light ID. Retain it when editing an existing light; use a new UUID for a new light.',
+  'relightLights.<light>.type': '`point`, `spot` or `directional`; controls which geometry and aiming fields apply.',
+  'relightLights.<light>.x': 'Horizontal placement in normalized source-image coordinates, 0–1.',
+  'relightLights.<light>.y': 'Vertical placement in normalized source-image coordinates, 0–1.',
+  'relightLights.<light>.depth': 'Position of a point or spot light along the depth axis.',
+  'relightLights.<light>.intensity': 'Light strength; 0 contributes no illumination.',
+  'relightLights.<light>.radius': 'Falloff extent for point and spot lights.',
+  'relightLights.<light>.angle': 'Aim direction in degrees in the image plane.',
+  'relightLights.<light>.elevation': 'Aim elevation in degrees; applies to spot and directional lights.',
+  'relightLights.<light>.cone': 'Spotlight cone width; ignored for other light types.',
+  'relightLights.<light>.feather': 'Softens the spotlight cone edge.',
+  'relightLights.<light>.temperature': '+ warms the light; − cools it.',
+  'relightLights.<light>.tint': '+ magenta, − green, in the light colour.',
+  'relightLights.<light>.color': 'Light colour as a six-digit `#RRGGBB` string, before temperature/tint shifts.',
   lensBlurEnabled: 'Turns lens blur on. Turn it on in the GUI, which also makes the depth map.',
   lensBlurMaxDepth: 'Depth (0–100) up to which the image stays sharp; nearer gets blurred.',
   lensBlurMaxFade: 'Transition width at the near end of the sharp range.',
   lensBlurMinDepth: 'Depth (0–100) from which the image stays sharp; farther gets blurred.',
   lensBlurMinFade: 'Transition width at the far end of the sharp range.',
   lensDistortionParams: 'Lens profile coefficients, filled by the GUI from the lens database. Leave alone.',
-  'sectionVisibility.basic':
-    '`false` turns the whole Basic section off (like the eye icon), without losing its values.',
-  'sectionVisibility.curves': '`false` turns the curves off without losing them.',
-  'sectionVisibility.color': '`false` turns the Color section off without losing its values.',
-  'sectionVisibility.colorGrading':
-    '`false` bypasses Color Grading independently; the parent Color section must also be on.',
-  'sectionVisibility.colorMixer':
-    '`false` bypasses the HSL Color Mixer independently; the parent Color section must also be on.',
-  'sectionVisibility.details': '`false` turns the Details section off without losing its values.',
-  'sectionVisibility.effects': '`false` turns the Effects section off without losing its values.',
+  activeTools:
+    'Per-tool boolean map; omitted keys are enabled. Set colorMixer or colorGrading to false to bypass that tool without losing its values. Applies to global and mask edits; legacy sectionVisibility sidecars are migrated on load.',
   showClipping: 'Shows the clipping overlay in the editor. Display only; doesn’t change the photo.',
 };
 
@@ -152,6 +226,8 @@ export const MASK_TYPE_NOTES: Record<string, string> = {
   'ai-foreground': 'AI foreground selection; `maskDataBase64` is generated by the GUI. Coming over MCP (#120).',
   'ai-sky': 'AI sky selection; generated by the GUI. Coming over MCP (#120).',
   'ai-subject': 'AI subject selection; generated by the GUI. Coming over MCP (#120).',
+  'ai-text': 'AI selection from a text `prompt` (upstream); `maskDataBase64` is generated by the GUI.',
+  'ai-face': 'AI face and body-part selection; `parts` names the parts (upstream). Generated by the GUI.',
   all: 'The whole image. Useful with `subtractive` sub-masks.',
   brush:
     '`lines`: `{tool: "brush" | "eraser", brushSize, feather 0–1, points: [{x, y}]}`. Painting is easier in the GUI.',

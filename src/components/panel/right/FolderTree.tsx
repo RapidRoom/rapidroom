@@ -37,6 +37,7 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api/core';
 import { useDroppable } from '@dnd-kit/core';
 import Text from '../../ui/Text';
+import FolderPhotoCount from '../../ui/FolderPhotoCount';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
 import { useShallow } from 'zustand/react/shallow';
 import { useLibraryStore } from '../../../store/useLibraryStore';
@@ -45,6 +46,7 @@ import { useUIStore } from '../../../store/useUIStore';
 import { AlbumItem, AlbumGroup, Album, Invokes, FolderTreeSort, SortDirection } from '../../ui/AppProperties';
 import type { FolderTree } from '../../ui/AppProperties';
 import { useLibraryActions } from '../../../hooks/useLibraryActions';
+import ImmichSection from '../../immich/ImmichSection';
 
 export type { FolderTree } from '../../ui/AppProperties';
 
@@ -504,6 +506,7 @@ function TreeNode({
   isLayoutDragging,
 }: TreeNodeProps) {
   const hasChildren = node.hasSubdirs || (node.children && node.children.length > 0);
+  const isOpen = isExpanded && hasChildren;
   const isSelected = node.path === selectedPath;
   const isPinned = pinnedFolders.includes(node.path);
 
@@ -552,7 +555,7 @@ function TreeNode({
   };
 
   const currentFolderIconKey = folderIcons[node.path];
-  let ResolvedIcon: LucideIcon = isExpanded ? FolderOpen : Folder;
+  let ResolvedIcon: LucideIcon = isOpen ? FolderOpen : Folder;
 
   if (currentFolderIconKey && ALBUM_ICONS[currentFolderIconKey]) {
     ResolvedIcon = ALBUM_ICONS[currentFolderIconKey];
@@ -562,7 +565,7 @@ function TreeNode({
     ResolvedIcon = MoveRight;
   }
 
-  const iconKey = isDropTarget ? 'drop-target' : currentFolderIconKey || (isExpanded ? 'folder-open' : 'folder-closed');
+  const iconKey = isDropTarget ? 'drop-target' : currentFolderIconKey || (isOpen ? 'folder-open' : 'folder-closed');
 
   return (
     <Text as="div" color={TextColors.primary} weight={TextWeights.medium}>
@@ -603,19 +606,7 @@ function TreeNode({
           <span className="block truncate">{node.name}</span>
         </span>
 
-        {typeof node.imageCount === 'number' && node.imageCount > 0 && (
-          <Text
-            as="span"
-            variant={TextVariants.small}
-            color={TextColors.secondary}
-            className={clsx(
-              'ml-auto min-w-8 shrink-0 text-right tabular-nums transition-opacity ease-in-out duration-300',
-              showImageCounts ? 'opacity-100' : 'opacity-0',
-            )}
-          >
-            {node.imageCount}
-          </Text>
-        )}
+        <FolderPhotoCount path={node.path} modified={node.modified} />
 
         {hasChildren && (
           <Text
@@ -624,14 +615,14 @@ function TreeNode({
             className="p-0.5 rounded-sm hover:bg-surface/50"
             onClick={handleFolderIconClick}
           >
-            {isExpanded ? <ChevronUp size={16} className="shrink-0" /> : <ChevronDown size={16} className="shrink-0" />}
+            {isOpen ? <ChevronUp size={16} className="shrink-0" /> : <ChevronDown size={16} className="shrink-0" />}
           </Text>
         )}
         {!hasChildren && <div className="w-5 h-5 shrink-0" aria-hidden="true" />}
       </div>
 
       <AnimatePresence initial={false}>
-        {hasChildren && isExpanded && node.children && node.children.length > 0 && (
+        {isOpen && node.children && node.children.length > 0 && (
           <motion.div
             animate="open"
             className="pl-1 border-l-[1.5px] border-border-color/50 ml-3.75 overflow-hidden"
@@ -1049,6 +1040,21 @@ export default function FolderTree({
                 </AnimatePresence>
               </>
             )}
+
+            <ImmichSection
+              header={
+                <SectionHeader
+                  title={t('immich.section.title')}
+                  isOpen={openSections.includes('immich')}
+                  onToggle={() => toggleSection('immich')}
+                />
+              }
+              isOpen={openSections.includes('immich')}
+              onSelectAlbum={onSelectAlbum}
+              searchQuery={searchQuery}
+              selectedAlbumId={activeAlbumId}
+              showImageCounts={showImageCounts && isHovering}
+            />
 
             {filteredTrees && filteredTrees.length > 0 && (
               <>

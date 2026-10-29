@@ -1,6 +1,5 @@
 use rawler::{decoders::RawDecodeParams, rawsource::RawSource};
 use regex::Regex;
-use regex::regex;
 use serde_json::{Map, Value, json};
 use std::collections::HashMap;
 use std::fs;
@@ -8,6 +7,7 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::file_management::Preset;
+use crate::white_balance::{MIRED_PER_RELATIVE_UNIT, TINT_PER_RELATIVE_UNIT};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum XmpImageKind {
@@ -181,7 +181,6 @@ fn import_xmp_crop(
     };
 
     let orientation = xmp_orientation(xmp_content);
-    let (left, top, right, bottom) = orient_crop_bounds(left, top, right, bottom, orientation);
     let (oriented_width, oriented_height) = if (5..=8).contains(&orientation) {
         (image_height, image_width)
     } else {
@@ -192,24 +191,23 @@ fn import_xmp_crop(
         .filter(|angle| angle.is_finite())
         .unwrap_or(0.0);
     let (x, y, width, height) = if crop_angle.abs() > f64::EPSILON {
-        // With a non-zero CropAngle, Lightroom stores CropLeft/CropTop and
-        // CropRight/CropBottom as the opposing crop corners in the unrotated
-        // image. RapidRAW applies its fine rotation before its axis-aligned
-        // crop, so rotate both corners into that post-rotation coordinate
-        // system. Treating the values as an ordinary bounding box changes the
-        // crop aspect ratio (for _DSC1822, 5655x3585 instead of 5836x3284).
+        // Keep the original opposing corners through EXIF orientation and
+        // fine rotation. Rebuilding their bounding box before rotating loses
+        // the corner pairing for rotated or reflected images.
+        let (first_x, first_y) = orient_normalized_point(left, top, orientation);
+        let (second_x, second_y) = orient_normalized_point(right, bottom, orientation);
         let center_x = oriented_width / 2.0;
         let center_y = oriented_height / 2.0;
         let first = rotate_point_clockwise(
-            left * oriented_width,
-            top * oriented_height,
+            first_x * oriented_width,
+            first_y * oriented_height,
             center_x,
             center_y,
             -crop_angle,
         );
         let second = rotate_point_clockwise(
-            right * oriented_width,
-            bottom * oriented_height,
+            second_x * oriented_width,
+            second_y * oriented_height,
             center_x,
             center_y,
             -crop_angle,
@@ -220,6 +218,7 @@ fn import_xmp_crop(
         let height = (first.1 - second.1).abs().round().min(oriented_height - y);
         (x, y, width, height)
     } else {
+        let (left, top, right, bottom) = orient_crop_bounds(left, top, right, bottom, orientation);
         let x = (left * oriented_width).ceil();
         let y = (top * oriented_height).ceil();
         let width = ((right - left) * oriented_width)
@@ -1190,7 +1189,7 @@ impl LightroomParametricCurve {
 }
 
 pub fn convert_xmp_to_preset(xmp_content: &str) -> Result<Preset, String> {
-    convert_xmp_to_preset_with_crop(xmp_content, false, Some(5500.0), None, None)
+    convert_xmp_to_preset_with_crop(xmp_content, false, Some(5500.0), None, None, None, None)
 }
 
 #[cfg(test)]
@@ -1202,6 +1201,14 @@ pub fn convert_xmp_sidecar_to_preset_for_image(
     xmp_content: &str,
     image_path: &Path,
 ) -> Result<Preset, String> {
+    convert_xmp_sidecar_to_preset_for_image_with_mask_report(xmp_content, image_path)
+        .map(|(preset, _)| preset)
+}
+
+pub fn convert_xmp_sidecar_to_preset_for_image_with_mask_report(
+    xmp_content: &str,
+    image_path: &Path,
+) -> Result<(Preset, crate::lightroom_masks::MaskImportSummary), String> {
     let extension = image_path
         .extension()
         .and_then(|extension| extension.to_str())
@@ -1228,13 +1235,17 @@ pub fn convert_xmp_sidecar_to_preset_for_image(
     let fallback_image_dimensions = geometry_needs_image_dimensions
         .then(|| probe_xmp_crop_image_dimensions(image_path))
         .flatten();
-    convert_xmp_to_preset_with_crop(
+    let mut summary = crate::lightroom_masks::MaskImportSummary::default();
+    let preset = convert_xmp_to_preset_with_crop(
         xmp_content,
         true,
         None,
         Some(image_kind),
         fallback_image_dimensions,
-    )
+        Some(image_path),
+        Some(&mut summary),
+    )?;
+    Ok((preset, summary))
 }
 
 #[cfg(test)]
@@ -1242,7 +1253,7 @@ fn convert_adobe_camera_raw_xmp_to_preset(
     xmp_content: &str,
     image_kind: XmpImageKind,
 ) -> Result<Preset, String> {
-    convert_xmp_to_preset_with_crop(xmp_content, true, None, Some(image_kind), None)
+    convert_xmp_to_preset_with_crop(xmp_content, true, None, Some(image_kind), None, None, None)
 }
 
 pub(crate) fn adobe_camera_raw_already_applied(xmp_content: &str) -> Result<bool, String> {
@@ -1256,14 +1267,38 @@ fn convert_xmp_sidecar_to_preset_with_as_shot_temperature(
     xmp_content: &str,
     as_shot_temperature: Option<f64>,
 ) -> Result<Preset, String> {
-    convert_xmp_to_preset_with_crop(xmp_content, true, as_shot_temperature, None, None)
+    convert_xmp_to_preset_with_crop(
+        xmp_content,
+        true,
+        as_shot_temperature,
+        None,
+        None,
+        None,
+        None,
+    )
 }
 
 /// Lightroom settings in a sidecar that the import could not carry over, as
 /// stable keys for the import report.
 pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) -> Vec<&'static str> {
-    let Ok(attrs) = parse_xmp_attributes(xmp_content) else {
+    let (_, summary) = crate::lightroom_masks::import_lightroom_masks(xmp_content, None, |_| {});
+    lightroom_settings_not_transferred_with_mask_summary(xmp_content, preset, &summary)
+}
+
+pub fn lightroom_settings_not_transferred_with_mask_summary(
+    xmp_content: &str,
+    preset: &Preset,
+    masks: &crate::lightroom_masks::MaskImportSummary,
+) -> Vec<&'static str> {
+    let Ok(properties) = crate::xmp::photo_properties(xmp_content, crate::xmp::CRS) else {
         return Vec::new();
+    };
+    let attrs = scalar_attributes(&properties);
+    let active_property = |key: &str| match properties.get(key) {
+        Some(crate::xmp::PhotoProperty::Scalar(value)) => !value.is_empty(),
+        Some(crate::xmp::PhotoProperty::List(items)) => !items.is_empty(),
+        Some(crate::xmp::PhotoProperty::Structured) => true,
+        None => false,
     };
     if preset.include_crop_transform == Some(true) && is_xmp_true(attrs.get("AlreadyApplied")) {
         return Vec::new();
@@ -1283,7 +1318,7 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
     // balance often can't be turned into RapidRAW's relative controls.
     let custom_white_balance = attrs
         .get("WhiteBalance")
-        .is_some_and(|value| !value.eq_ignore_ascii_case("As Shot"));
+        .is_some_and(|value| !value.is_empty() && !value.eq_ignore_ascii_case("As Shot"));
     if custom_white_balance
         && preset.adjustments.get("temperature").is_none()
         && preset.adjustments.get("tint").is_none()
@@ -1309,7 +1344,7 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
 
     // Only crs:MaskGroupBasedCorrections are imported; the older per-tool
     // lists are reported as they are.
-    let (_, masks) = crate::lightroom_masks::import_lightroom_masks(xmp_content, None, |_| {});
+
     let imported_masks = preset
         .adjustments
         .get("masks")
@@ -1317,21 +1352,32 @@ pub fn lightroom_settings_not_transferred(xmp_content: &str, preset: &Preset) ->
         .map_or(0, Vec::len);
     if masks.skipped_unsupported > 0
         || imported_masks < masks.convertible
-        || regex!(
-            r"(?s)<crs:(?:PaintBasedCorrections|GradientBasedCorrections|CircularGradientBasedCorrections)>\s*<rdf:Seq>\s*<rdf:li"
-        )
-        .is_match(xmp_content)
+        || (active_property("MaskGroupBasedCorrections")
+            && imported_masks == 0
+            && masks.convertible == 0
+            && masks.skipped_ai == 0
+            && masks.skipped_unsupported == 0)
+        || [
+            "PaintBasedCorrections",
+            "GradientBasedCorrections",
+            "CircularGradientBasedCorrections",
+        ]
+        .iter()
+        .any(|key| active_property(key))
     {
         items.push("masks");
     }
     if masks.skipped_ai > 0 {
         items.push("aiMasks");
     }
+    if masks.with_brush_tables > 0 {
+        items.push("maskBrushTable");
+    }
     if masks.with_unmapped_adjustments > 0 && imported_masks > 0 {
         items.push("localAdjustments");
     }
 
-    if regex!(r"(?s)<crs:PointColors>\s*<rdf:Seq>\s*<rdf:li").is_match(xmp_content) {
+    if active_property("PointColors") {
         items.push("pointColor");
     }
 
@@ -1375,7 +1421,7 @@ fn scalar_attributes(
         .iter()
         .filter_map(|(key, value)| match value {
             crate::xmp::PhotoProperty::Scalar(value) => Some((key.clone(), value.clone())),
-            crate::xmp::PhotoProperty::List(_) => None,
+            crate::xmp::PhotoProperty::List(_) | crate::xmp::PhotoProperty::Structured => None,
         })
         .collect()
 }
@@ -1493,6 +1539,8 @@ fn convert_xmp_to_preset_with_crop(
     as_shot_temperature: Option<f64>,
     image_kind: Option<XmpImageKind>,
     fallback_image_dimensions: Option<(f64, f64)>,
+    image_path: Option<&Path>,
+    mask_report: Option<&mut crate::lightroom_masks::MaskImportSummary>,
 ) -> Result<Preset, String> {
     let properties =
         crate::xmp::photo_properties(xmp_content, crate::xmp::CRS).map_err(|e| e.to_string())?;
@@ -1504,7 +1552,6 @@ fn convert_xmp_to_preset_with_crop(
             include_crop_transform,
         ));
     }
-    let convert_to_grayscale = is_xmp_true(attrs.get("ConvertToGrayscale"));
 
     let mut adjustments = Map::new();
     let mut hsl_map = Map::new();
@@ -1528,12 +1575,6 @@ fn convert_xmp_to_preset_with_crop(
     scale_lightroom_exposure(&mut adjustments, SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS);
     apply_rendered_pv5_policy(&attrs, &mut adjustments, image_kind);
     apply_rendered_pv2012_policy(&attrs, &mut adjustments, image_kind);
-    if convert_to_grayscale {
-        // RapidRAW has no separate monochrome mode. Full desaturation produces
-        // a luminance image, while the HSL luminance controls below approximate
-        // Lightroom's per-color B&W mixer before that conversion.
-        adjustments.insert("saturation".to_string(), json!(-100.0));
-    }
 
     if let Some(sharpness_val) = get_attr_as_f64(&attrs, "Sharpness") {
         let scaled_sharpness = (sharpness_val / 150.0) * 100.0;
@@ -1567,22 +1608,19 @@ fn convert_xmp_to_preset_with_crop(
     if can_convert_white_balance
         && !white_balance_is_as_shot
         && let Some(adjusted_k) = get_attr_as_f64(&attrs, "Temperature")
-    {
-        const MAX_MIRED_SHIFT: f64 = 150.0;
-        if let Some(as_shot_k) = get_attr_as_f64(&attrs, "AsShotTemperature")
+        && let Some(as_shot_k) = get_attr_as_f64(&attrs, "AsShotTemperature")
             .or(as_shot_temperature)
             .filter(|temperature| *temperature > 0.0)
-            && adjusted_k > 0.0
-        {
-            let mired_adjusted = 1_000_000.0 / adjusted_k;
-            let mired_as_shot = 1_000_000.0 / as_shot_k;
-            let mired_delta = mired_adjusted - mired_as_shot;
-            let temp_value = (-mired_delta / MAX_MIRED_SHIFT) * 100.0;
-            adjustments.insert(
-                "temperature".to_string(),
-                json!(temp_value.clamp(-100.0, 100.0)),
-            );
-        }
+        && adjusted_k > 0.0
+    {
+        let mired_adjusted = 1_000_000.0 / adjusted_k;
+        let mired_as_shot = 1_000_000.0 / as_shot_k;
+        let mired_delta = mired_adjusted - mired_as_shot;
+        let temp_value = -mired_delta / MIRED_PER_RELATIVE_UNIT;
+        adjustments.insert(
+            "temperature".to_string(),
+            json!(temp_value.clamp(-100.0, 100.0)),
+        );
     }
 
     if can_convert_white_balance
@@ -1598,7 +1636,7 @@ fn convert_xmp_to_preset_with_crop(
             .map(|as_shot_tint| tint_val - as_shot_tint)
             .or((!include_crop_transform).then_some(tint_val));
         if let Some(tint_delta) = tint_delta {
-            let scaled_tint = (tint_delta / 150.0) * 100.0;
+            let scaled_tint = tint_delta / TINT_PER_RELATIVE_UNIT;
             adjustments.insert("tint".to_string(), json!(scaled_tint.clamp(-100.0, 100.0)));
         }
     }
@@ -1615,32 +1653,24 @@ fn convert_xmp_to_preset_with_crop(
     ];
     for (src, dst) in colors {
         let mut color_map = Map::new();
-        if convert_to_grayscale {
-            if let Some(value) = get_attr_as_f64(&attrs, &format!("GrayMixer{}", src))
-                .filter(|value| value.is_finite())
-            {
-                color_map.insert("luminance".to_string(), json!(value.clamp(-100.0, 100.0)));
-            }
-        } else {
-            if let Some(raw) = attrs.get(&format!("HueAdjustment{}", src))
-                && let Some(num) = parse_num(raw.trim_start_matches('+'))
-                && let Some(Value::Number(number)) = num_to_json(num)
-                && let Some(value) = number.as_f64()
-            {
-                color_map.insert("hue".to_string(), json!(value * 0.75));
-            }
-            if let Some(raw) = attrs.get(&format!("SaturationAdjustment{}", src))
-                && let Some(num) = parse_num(raw.trim_start_matches('+'))
-                && let Some(json_val) = num_to_json(num)
-            {
-                color_map.insert("saturation".to_string(), json_val);
-            }
-            if let Some(raw) = attrs.get(&format!("LuminanceAdjustment{}", src))
-                && let Some(num) = parse_num(raw.trim_start_matches('+'))
-                && let Some(json_val) = num_to_json(num)
-            {
-                color_map.insert("luminance".to_string(), json_val);
-            }
+        if let Some(raw) = attrs.get(&format!("HueAdjustment{}", src))
+            && let Some(num) = parse_num(raw.trim_start_matches('+'))
+            && let Some(Value::Number(number)) = num_to_json(num)
+            && let Some(value) = number.as_f64()
+        {
+            color_map.insert("hue".to_string(), json!(value * 0.75));
+        }
+        if let Some(raw) = attrs.get(&format!("SaturationAdjustment{}", src))
+            && let Some(num) = parse_num(raw.trim_start_matches('+'))
+            && let Some(json_val) = num_to_json(num)
+        {
+            color_map.insert("saturation".to_string(), json_val);
+        }
+        if let Some(raw) = attrs.get(&format!("LuminanceAdjustment{}", src))
+            && let Some(num) = parse_num(raw.trim_start_matches('+'))
+            && let Some(json_val) = num_to_json(num)
+        {
+            color_map.insert("luminance".to_string(), json_val);
         }
         if !color_map.is_empty() {
             hsl_map.insert(dst.to_string(), Value::Object(color_map));
@@ -1649,6 +1679,41 @@ fn convert_xmp_to_preset_with_crop(
     if !hsl_map.is_empty() {
         adjustments.insert("hsl".to_string(), Value::Object(hsl_map));
     }
+
+    let grayscale = attrs
+        .get("ConvertToGrayscale")
+        .map(|v| is_xmp_true(Some(v)));
+    if let Some(is_monochrome) = grayscale {
+        adjustments.insert("monochromeEnabled".to_string(), json!(is_monochrome));
+    }
+    if grayscale == Some(true) {
+        let mut mix_map = Map::new();
+        for (src, dst) in colors {
+            if let Some(val) = get_attr_as_f64(&attrs, &format!("GrayMixer{}", src)) {
+                mix_map.insert(dst.to_string(), json!(val.clamp(-100.0, 100.0)));
+            }
+        }
+        if !mix_map.is_empty() {
+            adjustments.insert("monochromeMix".to_string(), Value::Object(mix_map));
+        }
+
+        let mut toning_map = Map::new();
+        for (xmp_key, rr_key) in [
+            ("SplitToningShadowHue", "shadowHue"),
+            ("SplitToningShadowSaturation", "shadowSaturation"),
+            ("SplitToningHighlightHue", "highlightHue"),
+            ("SplitToningHighlightSaturation", "highlightSaturation"),
+            ("SplitToningBalance", "balance"),
+        ] {
+            if let Some(val) = get_attr_as_f64(&attrs, xmp_key) {
+                toning_map.insert(rr_key.to_string(), json!(val));
+            }
+        }
+        if !toning_map.is_empty() {
+            adjustments.insert("monochromeToning".to_string(), Value::Object(toning_map));
+        }
+    }
+
     let mut shadows_map = Map::new();
     let mut midtones_map = Map::new();
     let mut highlights_map = Map::new();
@@ -1844,10 +1909,15 @@ fn convert_xmp_to_preset_with_crop(
                         .unwrap_or(0.0),
                 }
             });
-        let (masks, _) =
-            crate::lightroom_masks::import_lightroom_masks(xmp_content, frame.as_ref(), |mask| {
-                scale_lightroom_exposure(mask, SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS)
-            });
+        let (masks, summary) = crate::lightroom_masks::import_lightroom_masks_for_image(
+            xmp_content,
+            frame.as_ref(),
+            image_path,
+            |mask| scale_lightroom_exposure(mask, SCALE_LIGHTROOM_EXPOSURE_TO_RAPIDRAW_UNITS),
+        );
+        if let Some(report) = mask_report {
+            *report = summary;
+        }
         if !masks.is_empty() {
             adjustments.insert("masks".to_string(), Value::Array(masks));
         }
@@ -1874,6 +1944,7 @@ fn preset_from_xmp_fields(
     Preset {
         id: Uuid::new_v4().to_string(),
         name: preset_name,
+        description: None,
         adjustments: Value::Object(adjustments),
         include_masks: Some(false),
         include_crop_transform: Some(include_crop_transform),
@@ -2707,7 +2778,11 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(preset.adjustments["saturation"], json!(-100.0));
+        assert_eq!(preset.adjustments["monochromeEnabled"], json!(true));
+        assert_eq!(
+            preset.adjustments["saturation"],
+            json!(21.666_666_666_666_668)
+        );
         assert_eq!(preset.adjustments["toneMapper"], json!("basic"));
         assert_eq!(preset.adjustments["exposure"], json!(0.0));
         assert_eq!(preset.adjustments["brightness"], json!(0.8));
@@ -2730,13 +2805,20 @@ mod tests {
             ("magentas", 4.0),
         ];
         for (color, luminance) in expected_mix {
-            assert_eq!(
-                preset.adjustments["hsl"][color]["luminance"],
-                json!(luminance)
-            );
-            assert!(preset.adjustments["hsl"][color].get("hue").is_none());
-            assert!(preset.adjustments["hsl"][color].get("saturation").is_none());
+            assert_eq!(preset.adjustments["monochromeMix"][color], json!(luminance));
         }
+        assert_eq!(preset.adjustments["hsl"]["reds"]["hue"], json!(30.0));
+    }
+
+    #[test]
+    fn numeric_true_grayscale_flag_enables_monochrome() {
+        let preset = convert_adobe_camera_raw_xmp_to_preset(
+            r#"<rdf:Description crs:ConvertToGrayscale="1" crs:GrayMixerRed="-10" />"#,
+            XmpImageKind::RenderedJpeg,
+        )
+        .unwrap();
+        assert_eq!(preset.adjustments["monochromeEnabled"], json!(true));
+        assert_eq!(preset.adjustments["monochromeMix"]["reds"], json!(-10.0));
     }
 
     #[test]
@@ -3021,6 +3103,8 @@ mod tests {
             None,
             Some(XmpImageKind::Raw),
             Some((6000.0, 4000.0)),
+            None,
+            None,
         )
         .unwrap();
 
@@ -3098,6 +3182,134 @@ mod tests {
         );
         assert_eq!(preset.adjustments["aspectRatio"], json!(5836.0 / 3284.0));
         assert_eq!(preset.adjustments["rotation"], json!(-3.01));
+    }
+
+    #[test]
+    fn imports_issue_185_orientation_8_opposing_corners() {
+        let preset = convert_xmp_sidecar_to_preset(
+            r#"<rdf:Description
+                tiff:ImageWidth="6000" tiff:ImageLength="4000"
+                tiff:Orientation="8" crs:CropAngle="3"
+                crs:CropLeft="0.1" crs:CropTop="0.2"
+                crs:CropRight="0.9" crs:CropBottom="0.8"
+                crs:HasCrop="True" crs:AlreadyApplied="False" />"#,
+        )
+        .unwrap();
+        assert_eq!(
+            preset.adjustments["crop"],
+            json!({ "x": 927.0, "y": 540.0, "width": 2145.0, "height": 4919.0 })
+        );
+        assert_eq!(preset.adjustments["rotation"], json!(-3.0));
+    }
+
+    #[test]
+    fn preserves_rotated_crop_corner_pairing_for_all_exif_orientations() {
+        // Independent pixel-coordinate expectations for an off-centre crop.
+        let cases = [
+            (
+                3.0,
+                [
+                    [688, 869, 4263, 2530],
+                    [1206, 634, 3975, 2962],
+                    [1049, 600, 4263, 2530],
+                    [819, 404, 3975, 2962],
+                    [634, 819, 2962, 3975],
+                    [600, 688, 2530, 4263],
+                    [404, 1206, 2962, 3975],
+                    [869, 1049, 2530, 4263],
+                ],
+            ),
+            (
+                -3.0,
+                [
+                    [819, 634, 3975, 2962],
+                    [1049, 869, 4263, 2530],
+                    [1206, 404, 3975, 2962],
+                    [688, 600, 4263, 2530],
+                    [869, 688, 2530, 4263],
+                    [404, 819, 2962, 3975],
+                    [600, 1049, 2530, 4263],
+                    [634, 1206, 2962, 3975],
+                ],
+            ),
+            (
+                0.0,
+                [
+                    [750, 750, 4125, 2750],
+                    [1125, 750, 4125, 2750],
+                    [1125, 500, 4125, 2750],
+                    [750, 500, 4125, 2750],
+                    [750, 750, 2750, 4125],
+                    [500, 750, 2750, 4125],
+                    [500, 1125, 2750, 4125],
+                    [750, 1125, 2750, 4125],
+                ],
+            ),
+        ];
+        for (angle, crops) in cases {
+            for (index, [x, y, width, height]) in crops.into_iter().enumerate() {
+                let orientation = index + 1;
+                let xmp = format!(
+                    r#"<rdf:Description
+                    tiff:ImageWidth="6000" tiff:ImageLength="4000"
+                    tiff:Orientation="{orientation}" crs:CropAngle="{angle}"
+                    crs:CropLeft="0.125" crs:CropTop="0.1875"
+                    crs:CropRight="0.8125" crs:CropBottom="0.875"
+                    crs:HasCrop="True" crs:AlreadyApplied="False" />"#
+                );
+                let preset = convert_xmp_sidecar_to_preset(&xmp).unwrap();
+                assert_eq!(
+                    preset.adjustments["crop"],
+                    json!({"x": x as f64, "y": y as f64,
+                           "width": width as f64, "height": height as f64}),
+                    "orientation={orientation}, angle={angle}"
+                );
+                assert_eq!(
+                    preset.adjustments["aspectRatio"],
+                    json!(width as f64 / height as f64)
+                );
+                if angle == 0.0 {
+                    assert!(
+                        !preset
+                            .adjustments
+                            .as_object()
+                            .unwrap()
+                            .contains_key("rotation")
+                    );
+                } else {
+                    assert_eq!(preset.adjustments["rotation"], json!(-angle));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn clamps_rotated_crops_to_the_oriented_image() {
+        for orientation in 1..=8 {
+            for angle in [-15, 15] {
+                let xmp = format!(
+                    r#"<rdf:Description
+                    tiff:ImageWidth="6000" tiff:ImageLength="4000"
+                    tiff:Orientation="{orientation}" crs:CropAngle="{angle}"
+                    crs:CropLeft="0" crs:CropTop="0"
+                    crs:CropRight="1" crs:CropBottom="1"
+                    crs:HasCrop="True" />"#
+                );
+                let preset = convert_xmp_sidecar_to_preset(&xmp).unwrap();
+                let crop = &preset.adjustments["crop"];
+                let (w, h) = if orientation >= 5 {
+                    (4000.0, 6000.0)
+                } else {
+                    (6000.0, 4000.0)
+                };
+                assert!(crop["x"].as_f64().unwrap() >= 0.0);
+                assert!(crop["y"].as_f64().unwrap() >= 0.0);
+                assert!(crop["width"].as_f64().unwrap() >= 1.0);
+                assert!(crop["height"].as_f64().unwrap() >= 1.0);
+                assert!(crop["x"].as_f64().unwrap() + crop["width"].as_f64().unwrap() <= w);
+                assert!(crop["y"].as_f64().unwrap() + crop["height"].as_f64().unwrap() <= h);
+            }
+        }
     }
 
     #[test]
@@ -3564,6 +3776,25 @@ mod tests {
     fn not_transferred(xmp: &str) -> Vec<&'static str> {
         let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
         lightroom_settings_not_transferred(xmp, &preset)
+    }
+
+    #[test]
+    fn broad_import_categories_respect_namespace_subject_and_blank_values() {
+        let xmp = r#"<r:RDF xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+            xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/" xmlns:crs="urn:foreign">
+          <r:Description r:about="photo" a:WhiteBalance=" ">
+            <crs:PointColors><r:Seq><r:li>foreign</r:li></r:Seq></crs:PointColors>
+            <a:Look><r:Description a:Amount="0"><a:PointColors><r:Seq><r:li>nested</r:li></r:Seq></a:PointColors>
+              <a:PaintBasedCorrections><r:Seq><r:li>nested</r:li></r:Seq></a:PaintBasedCorrections></r:Description></a:Look>
+          </r:Description><r:Description r:about="other"><a:PointColors><r:Seq><r:li>other</r:li></r:Seq></a:PointColors></r:Description>
+        </r:RDF>"#;
+        assert!(not_transferred(xmp).is_empty());
+        let aliased = r#"<root xmlns:a="http://ns.adobe.com/camera-raw-settings/1.0/"
+          xmlns:r="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+          <a:PointColors><r:Seq><r:li>unsupported</r:li></r:Seq></a:PointColors>
+          <a:PaintBasedCorrections><r:Seq><r:li>unsupported</r:li></r:Seq></a:PaintBasedCorrections>
+        </root>"#;
+        assert_eq!(not_transferred(aliased), vec!["masks", "pointColor"]);
     }
 
     #[test]

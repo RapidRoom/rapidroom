@@ -1,0 +1,13 @@
+{
+  "id": "rendered-denoise-source-edits",
+  "title": "Bake source RAW edits into rendered denoise queue results",
+  "category": "feature",
+  "landed": "2026-10-16",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Rendered RAW methods reuse the normal source renderer with frozen edits and actual LUT bytes, preserve source edits, and write neutral TIFF results. Unsafe global rendered-image processing is refused. Fast/Best sensor-DNG behavior is unchanged."
+}

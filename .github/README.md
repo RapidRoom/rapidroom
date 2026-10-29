@@ -10,6 +10,8 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 
 ## Highlights
 
+The summary below is a historical snapshot. Current change records are in [rapidroom/changes/](../rapidroom/changes/README.md); releases include a generated changelog, and the **RapidRoom change list** workflow publishes previews.
+
 <!-- rapidroom-changes:start -->
 
 - **Bring your Lightroom collections along:** import collection sets and collections from a catalog
@@ -37,7 +39,7 @@ RapidRAW is a free, open-source raw editor by [Timon Käch (CyberTimon)](https:/
 - **Keyboard-friendly.** You can always see where keyboard focus is when you Tab through the app.
 - **Reliable batch exports.** Large exports no longer slip another photo into some images, and colour and luminance masks now apply correctly when exporting.
 
-93 improvements on top of RapidRAW so far, including fixes for 15 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
+94 improvements on top of RapidRAW so far, including fixes for 15 upstream issues that are still open there. Every change, with its source and upstream status, is in the [changelog](../CHANGES.md).
 <!-- rapidroom-changes:end -->
 
 ## Lightroom import calibration

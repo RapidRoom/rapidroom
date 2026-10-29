@@ -1,0 +1,22 @@
+{
+  "head": "9a609b9e9f981d7900d186724d68d3dbd80c6009",
+  "engine_sha256": "6413e5c99c1f03ce6d52f39e4af184feb9c9d0bafcf258d4730fcd37970bf1d8",
+  "method": "Sanity check of the newly corrected standalone Cargo artifact before the remaining historical controls compile. Neutral must match final; Whites-enabled busy recipe must differ. Full60 attribution follows separately.",
+  "cases": {
+    "neutral": {
+      "identical_to_final": true,
+      "max_abs": 0,
+      "mean_abs": 0.0,
+      "pixel_sha256": "fb4b99e2e742b2f7212a2e314151584d427eb82baa1fd141d31ec186c50c8ae7",
+      "final_pixel_sha256": "fb4b99e2e742b2f7212a2e314151584d427eb82baa1fd141d31ec186c50c8ae7"
+    },
+    "busy-tone-color-detail": {
+      "identical_to_final": false,
+      "max_abs": 3680,
+      "mean_abs": 1377.85873099904,
+      "pixel_sha256": "b72db43323df6da14ebea80e5032dbc564b2d3b7344a63e9c802ce379fd1374a",
+      "final_pixel_sha256": "0e3ef8f04930d74b253389041b9604b13d60458995a54683ea72d41e94ef3522"
+    }
+  },
+  "passed": true
+}

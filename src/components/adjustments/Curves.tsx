@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RotateCcw, Copy, ClipboardPaste, Spline, Settings2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +18,7 @@ import { useContextMenu } from '../../context/ContextMenuContext';
 import Text from '../ui/Text';
 import Slider from '../ui/Slider';
 import { TextColors, TextVariants, TextWeights } from '../../types/typography';
+import { areSectionPropsEqual } from '../../utils/adjustments';
 
 let curveClipboard: Array<Coord> | null = null;
 let parametricClipboard: ParametricCurveSettings | null = null;
@@ -45,6 +46,11 @@ interface CurveGraphProps {
 }
 
 const DEFAULT_POINT_CURVES = getDefaultCurves();
+
+const getEditablePointCurves = (adjustments: Adjustments) =>
+  adjustments.curveMode !== 'parametric' && !adjustments.nestedLookCurves?.length
+    ? adjustments.curves
+    : (adjustments.pointCurves ?? adjustments.curves);
 
 const buildParametricPoints = buildParametricCurvePoints;
 
@@ -184,13 +190,14 @@ function convertParametricToPoints(settings: ParametricCurveSettings): Array<Coo
   return buildParametricPoints(settings);
 }
 
-export default function CurveGraph({
-  adjustments,
-  setAdjustments,
-  histogram,
-  theme,
-  onDragStateChange,
-}: CurveGraphProps) {
+const FINE_ADJUSTMENT_MULTIPLIER = 0.2;
+const POINT_HIT_RADIUS_PX = 12;
+const MIN_POINT_GAP_X = 1;
+
+const hasFineAdjustmentModifier = (event: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent) =>
+  'shiftKey' in event && (event.shiftKey || event.altKey);
+
+function CurveGraph({ adjustments, setAdjustments, histogram, theme, onDragStateChange }: CurveGraphProps) {
   const { t } = useTranslation();
   const { showContextMenu } = useContextMenu();
   const [curveMode, setCurveMode] = useState<'point' | 'parametric'>(adjustments.curveMode || 'point');
@@ -212,6 +219,10 @@ export default function CurveGraph({
   const parametricCurves = adjustments?.parametricCurve || DEFAULT_PARAMETRIC_CURVE;
   const parametricCurvesRef = useRef(parametricCurves);
 
+  const lastPointerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const accumulatedPointRef = useRef<Coord>({ x: 0, y: 0 });
+  const accumulatedSplitRef = useRef<number>(0);
+
   useEffect(() => {
     parametricCurvesRef.current = parametricCurves;
   }, [parametricCurves]);
@@ -230,7 +241,7 @@ export default function CurveGraph({
     setAdjustments((prev: Adjustments) => {
       if (newMode === 'parametric') {
         const pC = prev.parametricCurve || DEFAULT_PARAMETRIC_CURVE;
-        const pointCurves = prev.pointCurves ?? prev.curves;
+        const pointCurves = getEditablePointCurves(prev);
         return {
           ...prev,
           curveMode: 'parametric',
@@ -253,7 +264,7 @@ export default function CurveGraph({
       const pC = prev.parametricCurve || DEFAULT_PARAMETRIC_CURVE;
       const updatedSettings = { ...pC[activeChannel], [key]: value };
       const parametricCurve = { ...pC, [activeChannel]: updatedSettings };
-      const pointCurves = prev.pointCurves || prev.curves;
+      const pointCurves = getEditablePointCurves(prev);
 
       return {
         ...prev,
@@ -287,17 +298,28 @@ export default function CurveGraph({
 
   useEffect(() => {
     const handleMove = (e: MouseEvent | TouchEvent) => {
+      if ('touches' in e && e.touches.length === 0) return;
+
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const isFineAdjust = hasFineAdjustmentModifier(e);
+      const multiplier = isFineAdjust ? FINE_ADJUSTMENT_MULTIPLIER : 1;
+
+      const deltaClientX = clientX - lastPointerRef.current.x;
+      const deltaClientY = clientY - lastPointerRef.current.y;
+      lastPointerRef.current = { x: clientX, y: clientY };
+
       if (isParametricMode && draggingSplitKey) {
         const container = splitterContainerRef.current;
         if (!container) return;
 
         const rect = container.getBoundingClientRect();
-        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-        const rawX = ((clientX - rect.left) / rect.width) * 100;
+        const deltaPercent = (deltaClientX / rect.width) * 100 * multiplier;
+
+        accumulatedSplitRef.current = Math.max(0, Math.min(100, accumulatedSplitRef.current + deltaPercent));
+        let nextValue = accumulatedSplitRef.current;
 
         const minGap = 10;
-        let nextValue = Math.max(0, Math.min(100, rawX));
-
         const currentSettings =
           localParametricSettingsRef.current || parametricCurvesRef.current[activeChannelRef.current];
 
@@ -309,10 +331,11 @@ export default function CurveGraph({
           nextValue = Math.max(currentSettings.split2 + minGap, Math.min(nextValue, 90));
         }
 
+        accumulatedSplitRef.current = nextValue;
+
         const newSettings = { ...currentSettings, [draggingSplitKey]: nextValue };
         localParametricSettingsRef.current = newSettings;
         setLocalParametricSettings(newSettings);
-
         updateParametricValue(draggingSplitKey, nextValue);
 
         if (e.cancelable) e.preventDefault();
@@ -321,30 +344,37 @@ export default function CurveGraph({
 
       if (!isParametricMode && draggingIndexRef.current !== null) {
         const index = draggingIndexRef.current;
-        const currentPoints = localPointsRef.current || adjustments?.curves?.[activeChannelRef.current];
+        const currentPoints = localPointsRef.current || getEditablePointCurves(adjustments)[activeChannelRef.current];
         if (!currentPoints) return;
 
         const svg = svgRef.current;
         if (!svg) return;
 
-        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
         const rect = svg.getBoundingClientRect();
-        let x = Math.max(0, Math.min(255, ((clientX - rect.left) / rect.width) * 255));
-        const y = Math.max(0, Math.min(255, 255 - ((clientY - rect.top) / rect.height) * 255));
+        const deltaX = (deltaClientX / rect.width) * 255 * multiplier;
+        const deltaY = (-deltaClientY / rect.height) * 255 * multiplier;
 
-        const newPoints = [...currentPoints];
-        const SNAP_THRESHOLD = 5;
-        if (x < SNAP_THRESHOLD) x = 0;
-        if (x > 255 - SNAP_THRESHOLD) x = 255;
+        accumulatedPointRef.current.x = Math.max(0, Math.min(255, accumulatedPointRef.current.x + deltaX));
+        accumulatedPointRef.current.y = Math.max(0, Math.min(255, accumulatedPointRef.current.y + deltaY));
 
         const prevX = index > 0 ? currentPoints[index - 1].x : 0;
         const nextX = index < currentPoints.length - 1 ? currentPoints[index + 1].x : 255;
         const minX = index === 0 ? 0 : prevX + 0.01;
         const maxX = index === currentPoints.length - 1 ? 255 : nextX - 0.01;
 
-        x = Math.max(minX, Math.min(maxX, x));
+        accumulatedPointRef.current.x = Math.max(minX, Math.min(maxX, accumulatedPointRef.current.x));
+
+        let x = accumulatedPointRef.current.x;
+        const y = accumulatedPointRef.current.y;
+
+        if (!isFineAdjust) {
+          const SNAP_THRESHOLD = 5;
+          if (x < SNAP_THRESHOLD) x = 0;
+          if (x > 255 - SNAP_THRESHOLD) x = 255;
+          x = Math.max(minX, Math.min(maxX, x));
+        }
+
+        const newPoints = [...currentPoints];
         newPoints[index] = { x, y };
 
         localPointsRef.current = newPoints;
@@ -397,10 +427,10 @@ export default function CurveGraph({
   );
 
   const inactiveChannels = Object.keys(channelConfig).filter((channel) => channel !== activeChannel);
-  const pointCurveSource = adjustments?.pointCurves ?? adjustments?.curves;
+  const pointCurveSource = getEditablePointCurves(adjustments);
 
   const updatePointCurve = (prev: Adjustments, channel: string, points: Coord[]): Adjustments => {
-    const pointCurves = { ...(prev.pointCurves ?? prev.curves), [channel]: points };
+    const pointCurves = { ...getEditablePointCurves(prev), [channel]: points };
     return {
       ...prev,
       pointCurves,
@@ -413,14 +443,19 @@ export default function CurveGraph({
     : (localPoints ?? pointCurveSource?.[activeChannel]);
 
   const { color, data: histogramData } = channelConfig[activeChannel];
+  const histogramPath = useMemo(() => getHistogramPath(histogramData ?? []), [histogramData]);
+  const zeroHistogramPath = useMemo(() => getZeroHistogramPath(histogramData ?? []), [histogramData]);
 
-  const handlePointStart = (
-    e: React.MouseEvent<SVGCircleElement> | React.TouchEvent<SVGCircleElement>,
-    index: number,
-  ) => {
+  const handlePointStart = (e: React.MouseEvent<Element> | React.TouchEvent<Element>, index: number) => {
     if (isParametricMode || ('button' in e && e.button === 2)) return;
     if (!('touches' in e)) e.preventDefault();
     e.stopPropagation();
+
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+
+    lastPointerRef.current = { x: clientX, y: clientY };
+    accumulatedPointRef.current = { ...activePoints[index] };
 
     onDragStateChange?.(true);
     setLocalPoints(activePoints);
@@ -443,18 +478,41 @@ export default function CurveGraph({
 
   const handleContainerStart = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (isParametricMode || ('button' in e && e.button !== 0) || e.target instanceof SVGCircleElement) return;
-    onDragStateChange?.(true);
 
     const svg = svgRef.current;
     if (!svg) return;
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     const rect = svg.getBoundingClientRect();
+
+    let nearestIndex = -1;
+    let nearestDistance = Infinity;
+    activePoints.forEach((p: Coord, i: number) => {
+      const px = rect.left + (p.x / 255) * rect.width;
+      const py = rect.top + ((255 - p.y) / 255) * rect.height;
+      const distance = Math.hypot(clientX - px, clientY - py);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = i;
+      }
+    });
+    if (nearestIndex !== -1 && nearestDistance <= POINT_HIT_RADIUS_PX) {
+      handlePointStart(e, nearestIndex);
+      return;
+    }
+
     const x = Math.max(0, Math.min(255, ((clientX - rect.left) / rect.width) * 255));
     const y = Math.max(0, Math.min(255, 255 - ((clientY - rect.top) / rect.height) * 255));
 
+    if (activePoints.some((p: Coord) => Math.abs(p.x - x) < MIN_POINT_GAP_X)) return;
+
+    onDragStateChange?.(true);
+
     const newPoints = [...activePoints, { x, y }].sort((a: Coord, b: Coord) => a.x - b.x);
     const newPointIndex = newPoints.findIndex((p: Coord) => p.x === x && p.y === y);
+
+    lastPointerRef.current = { x: clientX, y: clientY };
+    accumulatedPointRef.current = { x, y };
 
     setLocalPoints(newPoints);
     localPointsRef.current = newPoints;
@@ -469,7 +527,7 @@ export default function CurveGraph({
       setAdjustments((prev: Adjustments) => {
         const pC = prev.parametricCurve || DEFAULT_PARAMETRIC_CURVE;
         const parametricCurve = { ...pC, [activeChannel]: defaultSettings };
-        const pointCurves = prev.pointCurves || prev.curves;
+        const pointCurves = getEditablePointCurves(prev);
         return {
           ...prev,
           parametricCurve,
@@ -504,7 +562,7 @@ export default function CurveGraph({
         setAdjustments((prev: Adjustments) => {
           const pC = prev.parametricCurve || DEFAULT_PARAMETRIC_CURVE;
           const parametricCurve = { ...pC, [activeChannel]: { ...clipboard } };
-          const pointCurves = prev.pointCurves || prev.curves;
+          const pointCurves = getEditablePointCurves(prev);
           return {
             ...prev,
             parametricCurve,
@@ -521,7 +579,7 @@ export default function CurveGraph({
             ...pC,
             [activeChannel]: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS },
           };
-          const pointCurves = prev.pointCurves || prev.curves;
+          const pointCurves = getEditablePointCurves(prev);
           return {
             ...prev,
             parametricCurve,
@@ -541,7 +599,7 @@ export default function CurveGraph({
             green: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS },
             blue: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS },
           };
-          const pointCurves = prev.pointCurves || prev.curves;
+          const pointCurves = getEditablePointCurves(prev);
           return {
             ...prev,
             parametricCurve,
@@ -780,14 +838,14 @@ export default function CurveGraph({
                 <motion.path
                   key={activeChannel}
                   fill={color}
-                  initial={{ d: getZeroHistogramPath(histogramData), opacity: 0 }}
+                  initial={{ d: zeroHistogramPath, opacity: 0 }}
                   animate={{
-                    d: getHistogramPath(histogramData),
+                    d: histogramPath,
                     opacity: histogramOpacity,
                     transition: { d: { duration: 0.5, ease: [0.22, 1, 0.36, 1] }, opacity: { duration: 1 } },
                   }}
                   exit={{
-                    d: getZeroHistogramPath(histogramData),
+                    d: zeroHistogramPath,
                     opacity: 0,
                     transition: { d: { duration: 0.3, ease: [0.55, 0, 0.78, 0.34] }, opacity: { duration: 1 } },
                   }}
@@ -906,12 +964,16 @@ export default function CurveGraph({
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
+                          lastPointerRef.current = { x: e.clientX, y: e.clientY };
+                          accumulatedSplitRef.current = activeParametricSettings[key];
                           localParametricSettingsRef.current = { ...activeParametricSettings };
                           setDraggingSplitKey(key);
                         }}
                         onTouchStart={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
+                          lastPointerRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                          accumulatedSplitRef.current = activeParametricSettings[key];
                           localParametricSettingsRef.current = { ...activeParametricSettings };
                           setDraggingSplitKey(key);
                         }}
@@ -1012,3 +1074,5 @@ export default function CurveGraph({
     </div>
   );
 }
+
+export default memo(CurveGraph, areSectionPropsEqual('curves'));
