@@ -1,0 +1,14 @@
+{
+  "id": "upstream-sync-merge-workflow",
+  "title": "Merge agent-reviewed upstream sync PRs from a workflow",
+  "category": "ci",
+  "landed": "2026-10-28",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "The sync agent's own merge call is refused by its tool permissions, so a workflow now merges sync/upstream-* PRs when the agent's FINAL ACCEPT review covers the exact head (only clean merges of main, change records or standing-approval reference re-records after it), every required check passed there and main is in the head. It verifies the merge commit's first parent and escalates a mismatch like the daily sync."
+}

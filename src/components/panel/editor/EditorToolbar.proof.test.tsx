@@ -74,8 +74,6 @@ it.each([false, true])(
       onUndo: vi.fn(),
       selectedImage: image,
       showOriginal: false,
-      showDateView: false,
-      onToggleDateView: vi.fn(),
       adjustmentsHistory: [],
       adjustmentsHistoryIndex: 0,
       goToAdjustmentsHistoryIndex: vi.fn(),

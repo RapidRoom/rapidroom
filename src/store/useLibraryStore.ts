@@ -25,6 +25,10 @@ interface SearchCriteria {
 }
 
 interface LibraryState {
+  expandedStacks: Set<string>;
+  stackPreviewOpen: boolean;
+  applyMetadataToStack: boolean;
+  stackMergedResults: boolean;
   // Paths & Trees
   rootPaths: string[];
   cardBrowseRoot: string | null;
@@ -42,6 +46,7 @@ interface LibraryState {
   imageList: Array<ImageFile>;
   denoiseStatuses: Record<string, { marked: boolean; denoised: boolean }>;
   imageRatings: Record<string, number>;
+  exifByPath: Record<string, Record<string, string>>;
   multiSelectedPaths: Array<string>;
   selectionAnchorPath: string | null;
   libraryActivePath: string | null;
@@ -57,6 +62,7 @@ interface LibraryState {
   isViewLoading: boolean;
   libraryScrollTop: number;
   listColumnWidths: ColumnWidths;
+  libraryGridRows: Array<Array<{ path: string; center: number }>>;
 
   // Navigation History
   navHistory: NavHistoryItem[];
@@ -72,6 +78,10 @@ interface LibraryState {
 }
 
 export const useLibraryStore = create<LibraryState>((set) => ({
+  expandedStacks: new Set<string>(),
+  stackPreviewOpen: false,
+  applyMetadataToStack: false,
+  stackMergedResults: false,
   rootPaths: [],
   cardBrowseRoot: null,
   currentFolderPath: null,
@@ -86,6 +96,7 @@ export const useLibraryStore = create<LibraryState>((set) => ({
   imageList: [],
   denoiseStatuses: {},
   imageRatings: {},
+  exifByPath: {},
   multiSelectedPaths: [],
   selectionAnchorPath: null,
   libraryActivePath: null,
@@ -98,6 +109,7 @@ export const useLibraryStore = create<LibraryState>((set) => ({
   isTreeLoading: false,
   isViewLoading: false,
   libraryScrollTop: 0,
+  libraryGridRows: [],
   listColumnWidths: {
     thumbnail: 4,
     name: 20,

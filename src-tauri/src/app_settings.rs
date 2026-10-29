@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::{LazyLock, Mutex};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -142,20 +143,40 @@ pub fn all_available_adjustments() -> HashSet<String> {
         "hue",
         "colorGrading",
         "colorCalibration",
+        "monochromeEnabled",
+        "monochromeFilm",
+        "monochromeFilterHue",
+        "monochromeFilterStrength",
+        "monochromeMix",
+        "monochromeToning",
         "clarity",
         "structure",
         "dehaze",
         "sharpness",
         "sharpnessThreshold",
         "centré",
+        "centréX",
+        "centréY",
         "lumaNoiseReduction",
         "colorNoiseReduction",
+        "aiDenoiseEnabled",
+        "aiDenoiseMethod",
+        "aiDenoiseAmount",
+        "aiDenoiseDetail",
         "chromaticAberrationRedCyan",
         "chromaticAberrationBlueYellow",
+        "negativeConversionEnabled",
+        "negativeRedWeight",
+        "negativeGreenWeight",
+        "negativeBlueWeight",
+        "negativeExposure",
+        "negativeContrast",
         "vignetteAmount",
         "vignetteFeather",
         "vignetteMidpoint",
         "vignetteRoundness",
+        "vignetteCenterX",
+        "vignetteCenterY",
         "grainAmount",
         "grainRoughness",
         "grainSize",
@@ -168,6 +189,30 @@ pub fn all_available_adjustments() -> HashSet<String> {
         "glowAmount",
         "halationAmount",
         "flareAmount",
+        "lensBlurEnabled",
+        "lensBlurAmount",
+        "lensBlurDiffusion",
+        "lensBlurShape",
+        "lensBlurMinDepth",
+        "lensBlurMaxDepth",
+        "lensBlurMinFade",
+        "lensBlurMaxFade",
+        "fogEnabled",
+        "fogAmount",
+        "fogStart",
+        "fogDensity",
+        "fogHeight",
+        "fogVariation",
+        "fogGlow",
+        "fogTemperature",
+        "fogTint",
+        "relightEnabled",
+        "relightLights",
+        "relightAmbient",
+        "relightSoftness",
+        "relightShine",
+        "relightShadows",
+        "relightShadowSoftness",
         "crop",
         "aspectRatio",
         "rotation",
@@ -498,6 +543,22 @@ pub fn default_compensate_highlight_preservation() -> bool {
     true
 }
 
+pub fn default_ai_gpu_acceleration() -> bool {
+    true
+}
+
+pub fn default_ai_cache_limit_gb() -> u32 {
+    10
+}
+
+pub fn default_ai_maps_cache_limit_gb() -> u32 {
+    4
+}
+
+pub fn default_thumbnail_cache_limit_gb() -> u32 {
+    10
+}
+
 pub fn default_tagging_shortcuts_option() -> Option<Vec<String>> {
     Some(vec![
         "portrait".to_string(),
@@ -560,6 +621,8 @@ pub struct AppSettings {
     pub thumbnail_size: Option<String>,
     pub thumbnail_aspect_ratio: Option<String>,
     pub ai_provider: Option<String>,
+    #[serde(default = "default_ai_gpu_acceleration")]
+    pub ai_gpu_acceleration: bool,
     #[serde(default = "default_open_tree_sections")]
     pub open_tree_sections: Vec<String>,
     #[serde(default)]
@@ -581,6 +644,10 @@ pub struct AppSettings {
     #[serde(default)]
     pub last_instagram_export_preset_id: Option<String>,
     #[serde(default)]
+    pub instagram_export_folder: Option<String>,
+    #[serde(default)]
+    pub show_instagram_guide: bool,
+    #[serde(default)]
     pub my_lenses: Option<Vec<MyLens>>,
     #[serde(default)]
     pub enable_folder_image_counts: Option<bool>,
@@ -593,6 +660,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub create_xmp_if_missing: Option<bool>,
     #[serde(default)]
+    pub write_jpeg_metadata: Option<bool>,
+    #[serde(default)]
     pub is_waveform_visible: Option<bool>,
     #[serde(default)]
     pub waveform_height: Option<u32>,
@@ -604,6 +673,8 @@ pub struct AppSettings {
     pub editor_neutral_grey_bg: Option<bool>,
     #[serde(default)]
     pub canvas_input_mode: Option<String>,
+    #[serde(default)]
+    pub compare_mode: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub white_balance_mode: Option<String>,
     #[serde(default)]
@@ -616,6 +687,16 @@ pub struct AppSettings {
     pub thumbnail_worker_threads: Option<u32>,
     #[serde(default)]
     pub image_cache_size: Option<u32>,
+    #[serde(default)]
+    pub ai_cache_limit_gb: Option<u32>,
+    #[serde(default)]
+    pub thumbnail_cache_limit_gb: Option<u32>,
+    #[serde(default)]
+    pub ai_maps_cache_limit_gb: Option<u32>,
+    #[serde(default)]
+    pub export_worker_threads: Option<u32>,
+    #[serde(default)]
+    pub export_memory_limit: Option<u32>,
     #[serde(default)]
     pub enable_baseline_exposure: bool,
     #[serde(default = "default_baseline_exposure")]
@@ -634,8 +715,11 @@ pub struct AppSettings {
     pub enable_tool_focus_mode: Option<bool>,
     #[serde(default)]
     pub auto_advance_on_rate: Option<bool>,
+    pub hide_collapsed_panels: Option<bool>,
     #[serde(default)]
     pub folder_icons: Option<HashMap<String, String>>,
+    #[serde(default)]
+    pub folder_capture_time_shift_minutes: Option<HashMap<String, i32>>,
     #[serde(default)]
     pub raw_preprocessing_color_nr: Option<f32>,
     #[serde(default)]
@@ -646,6 +730,8 @@ pub struct AppSettings {
     pub use_apple_raw9: Option<bool>,
     #[serde(default)]
     pub exif_overlay: Option<String>,
+    #[serde(default)]
+    pub shooting_info_visibility: Option<String>,
     #[serde(default)]
     pub language: Option<String>,
     #[serde(default)]
@@ -669,6 +755,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub always_decode_raw_thumbnails: Option<bool>,
     #[serde(default)]
+    pub auto_lens_correction_on_new_raws: Option<bool>,
+    #[serde(default)]
     pub custom_aspect_ratios: Vec<CustomAspectRatio>,
     #[serde(default)]
     pub adjustment_layout: AdjustmentLayout,
@@ -680,6 +768,15 @@ pub struct AppSettings {
     pub terminal_settings: Option<Value>,
     #[serde(default)]
     pub mcp_enabled: bool,
+    #[serde(default)]
+    pub immich: crate::immich::ImmichSettings,
+}
+
+impl AppSettings {
+    pub fn wgpu_renderer_enabled(&self) -> bool {
+        cfg!(not(any(target_os = "linux", target_os = "android")))
+            && self.use_wgpu_renderer.unwrap_or(true)
+    }
 }
 
 impl Default for AppSettings {
@@ -717,6 +814,7 @@ impl Default for AppSettings {
             thumbnail_size: Some("medium".to_string()),
             thumbnail_aspect_ratio: Some("contain".to_string()),
             ai_provider: Some("cpu".to_string()),
+            ai_gpu_acceleration: default_ai_gpu_acceleration(),
             open_tree_sections: default_open_tree_sections(),
             copy_paste_settings: CopyPasteSettings::default(),
             raw_highlight_compression: Some(2.5),
@@ -727,6 +825,8 @@ impl Default for AppSettings {
             export_presets: default_export_presets(),
             last_selected_export_preset_id: None,
             last_instagram_export_preset_id: None,
+            instagram_export_folder: None,
+            show_instagram_guide: false,
             my_lenses: Some(Vec::new()),
             #[cfg(target_os = "android")]
             high_res_zoom_multiplier: Some(0.75),
@@ -737,6 +837,7 @@ impl Default for AppSettings {
             linear_raw_mode: default_linear_raw_mode(),
             enable_xmp_sync: Some(true),
             create_xmp_if_missing: Some(false),
+            write_jpeg_metadata: Some(false),
             is_waveform_visible: Some(false),
             waveform_height: Some(220),
             active_waveform_channel: Some("luma".to_string()),
@@ -746,6 +847,7 @@ impl Default for AppSettings {
             use_wgpu_renderer: Some(true),
             editor_neutral_grey_bg: Some(false),
             canvas_input_mode: Some("mouse".to_string()),
+            compare_mode: None,
             white_balance_mode: None,
             zoom_speed_multiplier: Some(1.0),
             zoom_photo_to_pixel_click: Some(false),
@@ -758,6 +860,11 @@ impl Default for AppSettings {
             image_cache_size: Some(2),
             #[cfg(not(target_os = "android"))]
             image_cache_size: Some(5),
+            ai_cache_limit_gb: Some(default_ai_cache_limit_gb()),
+            thumbnail_cache_limit_gb: Some(default_thumbnail_cache_limit_gb()),
+            ai_maps_cache_limit_gb: Some(default_ai_maps_cache_limit_gb()),
+            export_worker_threads: None,
+            export_memory_limit: None,
             enable_baseline_exposure: false,
             baseline_exposure: default_baseline_exposure(),
             compensate_highlight_preservation: default_compensate_highlight_preservation(),
@@ -767,12 +874,15 @@ impl Default for AppSettings {
             enable_focus_mode: Some(false),
             enable_tool_focus_mode: Some(false),
             auto_advance_on_rate: Some(false),
+            hide_collapsed_panels: Some(false),
             folder_icons: Some(HashMap::new()),
+            folder_capture_time_shift_minutes: Some(HashMap::new()),
             raw_preprocessing_color_nr: Some(0.5),
             raw_preprocessing_sharpening: Some(0.35),
             apply_preprocessing_to_non_raws: Some(false),
             use_apple_raw9: Some(false),
             exif_overlay: Some("off".to_string()),
+            shooting_info_visibility: Some("always".to_string()),
             language: Some("en".to_string()),
             folder_tree_sort: Some(FolderTreeSort::default()),
             lightroom_path_mappings: Some(HashMap::new()),
@@ -783,12 +893,14 @@ impl Default for AppSettings {
             group_associated_files: Some(false),
             group_preferred_type: Some("raw".to_string()),
             always_decode_raw_thumbnails: Some(false),
+            auto_lens_correction_on_new_raws: Some(true),
             custom_aspect_ratios: Vec::new(),
             adjustment_layout: AdjustmentLayout::default(),
             adjustment_density: None,
             workspace: WorkspaceState::default(),
             terminal_settings: None,
             mcp_enabled: false,
+            immich: crate::immich::ImmichSettings::default(),
         }
     }
 }
@@ -811,9 +923,25 @@ pub fn is_tethering_supported() -> bool {
     cfg!(feature = "tethering")
 }
 
+static SETTINGS_CACHE: LazyLock<Mutex<Option<AppSettings>>> = LazyLock::new(|| Mutex::new(None));
+
+fn settings_cache() -> std::sync::MutexGuard<'static, Option<AppSettings>> {
+    SETTINGS_CACHE.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 #[tauri::command]
 pub fn load_settings(app_handle: AppHandle) -> Result<AppSettings, String> {
-    let path = get_settings_path(&app_handle)?;
+    if let Some(settings) = settings_cache().as_ref() {
+        return Ok(settings.clone());
+    }
+
+    let settings = read_settings_from_disk(&app_handle)?;
+    *settings_cache() = Some(settings.clone());
+    Ok(settings)
+}
+
+fn read_settings_from_disk(app_handle: &AppHandle) -> Result<AppSettings, String> {
+    let path = get_settings_path(app_handle)?;
 
     let mut settings: AppSettings = if path.exists() {
         let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
@@ -880,9 +1008,14 @@ pub fn load_settings(app_handle: AppHandle) -> Result<AppSettings, String> {
 
 #[tauri::command]
 pub fn save_settings(settings: AppSettings, app_handle: AppHandle) -> Result<(), String> {
+    let previous_gpu_acceleration = load_settings(app_handle.clone())
+        .map(|previous| previous.ai_gpu_acceleration)
+        .ok();
     let path = get_settings_path(&app_handle)?;
     let json_string = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     fs::write(path, json_string).map_err(|e| e.to_string())?;
+    *settings_cache() = None;
+    crate::immich::apply_settings(&settings.immich);
 
     let state = app_handle.state::<AppState>();
     let cache_size = settings.image_cache_size.unwrap_or(5) as usize;
@@ -891,12 +1024,38 @@ pub fn save_settings(settings: AppSettings, app_handle: AppHandle) -> Result<(),
         .lock()
         .unwrap()
         .set_capacity(cache_size);
+    crate::storage::apply_cache_limits(&settings);
+
+    if previous_gpu_acceleration != Some(settings.ai_gpu_acceleration) {
+        crate::ai_processing::reset_ai_sessions(&state.ai_state);
+    }
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shooting_info_setting_survives_save_and_old_settings_load() {
+        let mut saved = serde_json::to_value(AppSettings::default()).unwrap();
+        assert_eq!(saved["shootingInfoVisibility"], "always");
+        saved
+            .as_object_mut()
+            .unwrap()
+            .remove("shootingInfoVisibility");
+        let old: AppSettings = serde_json::from_value(saved.clone()).unwrap();
+        assert!(old.shooting_info_visibility.is_none());
+        for mode in ["always", "hover", "off"] {
+            saved["shootingInfoVisibility"] = serde_json::json!(mode);
+            let loaded: AppSettings = serde_json::from_value(saved.clone()).unwrap();
+            assert_eq!(loaded.shooting_info_visibility.as_deref(), Some(mode));
+            assert_eq!(
+                serde_json::to_value(loaded).unwrap()["shootingInfoVisibility"],
+                mode
+            );
+        }
+    }
 
     #[test]
     fn existing_preferences_do_not_enable_ai_control() {

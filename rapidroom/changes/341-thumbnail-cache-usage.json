@@ -1,0 +1,13 @@
+{
+  "id": "thumbnail-cache-usage",
+  "title": "Show thumbnail and preview cache usage in Settings",
+  "category": "feature",
+  "landed": "2026-10-16",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Settings shows cache size and file count asynchronously when Processing opens and after the existing confirmed Clear action. Cache generation, keys and eviction behavior are unchanged."
+}

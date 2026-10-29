@@ -10,7 +10,7 @@ use crate::file_management;
 use crate::formats::is_raw_file;
 use crate::image_processing::ImageMetadata;
 use crate::tagging::{COLOR_TAG_PREFIX, USER_TAG_PREFIX};
-use chrono::{DateTime, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, FixedOffset, Local, LocalResult, NaiveDateTime, TimeZone, Utc};
 use exif::{Exif, In, Value};
 use image::ImageDecoder;
 use little_exif::exif_tag::ExifTag;
@@ -47,8 +47,9 @@ impl ExifCacheState {
     }
 }
 
+static EXIF_CACHE: OnceLock<Mutex<ExifCacheState>> = OnceLock::new();
+
 fn get_exif_cache() -> &'static Mutex<ExifCacheState> {
-    static EXIF_CACHE: OnceLock<Mutex<ExifCacheState>> = OnceLock::new();
     EXIF_CACHE.get_or_init(|| {
         std::thread::spawn(|| {
             loop {
@@ -101,6 +102,29 @@ pub fn flush_all_dirty_caches() {
             }
         }
     }
+}
+
+/// Storage page: clear the EXIF disk cache (upstream).
+pub fn clear_disk_cache() -> Result<(), String> {
+    let mut state = get_exif_cache()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    state.cache.clear();
+    state.dirty.clear();
+    let Some(read_dir) = state
+        .cache_dir
+        .as_ref()
+        .and_then(|dir| fs::read_dir(dir).ok())
+    else {
+        return Ok(());
+    };
+    for path in read_dir.filter_map(|e| e.ok()).map(|e| e.path()) {
+        if path.is_file() {
+            fs::remove_file(&path)
+                .map_err(|e| format!("Failed to remove {}: {}", path.display(), e))?;
+        }
+    }
+    Ok(())
 }
 
 fn load_rrcache_for_folder(folder: &Path) {
@@ -251,15 +275,86 @@ pub fn truncate_large_exif(value: &str) -> String {
 }
 
 pub fn load_sidecar(sidecar_path: &Path) -> ImageMetadata {
+    // Each sidecar is atomically replaced; readers see a complete old or new
+    // document and need not serialize a whole folder behind metadata writes.
+    let (meta, healed) = read_sidecar(sidecar_path);
+    if healed {
+        // Reload under the shared write guard before persisting normalization:
+        // a read snapshot must not overwrite a concurrent edit.
+        if crate::file_management::update_sidecar(sidecar_path, |_| {}).is_ok() {
+            log::info!(
+                "Auto-healed bloated sidecar for: {}",
+                sidecar_path.display()
+            );
+        }
+    }
+    meta
+}
+
+// Safe inside a sidecar transaction: normalization here never acquires a
+// second write guard. The transaction's caller publishes the normalized data.
+pub(crate) fn load_sidecar_unlocked(sidecar_path: &Path) -> ImageMetadata {
+    read_sidecar(sidecar_path).0
+}
+
+fn warn_unreadable(path: &Path, reason: &str) {
+    log::warn!(
+        "Sidecar {} cannot be read ({reason}); it will not be overwritten",
+        path.display()
+    );
+}
+
+/// Called by every sidecar writer while it holds the sidecar lock.
+pub(crate) fn refuse_unreadable_overwrite(path: &Path) -> std::io::Result<()> {
+    let bytes = match fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error),
+    };
+    let readable = std::str::from_utf8(&bytes)
+        .is_ok_and(|text| text.trim().is_empty() || parse_sidecar_metadata(text).is_some());
+    if readable {
+        return Ok(());
+    }
+    warn_unreadable(path, "write-time validation");
+    Err(std::io::Error::other(format!(
+        "The edits in {} could not be read, so they were not overwritten. Fix or move the file and try again.",
+        path.display()
+    )))
+}
+
+/// Parse a sidecar the way the editor does. Older or hand-written files may lack
+/// the bookkeeping fields (`version`, `rating`) that the next save fills in.
+/// `None` means the bytes are not a usable sidecar.
+pub(crate) fn parse_sidecar_metadata(content: &str) -> Option<ImageMetadata> {
+    let mut value: serde_json::Value = serde_json::from_str(content).ok()?;
+    let object = value.as_object_mut()?;
+    object.entry("version").or_insert(serde_json::json!(1));
+    object.entry("rating").or_insert(serde_json::json!(0));
+    serde_json::from_value(value).ok()
+}
+
+fn read_sidecar(sidecar_path: &Path) -> (ImageMetadata, bool) {
     if !sidecar_path.exists() {
-        return ImageMetadata::default();
+        return (ImageMetadata::default(), false);
     }
 
-    let Ok(content) = fs::read_to_string(sidecar_path) else {
-        return ImageMetadata::default();
+    let Ok(bytes) = fs::read(sidecar_path) else {
+        return (ImageMetadata::default(), false);
+    };
+    let Ok(content) = String::from_utf8(bytes) else {
+        warn_unreadable(sidecar_path, "not UTF-8");
+        return (ImageMetadata::default(), false);
     };
 
-    let mut meta = serde_json::from_str::<ImageMetadata>(&content).unwrap_or_default();
+    let mut meta = if content.trim().is_empty() {
+        ImageMetadata::default()
+    } else if let Some(meta) = parse_sidecar_metadata(&content) {
+        meta
+    } else {
+        warn_unreadable(sidecar_path, "invalid or mistyped fields");
+        return (ImageMetadata::default(), false);
+    };
     let mut healed = false;
 
     if let Some(ref mut exif_map) = meta.exif {
@@ -271,15 +366,7 @@ pub fn load_sidecar(sidecar_path: &Path) -> ImageMetadata {
         }
     }
 
-    if healed && let Ok(json) = serde_json::to_string_pretty(&meta) {
-        let _ = crate::file_management::write_file_atomically(sidecar_path, json);
-        log::info!(
-            "Auto-healed bloated sidecar for: {}",
-            sidecar_path.display()
-        );
-    }
-
-    meta
+    (meta, healed)
 }
 
 /// Seed only an unedited image; existing sidecar framing stays in the original
@@ -319,6 +406,28 @@ pub fn load_sidecar_with_exif(sidecar_path: &Path, source_path: &Path) -> ImageM
     }
 
     meta
+}
+
+/// Upstream's sidecar update API, routed through RapidRoom's locked, atomic writer.
+/// RapidRoom never deletes a sidecar that holds only defaults: RapidRoom sidecars also carry
+/// explicit unrated/unflagged choices, framing, denoise and stack membership.
+pub fn update_sidecar(
+    sidecar_path: &Path,
+    source_path: &Path,
+    update: impl FnOnce(&mut ImageMetadata),
+) -> std::io::Result<ImageMetadata> {
+    if crate::immich::is_placeholder(source_path)
+        && let Some(parent) = sidecar_path.parent()
+    {
+        fs::create_dir_all(parent)?;
+    }
+    let update = std::cell::RefCell::new(Some(update));
+    crate::file_management::update_sidecar(sidecar_path, |metadata| {
+        if let Some(update) = update.borrow_mut().take() {
+            update(metadata);
+        }
+    })
+    .map_err(std::io::Error::other)
 }
 
 fn to_ur64(val: &exif::Rational) -> uR64 {
@@ -404,12 +513,64 @@ fn creation_datetime_to_utc(dt: NaiveDateTime) -> DateTime<Utc> {
     }
 }
 
-fn parse_creation_field(field: &exif::Field) -> Option<DateTime<Utc>> {
-    parse_creation_datetime(&field.display_value().to_string()).map(creation_datetime_to_utc)
+pub(crate) fn parse_capture_offset(value: &str) -> Option<FixedOffset> {
+    let value = clean_creation_datetime_str(value);
+    if value == "Z" {
+        return FixedOffset::east_opt(0);
+    }
+    let bytes = value.as_bytes();
+    if bytes.len() != 6
+        || !matches!(bytes[0], b'+' | b'-')
+        || bytes[3] != b':'
+        || ![bytes[1], bytes[2], bytes[4], bytes[5]]
+            .iter()
+            .all(u8::is_ascii_digit)
+    {
+        return None;
+    }
+    let hours = value[1..3].parse::<i32>().ok()?;
+    let minutes = value[4..6].parse::<i32>().ok()?;
+    if hours > 23 || minutes > 59 {
+        return None;
+    }
+    let seconds = (hours * 60 + minutes) * 60 * if bytes[0] == b'-' { -1 } else { 1 };
+    FixedOffset::east_opt(seconds)
 }
 
-fn parse_raw_creation_date(date_str: Option<&str>) -> Option<DateTime<Utc>> {
-    parse_creation_datetime(date_str?).map(creation_datetime_to_utc)
+pub(crate) fn recorded_capture_offset(exif: &HashMap<String, String>) -> Option<FixedOffset> {
+    ["OffsetTimeOriginal", "OffsetTime"]
+        .iter()
+        .filter_map(|key| exif.get(*key))
+        .find_map(|value| parse_capture_offset(value))
+}
+
+fn creation_datetime_with_offset(dt: NaiveDateTime, offset: Option<FixedOffset>) -> DateTime<Utc> {
+    offset
+        .and_then(|zone| zone.from_local_datetime(&dt).single())
+        .map(|date| date.with_timezone(&Utc))
+        .unwrap_or_else(|| creation_datetime_to_utc(dt))
+}
+
+fn parse_creation_field(
+    field: &exif::Field,
+    exif: &Exif,
+    offset_tag: exif::Tag,
+) -> Option<DateTime<Utc>> {
+    let offset = [offset_tag, exif::Tag::OffsetTime].iter().find_map(|tag| {
+        exif.get_field(*tag, In::PRIMARY)
+            .and_then(|field| clean_ascii_value(&field.value))
+            .and_then(|value| parse_capture_offset(&value))
+    });
+    parse_creation_datetime(&field.display_value().to_string())
+        .map(|date| creation_datetime_with_offset(date, offset))
+}
+
+fn parse_raw_creation_date(
+    date_str: Option<&str>,
+    offsets: [Option<&str>; 2],
+) -> Option<DateTime<Utc>> {
+    let offset = offsets.into_iter().flatten().find_map(parse_capture_offset);
+    parse_creation_datetime(date_str?).map(|date| creation_datetime_with_offset(date, offset))
 }
 
 fn clean_ascii_value(value: &exif::Value) -> Option<String> {
@@ -978,6 +1139,7 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
         {
             insert_missing_lens_fields(&mut map, &lens);
         }
+        insert_sony_correction_metadata(&mut map, file_bytes);
         return Some(map);
     }
 
@@ -1227,6 +1389,8 @@ pub fn extract_metadata(file_bytes: &[u8]) -> Option<HashMap<String, String>> {
         insert_missing_lens_fields(&mut map, lens);
     }
 
+    insert_sony_correction_metadata(&mut map, file_bytes);
+
     Some(map)
 }
 
@@ -1247,7 +1411,16 @@ pub fn try_get_exif_creation_date(path: &Path) -> Option<DateTime<Utc>> {
         && let Some(dt_str) = map.get("DateTimeOriginal").or(map.get("CreateDate"))
         && let Some(dt) = parse_creation_datetime(dt_str)
     {
-        return Some(creation_datetime_to_utc(dt));
+        let specific_offset = if map.contains_key("DateTimeOriginal") {
+            "OffsetTimeOriginal"
+        } else {
+            "OffsetTimeDigitized"
+        };
+        let offset = [specific_offset, "OffsetTime"]
+            .iter()
+            .filter_map(|key| map.get(*key))
+            .find_map(|value| parse_capture_offset(value));
+        return Some(creation_datetime_with_offset(dt, offset));
     }
 
     if let Ok(file) = std::fs::File::open(path) {
@@ -1257,7 +1430,15 @@ pub fn try_get_exif_creation_date(path: &Path) -> Option<DateTime<Utc>> {
         if let Ok(exif_obj) = exifreader.read_from_container(&mut bufreader) {
             for tag in [exif::Tag::DateTimeOriginal, exif::Tag::DateTime] {
                 if let Some(field) = exif_obj.get_field(tag, exif::In::PRIMARY)
-                    && let Some(dt) = parse_creation_field(field)
+                    && let Some(dt) = parse_creation_field(
+                        field,
+                        &exif_obj,
+                        if tag == exif::Tag::DateTimeOriginal {
+                            exif::Tag::OffsetTimeOriginal
+                        } else {
+                            exif::Tag::OffsetTime
+                        },
+                    )
                 {
                     return Some(dt);
                 }
@@ -1271,10 +1452,22 @@ pub fn try_get_exif_creation_date(path: &Path) -> Option<DateTime<Utc>> {
             && let Ok(decoder) = loader.get_decoder(&raw_source)
             && let Ok(metadata) = decoder.raw_metadata(&raw_source, &Default::default())
         {
-            if let Some(dt) = parse_raw_creation_date(metadata.exif.date_time_original.as_deref()) {
+            if let Some(dt) = parse_raw_creation_date(
+                metadata.exif.date_time_original.as_deref(),
+                [
+                    metadata.exif.offset_time_original.as_deref(),
+                    metadata.exif.offset_time.as_deref(),
+                ],
+            ) {
                 return Some(dt);
             }
-            if let Some(dt) = parse_raw_creation_date(metadata.exif.create_date.as_deref()) {
+            if let Some(dt) = parse_raw_creation_date(
+                metadata.exif.create_date.as_deref(),
+                [
+                    metadata.exif.offset_time_digitized.as_deref(),
+                    metadata.exif.offset_time.as_deref(),
+                ],
+            ) {
                 return Some(dt);
             }
         }
@@ -1288,7 +1481,15 @@ pub fn get_creation_date_from_bytes(path_hint: &str, file_bytes: &[u8]) -> DateT
     if let Some(exif_obj) = read_exif(file_bytes) {
         for tag in [exif::Tag::DateTimeOriginal, exif::Tag::DateTime] {
             if let Some(field) = exif_obj.get_field(tag, exif::In::PRIMARY)
-                && let Some(dt) = parse_creation_field(field)
+                && let Some(dt) = parse_creation_field(
+                    field,
+                    &exif_obj,
+                    if tag == exif::Tag::DateTimeOriginal {
+                        exif::Tag::OffsetTimeOriginal
+                    } else {
+                        exif::Tag::OffsetTime
+                    },
+                )
             {
                 return dt;
             }
@@ -1298,10 +1499,22 @@ pub fn get_creation_date_from_bytes(path_hint: &str, file_bytes: &[u8]) -> DateT
     if is_raw_file(path_hint)
         && let Some(metadata) = read_raw_metadata(file_bytes)
     {
-        if let Some(dt) = parse_raw_creation_date(metadata.exif.date_time_original.as_deref()) {
+        if let Some(dt) = parse_raw_creation_date(
+            metadata.exif.date_time_original.as_deref(),
+            [
+                metadata.exif.offset_time_original.as_deref(),
+                metadata.exif.offset_time.as_deref(),
+            ],
+        ) {
             return dt;
         }
-        if let Some(dt) = parse_raw_creation_date(metadata.exif.create_date.as_deref()) {
+        if let Some(dt) = parse_raw_creation_date(
+            metadata.exif.create_date.as_deref(),
+            [
+                metadata.exif.offset_time_digitized.as_deref(),
+                metadata.exif.offset_time.as_deref(),
+            ],
+        ) {
             return dt;
         }
     }
@@ -2176,22 +2389,29 @@ fn embed_jpeg_xmp(image_bytes: &mut Vec<u8>, packet: &str) {
 }
 
 fn embed_png_xmp(image_bytes: &mut Vec<u8>, packet: &str) {
+    let mut data = b"XML:com.adobe.xmp\0\0\0\0\0".to_vec();
+    data.extend_from_slice(packet.as_bytes());
+    insert_png_chunk(image_bytes, b"iTXt", &data);
+}
+
+pub fn insert_png_chunk(image_bytes: &mut Vec<u8>, chunk_type: &[u8; 4], data: &[u8]) {
     const IHDR_END: usize = 33;
 
-    if image_bytes.len() < IHDR_END || &image_bytes[12..16] != b"IHDR" {
+    if image_bytes.len() < IHDR_END
+        || &image_bytes[..8] != b"\x89PNG\r\n\x1a\n"
+        || &image_bytes[12..16] != b"IHDR"
+    {
         return;
     }
 
-    let mut data = b"XML:com.adobe.xmp\0\0\0\0\0".to_vec();
-    data.extend_from_slice(packet.as_bytes());
     let mut crc = crc32fast::Hasher::new();
-    crc.update(b"iTXt");
-    crc.update(&data);
+    crc.update(chunk_type);
+    crc.update(data);
 
     let mut chunk = Vec::with_capacity(data.len() + 12);
     chunk.extend_from_slice(&(data.len() as u32).to_be_bytes());
-    chunk.extend_from_slice(b"iTXt");
-    chunk.extend_from_slice(&data);
+    chunk.extend_from_slice(chunk_type);
+    chunk.extend_from_slice(data);
     chunk.extend_from_slice(&crc.finalize().to_be_bytes());
     image_bytes.splice(IHDR_END..IHDR_END, chunk);
 }
@@ -2241,8 +2461,67 @@ fn load_primary_metadata(image_path: &Path) -> ImageMetadata {
 
 fn save_primary_metadata(image_path: &Path, metadata: &ImageMetadata) -> std::io::Result<()> {
     let primary = get_primary_sidecar_path(image_path);
-    let json = serde_json::to_string_pretty(metadata).map_err(std::io::Error::other)?;
-    crate::file_management::write_file_atomically(&primary, json)
+    crate::file_management::update_sidecar(&primary, |current| current.exif = metadata.exif.clone())
+        .map(|_| ())
+        .map_err(std::io::Error::other)
+}
+
+// Query variants deliberately do not heal primary metadata, migrate legacy
+// files, invalidate dirty cache entries or initialize a cache-writer thread.
+fn query_primary_exif(path: &Path) -> Option<HashMap<String, String>> {
+    let bytes = fs::read(path).ok()?;
+    let metadata: ImageMetadata = serde_json::from_slice(&bytes).ok()?;
+    metadata.exif.map(|map| {
+        map.into_iter()
+            .map(|(key, value)| (key, truncate_large_exif(&value)))
+            .collect()
+    })
+}
+fn query_cache_file(image_path: &Path, cache_path: &Path) -> Option<HashMap<String, String>> {
+    let (mtime, size) = get_file_stamp(image_path)?;
+    let cache: HashMap<String, CachedExifEntry> =
+        serde_json::from_slice(&fs::read(cache_path).ok()?).ok()?;
+    cache
+        .get(image_path.file_name()?.to_str()?)
+        .filter(|entry| entry.mtime_ns == mtime && entry.size == size)
+        .map(|entry| entry.data.clone())
+}
+fn query_cached_exif(image_path: &Path) -> Option<HashMap<String, String>> {
+    let folder = image_path.parent()?;
+    let (mtime, size) = get_file_stamp(image_path)?;
+    let state = EXIF_CACHE.get()?.lock().ok()?;
+    if let Some(entries) = state.cache.get(folder) {
+        return entries
+            .get(image_path.file_name()?.to_str()?)
+            .filter(|entry| entry.mtime_ns == mtime && entry.size == size)
+            .map(|entry| entry.data.clone());
+    }
+    let cache_path = state.get_cache_file_path(folder)?;
+    drop(state);
+    query_cache_file(image_path, &cache_path)
+}
+pub(crate) fn read_exif_for_query(
+    sidecar_path: &Path,
+    source_path: &Path,
+) -> Option<HashMap<String, String>> {
+    if let Some(exif) = query_primary_exif(sidecar_path)
+        .or_else(|| query_primary_exif(&get_primary_sidecar_path(source_path)))
+        .or_else(|| query_cached_exif(source_path))
+        .or_else(|| {
+            fs::read(get_rrexif_path(source_path))
+                .ok()
+                .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        })
+    {
+        return Some(exif);
+    }
+    let path = source_path.to_string_lossy();
+    let exif = if let Ok(bytes) = file_management::read_file_mapped(source_path) {
+        read_exif_data_from_bytes(&path, &bytes)
+    } else {
+        read_exif_data_from_bytes(&path, &fs::read(source_path).ok()?)
+    };
+    (!exif.is_empty()).then_some(exif)
 }
 
 pub fn read_rrexif_sidecar(image_path: &Path) -> Option<HashMap<String, String>> {
@@ -2272,6 +2551,148 @@ pub fn read_rrexif_sidecar(image_path: &Path) -> Option<HashMap<String, String>>
     }
 
     None
+}
+
+/// Reads the Sony correction tables stored in ARW SubIFDs.
+///
+/// The values are intentionally preserved as metadata only. Their physical
+/// units and interpolation are not documented by Sony, so rendering must not
+/// infer a correction from this raw table.
+pub(crate) fn sony_correction_metadata(file_bytes: &[u8]) -> HashMap<&'static str, Vec<i16>> {
+    const MAX_IFDS: usize = 32;
+    const SUB_IFDS: u16 = 0x014a;
+    const VIGNETTING: u16 = 0x7032;
+    const CA: u16 = 0x7035;
+    const DISTORTION: u16 = 0x7037;
+
+    let Some(endian) = file_bytes.get(..2) else {
+        return HashMap::new();
+    };
+    let little = match endian {
+        b"II" => true,
+        b"MM" => false,
+        _ => return HashMap::new(),
+    };
+    let u16_at = |at: usize| -> Option<u16> {
+        let bytes: [u8; 2] = file_bytes.get(at..at.checked_add(2)?)?.try_into().ok()?;
+        Some(if little {
+            u16::from_le_bytes(bytes)
+        } else {
+            u16::from_be_bytes(bytes)
+        })
+    };
+    let u32_at = |at: usize| -> Option<u32> {
+        let bytes: [u8; 4] = file_bytes.get(at..at.checked_add(4)?)?.try_into().ok()?;
+        Some(if little {
+            u32::from_le_bytes(bytes)
+        } else {
+            u32::from_be_bytes(bytes)
+        })
+    };
+    if u16_at(2) != Some(42) {
+        return HashMap::new();
+    }
+    let Some(first_ifd) = u32_at(4).and_then(|offset| usize::try_from(offset).ok()) else {
+        return HashMap::new();
+    };
+
+    let mut result = HashMap::new();
+    let mut pending = vec![first_ifd];
+    // Bound both processed and queued IFDs. An untrusted IFD can name up to
+    // 32 SubIFDs, so limiting only the pop loop would still allow a crafted
+    // file to grow `pending` without bound before those offsets are visited.
+    let mut queued = std::collections::HashSet::from([first_ifd]);
+    let mut seen = std::collections::HashSet::new();
+    while let Some(ifd) = pending.pop() {
+        if !seen.insert(ifd) || seen.len() > MAX_IFDS {
+            continue;
+        }
+        let Some(count) = u16_at(ifd).map(usize::from) else {
+            continue;
+        };
+        let Some(entries_end) = ifd
+            .checked_add(2)
+            .and_then(|n| n.checked_add(count.checked_mul(12)?))
+        else {
+            continue;
+        };
+        if entries_end > file_bytes.len() {
+            continue;
+        }
+        for entry in 0..count {
+            let at = ifd + 2 + entry * 12;
+            let (Some(tag), Some(kind), Some(values)) =
+                (u16_at(at), u16_at(at + 2), u32_at(at + 4))
+            else {
+                continue;
+            };
+            // Sony's correction arrays are signed SHORTs. Refuse any type or
+            // count change instead of accidentally treating offsets as values.
+            let expected = match tag {
+                VIGNETTING | DISTORTION => Some(17),
+                CA => Some(33),
+                _ => None,
+            };
+            if let Some(expected) = expected {
+                if kind != 8 || values != expected {
+                    continue;
+                }
+                let Some(start) = u32_at(at + 8).and_then(|offset| usize::try_from(offset).ok())
+                else {
+                    continue;
+                };
+                let Some(end) = start.checked_add(expected as usize * 2) else {
+                    continue;
+                };
+                if end > file_bytes.len() {
+                    continue;
+                }
+                let values: Option<Vec<i16>> = (0..expected as usize)
+                    .map(|index| u16_at(start + index * 2).map(|n| n as i16))
+                    .collect();
+                let Some(values) = values else { continue };
+                let key = match tag {
+                    VIGNETTING => "SonyVignettingCorrParams",
+                    CA => "SonyChromaticAberrationCorrParams",
+                    DISTORTION => "SonyDistortionCorrParams",
+                    _ => unreachable!(),
+                };
+                result.insert(key, values);
+            } else if tag == SUB_IFDS && (kind == 4 || kind == 13) {
+                let count = values.min(MAX_IFDS as u32) as usize;
+                let start = if count == 1 {
+                    at + 8
+                } else if let Some(offset) = u32_at(at + 8).and_then(|n| usize::try_from(n).ok()) {
+                    offset
+                } else {
+                    continue;
+                };
+                for index in 0..count {
+                    if let Some(offset) =
+                        u32_at(start + index * 4).and_then(|n| usize::try_from(n).ok())
+                        && queued.len() < MAX_IFDS
+                        && queued.insert(offset)
+                    {
+                        pending.push(offset);
+                    }
+                }
+            }
+        }
+    }
+    result
+}
+
+fn insert_sony_correction_metadata(map: &mut HashMap<String, String>, file_bytes: &[u8]) {
+    for (key, values) in sony_correction_metadata(file_bytes) {
+        map.insert(
+            key.to_string(),
+            values
+                .into_iter()
+                .map(|value| value.to_string())
+                .collect::<Vec<_>>()
+                .join(" "),
+        );
+    }
 }
 
 pub fn read_exif_data_from_bytes(path: &str, file_bytes: &[u8]) -> HashMap<String, String> {
@@ -2913,7 +3334,9 @@ pub(crate) mod rating_samples {
 #[cfg(test)]
 mod tests {
     use super::rating_samples::*;
-    use super::{XMP_UUID, parse_xmp_rating, read_image_rating, xmp_rating};
+    use super::{
+        XMP_UUID, parse_xmp_rating, read_image_rating, sony_correction_metadata, xmp_rating,
+    };
     use std::io::Cursor;
 
     fn rating(bytes: &[u8]) -> Option<u8> {
@@ -2981,6 +3404,24 @@ mod tests {
         bytes.extend([0x46, 0x47, 3, 0, 1, 0, 0, 0, 2, 0, 0, 0]);
         bytes.extend(0u32.to_le_bytes());
         assert_eq!(rating(&bytes), Some(2));
+    }
+
+    #[test]
+    fn sony_correction_parser_bounds_malformed_subifd_fanout() {
+        let mut bytes = b"II*\0\x08\0\0\0".to_vec();
+        bytes.extend(1u16.to_le_bytes());
+        // IFD0 points at 32 otherwise-empty IFDs. The parser must dedupe and
+        // bound this graph before queueing more offsets from untrusted input.
+        bytes.extend([0x4a, 0x01, 4, 0, 32, 0, 0, 0, 26, 0, 0, 0]);
+        bytes.extend(0u32.to_le_bytes());
+        bytes.resize(26 + 32 * 4, 0);
+        for index in 0..32 {
+            let offset = 154 + index * 2;
+            bytes[26 + index * 4..30 + index * 4].copy_from_slice(&(offset as u32).to_le_bytes());
+        }
+        bytes.resize(218, 0); // each referenced IFD has a zero entry count
+
+        assert!(sony_correction_metadata(&bytes).is_empty());
     }
 
     #[test]
@@ -3105,5 +3546,159 @@ mod tests {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod capture_offset_tests {
+    use super::*;
+
+    #[test]
+    fn real_jpeg_capture_offset_is_read_without_rewriting_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("hawaii.jpg");
+        image::RgbImage::from_pixel(8, 6, image::Rgb([40, 90, 120]))
+            .save(&path)
+            .unwrap();
+        let mut metadata = Metadata::new();
+        metadata.set_tag(ExifTag::DateTimeOriginal("2026:10:19 23:30:00".into()));
+        metadata.set_tag(ExifTag::OffsetTimeOriginal("-10:00".into()));
+        metadata.write_to_file(&path).unwrap();
+        let before = std::fs::read(&path).unwrap();
+        let expected = DateTime::parse_from_rfc3339("2026-10-20T09:30:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        assert_eq!(try_get_exif_creation_date(&path), Some(expected));
+        let decoded = extract_metadata(&before).unwrap();
+        assert_eq!(
+            decoded.get("OffsetTimeOriginal").map(String::as_str),
+            Some("-10:00")
+        );
+        assert_eq!(std::fs::read(path).unwrap(), before);
+    }
+
+    #[test]
+    fn raw_offsets_cover_rollovers_fractional_zones_and_invalid_fallbacks() {
+        for (date, offset, expected) in [
+            ("2026:10:19 23:30:00", "-10:00", "2026-10-20T09:30:00Z"),
+            ("2026-10-20 18:30:00", "+09:00", "2026-10-20T09:30:00Z"),
+            ("2026:01:01 00:15:00", "+05:45", "2025-12-31T18:30:00Z"),
+            ("2026:01:01 00:00:00", "Z", "2026-01-01T00:00:00Z"),
+        ] {
+            let actual = parse_raw_creation_date(Some(date), [Some(offset), None]);
+            assert_eq!(
+                actual,
+                Some(
+                    DateTime::parse_from_rfc3339(expected)
+                        .unwrap()
+                        .with_timezone(&Utc)
+                )
+            );
+        }
+        for bad in ["+24:00", "-10:60", "9:00", "no zone", "+é:00"] {
+            assert!(parse_capture_offset(bad).is_none());
+        }
+        let date = "2026:10:19 23:30:00";
+        let legacy = creation_datetime_to_utc(
+            NaiveDateTime::parse_from_str(date, EXIF_DATETIME_FORMAT).unwrap(),
+        );
+        assert_eq!(
+            parse_raw_creation_date(Some(date), [Some("invalid"), None]),
+            Some(legacy)
+        );
+        assert_eq!(
+            parse_raw_creation_date(Some(date), [Some("invalid"), Some("-10:00")]),
+            parse_raw_creation_date(Some(date), [Some("-10:00"), None])
+        );
+    }
+}
+
+#[cfg(test)]
+mod readonly_query_tests {
+    use super::*;
+    fn snapshot(paths: &[&Path]) -> Vec<(Vec<u8>, std::time::SystemTime)> {
+        paths
+            .iter()
+            .map(|p| {
+                (
+                    fs::read(p).unwrap(),
+                    p.metadata().unwrap().modified().unwrap(),
+                )
+            })
+            .collect()
+    }
+    #[test]
+    fn queries_preserve_long_primary_legacy_physical_exif_and_cache_files() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("source.jpg");
+        let mut encoded = Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(2, 1, image::Rgb([30, 60, 90])))
+            .write_to(&mut encoded, image::ImageFormat::Jpeg)
+            .unwrap();
+        let mut bytes = encoded.into_inner();
+        let mut tags = Metadata::new();
+        tags.set_tag(ExifTag::Make("Canon".into()));
+        tags.write_to_vec(&mut bytes, FileExtension::JPEG).unwrap();
+        fs::write(&source, &bytes).unwrap();
+        let primary = get_primary_sidecar_path(&source);
+        let legacy = get_rrexif_path(&source);
+        let cache = directory.path().join("exif-cache.json");
+        fs::write(&legacy, r#"{"Make":"Legacy","unknown":"keep"}"#).unwrap();
+        let (mtime, size) = get_file_stamp(&source).unwrap();
+        fs::write(&cache,serde_json::to_vec(&serde_json::json!({"source.jpg":{"mtime_ns":mtime,"size":size,"data":{"Make":"Cache"},"future":42}})).unwrap()).unwrap();
+        for primary_exif in [
+            serde_json::json!({"Make":"Primary","LongField":"z".repeat(900)}),
+            serde_json::Value::Null,
+        ] {
+            fs::write(&primary,serde_json::to_vec(&serde_json::json!({"version":1,"rating":0,"exif":primary_exif,"adjustments":{"exposure":0.7},"future_owner_field":{"keep":true}})).unwrap()).unwrap();
+            serde_json::from_slice::<ImageMetadata>(&fs::read(&primary).unwrap()).unwrap();
+            let paths = [
+                source.as_path(),
+                primary.as_path(),
+                legacy.as_path(),
+                cache.as_path(),
+            ];
+            let before = snapshot(&paths);
+            let exif = read_exif_for_query(&primary, &source).unwrap();
+            if primary_exif.is_null() {
+                assert_eq!(exif["Make"], "Legacy");
+            } else {
+                assert_eq!(exif["Make"], "Primary");
+                assert!(exif["LongField"].len() < 500);
+            }
+            assert_eq!(query_cache_file(&source, &cache).unwrap()["Make"], "Cache");
+            assert_eq!(snapshot(&paths), before);
+        }
+        fs::remove_file(&legacy).unwrap();
+        let paths = [source.as_path(), primary.as_path(), cache.as_path()];
+        let before = snapshot(&paths);
+        assert_eq!(
+            read_exif_for_query(&primary, &source).unwrap()["Make"],
+            "Canon"
+        );
+        assert_eq!(snapshot(&paths), before);
+        let virtual_sidecar = directory.path().join("source-copy.rrdata");
+        fs::write(
+            &virtual_sidecar,
+            r#"{"version":1,"rating":0,"adjustments":{"exposure":1},"future":"keep"}"#,
+        )
+        .unwrap();
+        fs::write(
+            &primary,
+            r#"{"version":1,"rating":0,"adjustments":null,"exif":{"Make":"Physical primary"},"future":"keep"}"#,
+        )
+        .unwrap();
+        let paths = [
+            source.as_path(),
+            primary.as_path(),
+            virtual_sidecar.as_path(),
+            cache.as_path(),
+        ];
+        let before = snapshot(&paths);
+        assert_eq!(
+            read_exif_for_query(&virtual_sidecar, &source).unwrap()["Make"],
+            "Physical primary"
+        );
+        assert_eq!(snapshot(&paths), before);
     }
 }

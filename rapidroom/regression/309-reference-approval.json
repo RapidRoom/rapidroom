@@ -1,0 +1,15 @@
+{
+  "approval_quote": "approve 309",
+  "approved_by": "maintainer (yojen7)",
+  "date": "2026-10-16",
+  "relayed_by": "vega",
+  "hcom_messages": [64728, 64753],
+  "reviewer_ack": 64760,
+  "scope": "J21 taste and #334 reference refresh; then queue-aware main refresh and Ravi final; merge still requires exact head/base checks and queue",
+  "existing_head": "dd4ec5f59c9b9cde7b935a90c7da560170f47672",
+  "ci_artifact_run": "https://github.com/RapidRoom/rapidroom/actions/runs/38968264930",
+  "ci_reference_sha256": "a79de454a131e3da39e21e77bc17523f342998f98bfbd968d789222847efe7c6",
+  "ci_scope": "18 software-rendered fixtures:16 unchanged, neutral Sony15mpcompressed and Pixel7DNG intentionally changed. Same-run determinism passed. Integrated head must pass ordinary regression against this reference.",
+  "local_reference_scope": "60 native GPU renders: only the eight previously reviewed neutral Sony/DNG policy changes are approved; local canonical publication awaits integrated render verification.",
+  "integration_base": "319ccc42f5639ad3a0bc0b0fc024f775114db947"
+}

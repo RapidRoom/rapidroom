@@ -1,6 +1,6 @@
 # Historical pre-fix integration evidence
 
-**Superseded for current PR179 validation by [current upstream and corrected Sony WB evidence](current-eb3556bc/README.md), tested at `6b3ac875`.** This parent directory records the earlier pre-fix `4bea590b` attribution controls; its Sony output contains the diagnosed cast. References remain frozen pending Josh approval.
+**Superseded for current PR179 validation by [current upstream and corrected Sony WB evidence](current-eb3556bc/README.md), tested at `6b3ac875`.** This parent directory records the earlier pre-fix `4bea590b` attribution controls; its Sony output contains the diagnosed cast. References remain frozen pending maintainer approval.
 
 # RapidRAW v1.6.5 integration review (#175)
 
@@ -43,7 +43,7 @@ images. Full60 measurements and pixel hashes are in the comparison JSON files.
 This is a regression comparison, not a Lightroom accuracy or quality score.
 
 **The frozen reference, reference manifest, bless log and tolerances were not
-updated. Josh must inspect these changes before any re-bless or merge.**
+updated. The maintainer must inspect these changes before any re-bless or merge.**
 
 ## Attribution method and scope
 
@@ -182,7 +182,7 @@ tone recipe and 8.252 in the AgX recipe. For this input the Kelvin WB increment
 has mean absolute differences 3446.649 / 2714.990 codes; A/D65 interpolation
 reduces the difference against int7 to 2539.374 / 1853.379 codes before later
 tone changes. These measurements account for the changed production paths;
-they do not establish that the resulting color is acceptable. Josh should
+they do not establish that the resulting color is acceptable. The maintainer should
 explicitly judge this camera case before accepting the WB changes.
 
 ### canon-r50-24mp-craw — busy-tone-color-detail

@@ -1,0 +1,12 @@
+{
+  "id": "preview-load-race",
+  "title": "Avoid false preview errors while photos load",
+  "category": "fix",
+  "landed": "2026-10-28",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Treats a queued preview that finds no loaded image during the next photo's load window as superseded, matching the existing frontend cancellation behavior without hiding other worker errors."
+}

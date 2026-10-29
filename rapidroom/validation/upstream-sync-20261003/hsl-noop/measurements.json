@@ -50,12 +50,12 @@
     "busy-agx-lut-effects": {
       "source": "baseline/adjustments/busy-agx-lut-effects.json",
       "sha256": "c6c495efaa8a7b6b922ede3005a9758af777c20a47f9609cb1a9f57b591dc5bb",
-      "resolved": "/home/josh/code/rapidraw-project/samples/baseline-codex-hsl-72/_env/adjustments/busy-agx-lut-effects.json"
+      "resolved": "~/code/rapidraw-project/samples/baseline-codex-hsl-72/_env/adjustments/busy-agx-lut-effects.json"
     },
     "busy-tone-color-detail": {
       "source": "baseline/adjustments/busy-tone-color-detail.json",
       "sha256": "8d496c24768c54e7f9276392b0adcdd27e5f2f76400fc6501a9b23722e2bd97d",
-      "resolved": "/home/josh/code/rapidraw-project/samples/baseline-codex-hsl-72/_env/adjustments/busy-tone-color-detail.json"
+      "resolved": "~/code/rapidraw-project/samples/baseline-codex-hsl-72/_env/adjustments/busy-tone-color-detail.json"
     }
   },
   "native_checks": {

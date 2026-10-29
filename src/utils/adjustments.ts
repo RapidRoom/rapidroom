@@ -1,8 +1,10 @@
 import { Crop } from 'react-image-crop';
 import { v4 as uuidv4 } from 'uuid';
+import type { ParseKeys } from 'i18next';
 import { SubMask, SubMaskMode } from '../components/panel/right/Masks';
 import type { AdjustmentLayout, AppSettings } from '../components/ui/AppProperties';
 import type { WhiteBalance } from './whiteBalance';
+import defaultAdjustments from './defaultAdjustments.json';
 
 export enum ActiveChannel {
   Blue = 'blue',
@@ -22,6 +24,12 @@ export enum DisplayMode {
 export enum PasteMode {
   Merge = 'merge',
   Replace = 'replace',
+}
+
+export enum AutoAdjustMode {
+  Subtle = 'subtle',
+  Normal = 'normal',
+  Strong = 'strong',
 }
 
 export interface CopyPasteSettings {
@@ -62,13 +70,35 @@ export enum ColorGrading {
   Shadows = 'shadows',
 }
 
+export enum DenoiseMethod {
+  Ai = 'ai',
+  Bm3d = 'bm3d',
+}
+
+export const getAiDenoiseEnablePatch = (aiProvider?: string): Partial<Adjustments> => ({
+  aiDenoiseEnabled: true,
+  aiDenoiseMethod: aiProvider === 'ai-free' ? DenoiseMethod.Bm3d : DenoiseMethod.Ai,
+});
+
 export enum DetailsAdjustment {
+  AiDenoiseAmount = 'aiDenoiseAmount',
+  AiDenoiseDetail = 'aiDenoiseDetail',
+  AiDenoiseEnabled = 'aiDenoiseEnabled',
+  AiDenoiseMethod = 'aiDenoiseMethod',
   Clarity = 'clarity',
   Dehaze = 'dehaze',
   Structure = 'structure',
   Centré = 'centré',
+  CentréX = 'centréX',
+  CentréY = 'centréY',
   ColorNoiseReduction = 'colorNoiseReduction',
   LumaNoiseReduction = 'lumaNoiseReduction',
+  NegativeBlueWeight = 'negativeBlueWeight',
+  NegativeContrast = 'negativeContrast',
+  NegativeConversionEnabled = 'negativeConversionEnabled',
+  NegativeExposure = 'negativeExposure',
+  NegativeGreenWeight = 'negativeGreenWeight',
+  NegativeRedWeight = 'negativeRedWeight',
   Sharpness = 'sharpness',
   SharpnessThreshold = 'sharpnessThreshold',
   ChromaticAberrationRedCyan = 'chromaticAberrationRedCyan',
@@ -86,6 +116,8 @@ export enum Effect {
   LutSize = 'lutSize',
   LutIsSceneReferred = 'lutIsSceneReferred',
   VignetteAmount = 'vignetteAmount',
+  VignetteCenterX = 'vignetteCenterX',
+  VignetteCenterY = 'vignetteCenterY',
   VignetteFeather = 'vignetteFeather',
   VignetteMidpoint = 'vignetteMidpoint',
   VignetteRoundness = 'vignetteRoundness',
@@ -242,12 +274,19 @@ export interface ParametricCurve {
 export interface Adjustments {
   activeTools: ActiveTools;
   [index: string]: any;
+  aiDenoiseAmount: number;
+  aiDenoiseDetail: number;
+  aiDenoiseEnabled: boolean;
+  aiDenoiseMethod: DenoiseMethod;
   aiPatches: Array<AiPatch>;
   aspectRatio: number | null;
   baselineExposure: boolean;
+  cameraExposureCompensation: boolean;
   blacks: number;
   brightness: number;
   centré: number;
+  centréX: number;
+  centréY: number;
   clarity: number;
   chromaticAberrationBlueYellow: number;
   chromaticAberrationRedCyan: number;
@@ -302,6 +341,7 @@ export interface Adjustments {
   fogTemperature: number;
   fogTint: number;
   lensCorrectionMode: 'auto' | 'manual';
+  cameraLensCorrectionVersion?: 0 | 1;
   lensDistortionAmount: number;
   lensVignetteAmount: number;
   lensTcaAmount: number;
@@ -331,6 +371,18 @@ export interface Adjustments {
   lutSize?: number;
   lutIsSceneReferred?: boolean;
   masks: Array<MaskContainer>;
+  monochromeEnabled: boolean;
+  monochromeFilm: MonochromeFilm;
+  monochromeFilterHue: number;
+  monochromeFilterStrength: number;
+  monochromeMix: MonochromeMix;
+  monochromeToning: MonochromeToning;
+  negativeBlueWeight: number;
+  negativeContrast: number;
+  negativeConversionEnabled: boolean;
+  negativeExposure: number;
+  negativeGreenWeight: number;
+  negativeRedWeight: number;
   orientationSteps: number;
   rotation: number;
   saturation: number;
@@ -352,6 +404,8 @@ export interface Adjustments {
   transformYOffset: number;
   vibrance: number;
   vignetteAmount: number;
+  vignetteCenterX: number;
+  vignetteCenterY: number;
   vignetteFeather: number;
   vignetteMidpoint: number;
   vignetteRoundness: number;
@@ -479,6 +533,36 @@ interface Hsl {
   yellows: HueSatLum;
 }
 
+export enum MonochromeFilm {
+  Neutral = 'neutral',
+  Panchromatic = 'panchromatic',
+  Balanced = 'balanced',
+  OrthoPanchromatic = 'orthoPanchromatic',
+  ExtendedRed = 'extendedRed',
+  Orthochromatic = 'orthochromatic',
+  Infrared = 'infrared',
+}
+
+export interface MonochromeMix {
+  [index: string]: number;
+  aquas: number;
+  blues: number;
+  greens: number;
+  magentas: number;
+  oranges: number;
+  purples: number;
+  reds: number;
+  yellows: number;
+}
+
+export interface MonochromeToning {
+  balance: number;
+  highlightHue: number;
+  highlightSaturation: number;
+  shadowHue: number;
+  shadowSaturation: number;
+}
+
 export interface MaskAdjustments {
   activeTools: ActiveTools;
   [index: string]: any;
@@ -514,6 +598,7 @@ export interface MaskAdjustments {
 }
 
 export interface MaskContainer {
+  relativeToImage?: boolean;
   adjustments: MaskAdjustments;
   id?: any;
   invert: boolean;
@@ -549,16 +634,6 @@ const INITIAL_COLOR_GRADING: ColorGradingProps = {
   highlights: { hue: 0, saturation: 0, luminance: 0 },
   midtones: { hue: 0, saturation: 0, luminance: 0 },
   shadows: { hue: 0, saturation: 0, luminance: 0 },
-};
-
-const INITIAL_COLOR_CALIBRATION: ColorCalibration = {
-  shadowsTint: 0,
-  redHue: 0,
-  redSaturation: 0,
-  greenHue: 0,
-  greenSaturation: 0,
-  blueHue: 0,
-  blueSaturation: 0,
 };
 
 export const DEFAULT_PARAMETRIC_CURVE_SETTINGS: ParametricCurveSettings = {
@@ -651,121 +726,16 @@ export const INITIAL_MASK_CONTAINER: MaskContainer = {
   visible: true,
 };
 
-export const INITIAL_ADJUSTMENTS: Adjustments = {
-  activeTools: {},
-  aiPatches: [],
-  aspectRatio: null,
-  baselineExposure: true,
-  blacks: 0,
-  brightness: 0,
-  centré: 0,
-  clarity: 0,
-  chromaticAberrationBlueYellow: 0,
-  chromaticAberrationRedCyan: 0,
-  colorCalibration: { ...INITIAL_COLOR_CALIBRATION },
-  colorGrading: { ...INITIAL_COLOR_GRADING },
-  colorNoiseReduction: 0,
-  contrast: 0,
-  crop: null,
-  curves: getDefaultCurves(),
-  pointCurves: getDefaultCurves(),
-  parametricCurve: getDefaultParametricCurve(),
-  curveMode: 'point',
-  dehaze: 0,
-  exposure: 0,
-  flipHorizontal: false,
-  flipVertical: false,
-  flareAmount: 0,
-  glowAmount: 0,
-  grainAmount: 0,
-  grainRoughness: 50,
-  grainSize: 25,
-  guidedPerspective: { enabled: false, lines: [], autoCrop: true },
-  halationAmount: 0,
-  highlights: 0,
-  hsl: {
-    aquas: { hue: 0, saturation: 0, luminance: 0 },
-    blues: { hue: 0, saturation: 0, luminance: 0 },
-    greens: { hue: 0, saturation: 0, luminance: 0 },
-    magentas: { hue: 0, saturation: 0, luminance: 0 },
-    oranges: { hue: 0, saturation: 0, luminance: 0 },
-    purples: { hue: 0, saturation: 0, luminance: 0 },
-    reds: { hue: 0, saturation: 0, luminance: 0 },
-    yellows: { hue: 0, saturation: 0, luminance: 0 },
-  },
-  hue: 0,
-  lensBlurAmount: 40,
-  lensBlurDiffusion: 0,
-  lensBlurShape: 'circle',
-  lensBlurDepthMap: null,
-  lensBlurEnabled: false,
-  lensBlurMaxDepth: 100,
-  lensBlurMaxFade: 20,
-  lensBlurMinDepth: 20,
-  lensBlurMinFade: 20,
-  relightEnabled: false,
-  relightNormalMap: null,
-  relightLights: [],
-  relightAmbient: 0,
-  relightSoftness: 25,
-  relightShine: 0,
-  relightShadows: false,
-  relightShadowSoftness: 15,
-  fogEnabled: false,
-  fogDepthMap: null,
-  fogAmount: 50,
-  fogStart: 0,
-  fogDensity: 50,
-  fogHeight: 0,
-  fogVariation: 25,
-  fogGlow: 25,
-  fogTemperature: 0,
-  fogTint: 0,
-  lensCorrectionMode: 'manual',
-  lensDistortionAmount: 100,
-  lensVignetteAmount: 100,
-  lensTcaAmount: 100,
-  lensDistortionEnabled: true,
-  lensTcaEnabled: true,
-  lensVignetteEnabled: true,
-  lensDistortionParams: null,
-  lensMaker: null,
-  lensModel: null,
-  lumaNoiseReduction: 0,
-  lutData: null,
-  lutIntensity: 100,
-  lutName: null,
-  lutPath: null,
-  lutSize: 0,
-  lutIsSceneReferred: false,
-  masks: [],
-  orientationSteps: 0,
-  rotation: 0,
-  saturation: 0,
-  shadows: 0,
-  sharpness: 0,
-  sharpnessThreshold: 15,
-  showClipping: false,
-  structure: 0,
-  temperature: 0,
-  tint: 0,
-  toneMapper: 'basic',
-  transformDistortion: 0,
-  transformVertical: 0,
-  transformHorizontal: 0,
-  transformRotate: 0,
-  transformAspect: 0,
-  transformScale: 100,
-  transformXOffset: 0,
-  transformYOffset: 0,
-  vibrance: 0,
-  vignetteAmount: 0,
-  vignetteFeather: 50,
-  vignetteMidpoint: 50,
-  vignetteRoundness: 0,
-  whiteBalance: null,
-  whites: 0,
-};
+// Adjustments has an index signature, so keyof alone would accept any object.
+// Optional RapidRoom keys (for example cameraLensCorrectionVersion) have no default.
+type DeclaredKeys<T> = {
+  [K in keyof T]-?: string extends K ? never : object extends Pick<T, K> ? never : K;
+}[keyof T];
+
+export const INITIAL_ADJUSTMENTS: Adjustments = defaultAdjustments satisfies Record<
+  DeclaredKeys<Adjustments>,
+  unknown
+> as unknown as Adjustments;
 
 const deepCloneCurves = (curves: any): Curves => ({
   blue: curves?.blue?.map((p: Coord) => ({ ...p })) || [
@@ -832,6 +802,22 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
       if (!VALID_SUB_MASK_MODES.includes(normalized.mode)) {
         normalized.mode = SubMaskMode.Additive;
       }
+      // Old GUI drawing setup seeded both radial and linear geometry. These
+      // unused placeholders must not invalidate an otherwise ordinary edit.
+      if (normalized.parameters && ['radial', 'linear'].includes(normalized.type ?? '')) {
+        normalized.parameters = { ...normalized.parameters };
+        const obsolete = normalized.type === 'radial' ? ['startX', 'startY', 'endX', 'endY'] : ['centerX', 'centerY'];
+        for (const key of obsolete) {
+          if (normalized.parameters[key as keyof typeof normalized.parameters] === -10000) {
+            delete normalized.parameters[key as keyof typeof normalized.parameters];
+          }
+        }
+        if (normalized.type === 'linear') {
+          for (const key of ['radiusX', 'radiusY'] as const) {
+            if (normalized.parameters[key] === 0) delete normalized.parameters[key];
+          }
+        }
+      }
       return normalized;
     });
   };
@@ -895,6 +881,7 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
       autoCrop: loadedAdjustments.guidedPerspective?.autoCrop ?? true,
     },
     baselineExposure: loadedAdjustments.baselineExposure ?? false,
+    cameraExposureCompensation: loadedAdjustments.cameraExposureCompensation ?? false,
     lutIsSceneReferred: loadedAdjustments.lutIsSceneReferred ?? false,
     flareAmount: loadedAdjustments.flareAmount ?? INITIAL_ADJUSTMENTS.flareAmount,
     glowAmount: loadedAdjustments.glowAmount ?? INITIAL_ADJUSTMENTS.glowAmount,
@@ -949,6 +936,8 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
     colorCalibration: { ...INITIAL_ADJUSTMENTS.colorCalibration, ...(loadedAdjustments.colorCalibration || {}) },
     colorGrading: normalizeColorGrading(loadedAdjustments.colorGrading),
     hsl: normalizeHsl(loadedAdjustments.hsl, INITIAL_ADJUSTMENTS.hsl),
+    monochromeMix: { ...INITIAL_ADJUSTMENTS.monochromeMix, ...(loadedAdjustments.monochromeMix || {}) },
+    monochromeToning: { ...INITIAL_ADJUSTMENTS.monochromeToning, ...(loadedAdjustments.monochromeToning || {}) },
     curves: loadedAdjustments.curves ? deepCloneCurves(loadedAdjustments.curves) : getDefaultCurves(),
     pointCurves: loadedAdjustments.pointCurves ? deepCloneCurves(loadedAdjustments.pointCurves) : getDefaultCurves(),
     parametricCurve: loadedAdjustments.parametricCurve
@@ -962,8 +951,17 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
   };
 };
 
+export const MONOCHROME_ADJUSTMENT_KEYS = [
+  'monochromeEnabled',
+  'monochromeFilm',
+  'monochromeFilterHue',
+  'monochromeFilterStrength',
+  'monochromeMix',
+  'monochromeToning',
+] as const;
+
 export interface AdjustmentGroup {
-  label: string;
+  label: ParseKeys;
   keys: string[];
 }
 
@@ -971,7 +969,7 @@ export const ADJUSTMENT_GROUPS: Record<string, AdjustmentGroup[]> = {
   basic: [
     {
       label: 'modals.copyPaste.groups.exposureToneMapper',
-      keys: [BasicAdjustment.Exposure, 'toneMapper'],
+      keys: [BasicAdjustment.Exposure, 'toneMapper', 'baselineExposure', 'cameraExposureCompensation'],
     },
     {
       label: 'modals.copyPaste.groups.tone',
@@ -1002,6 +1000,10 @@ export const ADJUSTMENT_GROUPS: Record<string, AdjustmentGroup[]> = {
     { label: 'modals.copyPaste.groups.colorGrading', keys: [ColorAdjustment.ColorGrading] },
     { label: 'modals.copyPaste.groups.colorMixer', keys: [ColorAdjustment.Hsl] },
     { label: 'modals.copyPaste.groups.colorCalibration', keys: ['colorCalibration'] },
+    {
+      label: 'modals.copyPaste.groups.blackWhite',
+      keys: [...MONOCHROME_ADJUSTMENT_KEYS],
+    },
   ],
   details: [
     {
@@ -1011,6 +1013,8 @@ export const ADJUSTMENT_GROUPS: Record<string, AdjustmentGroup[]> = {
         DetailsAdjustment.Structure,
         DetailsAdjustment.Dehaze,
         DetailsAdjustment.Centré,
+        DetailsAdjustment.CentréX,
+        DetailsAdjustment.CentréY,
       ],
     },
     {
@@ -1022,14 +1026,41 @@ export const ADJUSTMENT_GROUPS: Record<string, AdjustmentGroup[]> = {
       keys: [DetailsAdjustment.LumaNoiseReduction, DetailsAdjustment.ColorNoiseReduction],
     },
     {
+      label: 'modals.copyPaste.groups.aiDenoise',
+      keys: [
+        DetailsAdjustment.AiDenoiseEnabled,
+        DetailsAdjustment.AiDenoiseMethod,
+        DetailsAdjustment.AiDenoiseAmount,
+        DetailsAdjustment.AiDenoiseDetail,
+      ],
+    },
+    {
       label: 'modals.copyPaste.groups.chromaticAberration',
       keys: [DetailsAdjustment.ChromaticAberrationRedCyan, DetailsAdjustment.ChromaticAberrationBlueYellow],
+    },
+    {
+      label: 'modals.copyPaste.groups.negativeConversion',
+      keys: [
+        DetailsAdjustment.NegativeConversionEnabled,
+        DetailsAdjustment.NegativeRedWeight,
+        DetailsAdjustment.NegativeGreenWeight,
+        DetailsAdjustment.NegativeBlueWeight,
+        DetailsAdjustment.NegativeExposure,
+        DetailsAdjustment.NegativeContrast,
+      ],
     },
   ],
   effects: [
     {
       label: 'modals.copyPaste.groups.vignette',
-      keys: [Effect.VignetteAmount, Effect.VignetteFeather, Effect.VignetteMidpoint, Effect.VignetteRoundness],
+      keys: [
+        Effect.VignetteAmount,
+        Effect.VignetteFeather,
+        Effect.VignetteMidpoint,
+        Effect.VignetteRoundness,
+        Effect.VignetteCenterX,
+        Effect.VignetteCenterY,
+      ],
     },
     { label: 'modals.copyPaste.groups.grain', keys: [Effect.GrainAmount, Effect.GrainRoughness, Effect.GrainSize] },
     {
@@ -1045,6 +1076,45 @@ export const ADJUSTMENT_GROUPS: Record<string, AdjustmentGroup[]> = {
         Effect.LutSize,
         Effect.LutData,
         Effect.LutIsSceneReferred,
+      ],
+    },
+    {
+      label: 'modals.copyPaste.groups.lensBlur',
+      keys: [
+        Effect.LensBlurEnabled,
+        Effect.LensBlurAmount,
+        Effect.lensBlurDiffusion,
+        Effect.LensBlurShape,
+        Effect.LensBlurMinDepth,
+        Effect.LensBlurMaxDepth,
+        Effect.LensBlurMinFade,
+        Effect.LensBlurMaxFade,
+      ],
+    },
+    {
+      label: 'modals.copyPaste.groups.fog',
+      keys: [
+        Effect.FogEnabled,
+        Effect.FogAmount,
+        Effect.FogStart,
+        Effect.FogDensity,
+        Effect.FogHeight,
+        Effect.FogVariation,
+        Effect.FogGlow,
+        Effect.FogTemperature,
+        Effect.FogTint,
+      ],
+    },
+    {
+      label: 'modals.copyPaste.groups.relight',
+      keys: [
+        Effect.RelightEnabled,
+        Effect.RelightLights,
+        Effect.RelightAmbient,
+        Effect.RelightSoftness,
+        Effect.RelightShine,
+        Effect.RelightShadows,
+        Effect.RelightShadowSoftness,
       ],
     },
   ],
@@ -1102,6 +1172,8 @@ export const ADJUSTMENT_SECTIONS: Sections = {
     BasicAdjustment.Whites,
     BasicAdjustment.Blacks,
     BasicAdjustment.Exposure,
+    'baselineExposure',
+    'cameraExposureCompensation',
     'toneMapper',
   ],
   curves: ['curves', 'pointCurves', 'parametricCurve', 'curveMode'],
@@ -1115,18 +1187,31 @@ export const ADJUSTMENT_SECTIONS: Sections = {
     ColorAdjustment.ColorGrading,
     'colorCalibration',
     ColorAdjustment.Hue,
+    ...MONOCHROME_ADJUSTMENT_KEYS,
   ],
   details: [
     DetailsAdjustment.Clarity,
     DetailsAdjustment.Dehaze,
     DetailsAdjustment.Structure,
     DetailsAdjustment.Centré,
+    DetailsAdjustment.CentréX,
+    DetailsAdjustment.CentréY,
     DetailsAdjustment.Sharpness,
     DetailsAdjustment.SharpnessThreshold,
     DetailsAdjustment.LumaNoiseReduction,
     DetailsAdjustment.ColorNoiseReduction,
+    DetailsAdjustment.AiDenoiseEnabled,
+    DetailsAdjustment.AiDenoiseMethod,
+    DetailsAdjustment.AiDenoiseAmount,
+    DetailsAdjustment.AiDenoiseDetail,
     DetailsAdjustment.ChromaticAberrationRedCyan,
     DetailsAdjustment.ChromaticAberrationBlueYellow,
+    DetailsAdjustment.NegativeConversionEnabled,
+    DetailsAdjustment.NegativeRedWeight,
+    DetailsAdjustment.NegativeGreenWeight,
+    DetailsAdjustment.NegativeBlueWeight,
+    DetailsAdjustment.NegativeExposure,
+    DetailsAdjustment.NegativeContrast,
   ],
   effects: [
     CreativeAdjustment.GlowAmount,
@@ -1144,6 +1229,8 @@ export const ADJUSTMENT_SECTIONS: Sections = {
     Effect.VignetteFeather,
     Effect.VignetteMidpoint,
     Effect.VignetteRoundness,
+    Effect.VignetteCenterX,
+    Effect.VignetteCenterY,
     Effect.LensBlurEnabled,
     Effect.LensBlurAmount,
     Effect.lensBlurDiffusion,
@@ -1172,6 +1259,56 @@ export const ADJUSTMENT_SECTIONS: Sections = {
     Effect.FogTemperature,
     Effect.FogTint,
   ],
+};
+
+const SECTION_KEY_OWNERS: Record<string, string> = Object.fromEntries(
+  Object.entries(ADJUSTMENT_SECTIONS).flatMap(([section, keys]) => keys.map((key) => [key, section])),
+);
+
+export const areSectionPropsEqual =
+  (section: string) =>
+  (prev: Record<string, unknown>, next: Record<string, unknown>): boolean => {
+    const propKeys = new Set([...Object.keys(prev), ...Object.keys(next)]);
+    for (const key of propKeys) {
+      if (key !== 'adjustments' && !Object.is(prev[key], next[key])) return false;
+    }
+
+    const prevAdjustments = prev.adjustments as Record<string, unknown> | undefined;
+    const nextAdjustments = next.adjustments as Record<string, unknown> | undefined;
+    if (prevAdjustments === nextAdjustments) return true;
+    if (!prevAdjustments || !nextAdjustments) return false;
+
+    const adjustmentKeys = new Set([...Object.keys(prevAdjustments), ...Object.keys(nextAdjustments)]);
+    for (const key of adjustmentKeys) {
+      if (Object.is(prevAdjustments[key], nextAdjustments[key])) continue;
+      const owner = SECTION_KEY_OWNERS[key];
+      if (owner === undefined || owner === section) return false;
+    }
+    return true;
+  };
+
+const CANVAS_ADJUSTMENT_KEYS = new Set([
+  'vignetteCenterX',
+  'vignetteCenterY',
+  'vignetteMidpoint',
+  'vignetteRoundness',
+  'centréX',
+  'centréY',
+  'relightLights',
+]);
+
+const TONAL_ADJUSTMENT_KEYS = new Set(
+  Object.keys(SECTION_KEY_OWNERS).filter((key) => !CANVAS_ADJUSTMENT_KEYS.has(key)),
+);
+
+export const omitTonalAdjustments = (adjustments: Adjustments): Adjustments => {
+  const result: Record<string, unknown> = {};
+  for (const key in adjustments) {
+    if (!TONAL_ADJUSTMENT_KEYS.has(key)) {
+      result[key] = (adjustments as unknown as Record<string, unknown>)[key];
+    }
+  }
+  return result as unknown as Adjustments;
 };
 
 const reconcileOrder = (defaultOrder: string[], order: string[] = []): string[] => {
@@ -1215,6 +1352,7 @@ export const ADJUSTMENT_SECTION_TOOLS: Record<string, Array<AdjustmentSectionToo
     { id: 'presence', label: 'adjustments.details.presence' },
     { id: 'noiseReduction', label: 'adjustments.details.noiseReduction' },
     { id: 'chromaticAberration', label: 'adjustments.details.chromaticAberration' },
+    { id: 'negativeConversion', label: 'adjustments.details.negativeConversion' },
   ],
   effects: [
     { id: 'creative', label: 'adjustments.effects.creative' },
@@ -1279,7 +1417,6 @@ export const mergeActiveTools = (base: ToolStateSource, overrides: ToolStateSour
 export const getAdjustmentToolOrder = (section: string, toolOrder?: Record<string, string[]>): string[] =>
   reconcileOrder(getAdjustmentSectionToolIds(section), toolOrder?.[section]);
 
-export function createResetAdjustmentsForImage(image: { width: number; height: number } | null): Adjustments {
-  const aspectRatio = image && image.width > 0 && image.height > 0 ? image.width / image.height : null;
-  return { ...INITIAL_ADJUSTMENTS, aspectRatio, aiPatches: [] };
+export function createResetAdjustmentsForImage(_image: { width: number; height: number } | null): Adjustments {
+  return { ...INITIAL_ADJUSTMENTS, aiPatches: [] };
 }

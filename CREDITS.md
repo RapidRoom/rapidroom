@@ -2,6 +2,8 @@
 
 RapidRoom is built on other people's work. This file lists where every non-upstream change came from. Upstream's own thanks are in the [RapidRAW README](README.md#special-thanks).
 
+Filter-exit Undo is adapted from [CyberTimon’s RapidRAW commit 4eb6b2da](https://github.com/CyberTimon/RapidRAW/commit/4eb6b2da6a4d43ec2d137dda1977e6708a060336) and [the rated/rejected restoration fix 18ebf030](https://github.com/CyberTimon/RapidRAW/commit/18ebf0307336e955991a6af3356f7f8ce1f4a21b). yojen7 with Codex adapted snapshots, colour labels and Undo to RapidRoom’s ordered metadata writer and failure rollback.
+
 ## Upstream
 
 - **[RapidRAW](https://github.com/CyberTimon/RapidRAW)** by Timon Käch ([@CyberTimon](https://github.com/CyberTimon)) and its contributors. This is the base of everything here.
@@ -12,6 +14,20 @@ The v1.6.5 sync retains contributions by Timon Käch, marclaliberte, Ramon Speet
 The 2026-10-12 refresh retains baseline exposure and export metadata work by marclaliberte, Italian translations by f-loren and filename-number tokens by apweisskopf in their original upstream commits. RapidRoom conflict reconciliation and regression checks are by Yojen with Codex.
 
 The 2026-10-15 daily refresh retains upstream contributions by Timon Käch, marclaliberte, cl1x, Max (waxm134) and Yojen in normal merge history. Per-tool visibility, capture-time timezone, auto-lens sidecar completion, headless exit codes, mask-drop insertion and layout-aware shortcuts are integrated while preserving RapidRoom additions. Conflict resolution and compatibility work is by yojen7 with Codex.
+
+The Original crop-ratio sentinel is adapted from [apweisskopf’s RapidRAW commit 2fb1ce0d](https://github.com/CyberTimon/RapidRAW/commit/2fb1ce0dccdba88de5923e41056928925615d3b4), with tooltip follow-up by CyberTimon. Yojen adapted it to RapidRoom’s Instagram crop, lens-aware reset and typed MCP paths.
+
+Auto straighten is adapted from marclaliberte’s [RapidRAW series ending at 3daf49e4](https://github.com/CyberTimon/RapidRAW/commit/3daf49e47f7c0c45645d6aa5de5c0d24509de342). The line detector and original regression tests are retained; Yojen adapted crop, async and batch handling to RapidRoom.
+
+Auto Straighten uses [lsdetect 0.3.0 by Patrick Zwerschke](https://github.com/p5k369/lsdetect), under its MIT option. Its [copyright and permission notice](src-tauri/resources/licenses/lsdetect-0.3.0-MIT.txt) ships with the app resources.
+
+Batch Auto Adjust completion is adapted from marclaliberte’s [RapidRAW commit 7fb5fadd](https://github.com/CyberTimon/RapidRAW/commit/7fb5fadd7cb0ad04393e7246548fcac71aa12d6a). Yojen adapted the wait to RapidRoom’s existing atomic sidecar, Card and XMP paths.
+
+Movable vignette and centré centres are adapted from [CyberTimon’s RapidRAW commit b39884b3](https://github.com/CyberTimon/RapidRAW/commit/b39884b38d8f148caef6fd0d52afd264951be329). Yojen adapted the overlay to RapidRoom’s mixer/WB tools, defaults, typed MCP and renderer layout.
+
+## Bounded assistant judge policy
+
+The offline nondecreasing-score and bounded-round policy is adapted from skymanbp’s [autoshade@a1f3507808d1a9d61c44593244a5e6ee2c38cae3](https://github.com/skymanbp/autoshade/tree/a1f3507808d1a9d61c44593244a5e6ee2c38cae3), `src/pipeline.rs` and `src/advisor/judge.rs`, MIT copyright 2026 skymanbp. The notice is retained in `rapidroom/plugin/LICENSES/autoshade-MIT.txt`. Yojen adapted the policy with Codex; the closed move catalogue, generated RapidRoom range projection and local CLI are original integration. No remote model client or external dependency is imported.
 
 ## Individual MCP mask editing
 
@@ -156,7 +172,7 @@ These RapidRAW forks have work we'd like to harvest (with credit) or coordinate 
 
 Native Linux UI smoke harness: yojen7, with Codex. Its optional embedded driver is `tauri-plugin-wdio-webdriver` 1.4.0, © 2024 WebdriverIO Community, MIT, from [webdriverio/desktop-mobile](https://github.com/webdriverio/desktop-mobile). The published crate retains its MIT licence notice.
 
-The strict script CSP and disabled Cloud sign-in prerequisite for issue #119 were implemented by yojen7 with Codex, following the #125 design measurements and Josh’s approved option A. The browser measurement uses Playwright (Microsoft contributors, Apache-2.0); it is a test tool only.
+The strict script CSP and disabled Cloud sign-in prerequisite for issue #119 were implemented by yojen7 with Codex, following the #125 design measurements and the maintainer’s approved option A. The browser measurement uses Playwright (Microsoft contributors, Apache-2.0); it is a test tool only.
 
 Built-in terminal panel and PTY lifecycle: yojen7 with Codex, original work for RapidRoom. Optional `portable-pty` 0.9.0 (MIT, Copyright 2018 Wez Furlong); `@xterm/xterm` 6.0.0 (MIT, the xterm.js authors, SourceLair and Fabrice Bellard); `@xterm/addon-fit` 0.11.0 (MIT, Copyright 2019 the xterm.js authors). Complete notices are retained under `rapidroom/LICENSES/`. No fork code is used for this panel.
 Authenticated MCP endpoint and separate stdio client: original implementation by yojen7, with Codex. Design ideas from 1tuz (stdio adapter and hashed bearer verification, commit `65983e758c40829e0ad61a6664a783fac04d5790`), Irvingouj (optional command shape, commit `69a001d91548c30a1a78aab74c278b5159c4bfec`) and ssarangi (separate-binary pattern). No code was copied from those sources. The existing MCP SDK and original cgasgarth server authorship are retained. Constant-time hash comparison uses the existing `subtle` 2.6.1 crate (BSD-3-Clause).
@@ -224,3 +240,19 @@ The AlreadyApplied photo-versus-preset policy and metadata-only pending-draft/hi
 ## Print colour management
 
 Phase 1 print transforms use [lcms2 6.2.0](https://crates.io/crates/lcms2), the Rust wrapper by Kornel Lesiński, with [LittleCMS](https://www.littlecms.com/) by Marti Maria Saguer, statically bundled through lcms2-sys 4.0.7. Both are MIT licensed; notices are retained in [lcms2-MIT](rapidroom/LICENSES/lcms2-6.2.0-MIT.txt) and [LittleCMS-MIT](rapidroom/LICENSES/LittleCMS-MIT.txt). No profile supplier’s calibration data is implied by the library licence.
+
+### Sigma 20–200 mm Sony E measured profile
+
+Distortion and vignetting data by [mpasson](https://github.com/mpasson/RapidRAW/commit/e8811879180122e571ad229a59997aed648dca11), measured/fitted from 207 Sony ILCE-7CM2 ARWs and distributed under [CC-BY-SA 3.0](rapidroom/LICENSES/sigma-20-200-CC-BY-SA-3.0.txt). RapidRoom's adaptation leaves polynomial TCA out of the active database and labels it “TCA not included”; enabling it requires separate lens validation even though the evaluator supports that format. The [unchanged licensed source](rapidroom/lens-profiles/sigma-20-200/source/local-sigma-20-200.README.md) is retained. Original native-wrapper/tests/database digests were not imported. Integration and synthetic verification use Codex; real-lens file validation remains pending.
+
+## Public MCP reproduction package
+
+The reproduction package is original RapidRoom work by yojen7 with Codex. It
+imports the native evidence harness and PNG helpers from the separately checked
+out [sheldonxxxx/RapidRAW@4494beb9](https://github.com/sheldonxxxx/RapidRAW/commit/4494beb9bae0ee57f420a8292c4f4f6e1dba4bd2),
+retaining their AGPL-3.0 licence and original authorship. No fork implementation
+is vendored into RapidRoom's application. The genuine fixture is CC0 from
+raw.pixls.us; generated pixels and real captures are labelled separately in
+the [fixture manifest](rapidroom/validation/mcp-gap-repro/fixtures.json).
+
+Sony ARW radial metadata correction formulae and knot conventions: independently reimplemented in Rust by yojen7 with Codex from darktable's `src/iop/lens.cc` (`_init_coeffs_md_v1`) and `src/common/exif.cc`. Copyright (C) 2019–2026 darktable developers, GPL-3.0-or-later. See `rapidroom/validation/camera-data/README.md` for pinned reference sources and validation limits.

@@ -8,7 +8,6 @@ import { FileInput, CheckCircle, XCircle, Loader, Ban, ChevronDown, ChevronRight
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
-import type { TFunction } from 'i18next';
 import debounce from 'lodash.debounce';
 import Switch from '../../ui/Switch';
 import Button from '../../ui/Button';
@@ -43,6 +42,9 @@ import Text from '../../ui/Text';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
 import { useEditorStore } from '../../../store/useEditorStore';
 import { useUIStore } from '../../../store/useUIStore';
+import ImmichExportOptions, { useImmichExportAvailable, useImmichExportChoice } from '../../immich/ImmichExportOptions';
+import { prepareImmichExport } from '../../immich/immichApi';
+import { formatBytes } from '../../../utils/formatBytes';
 
 interface ExportPanelProps {
   exportState: ExportState;
@@ -216,21 +218,6 @@ function WatermarkPreview({
   );
 }
 
-const formatBytes = (bytes: number, t: TFunction, decimals = 2) => {
-  if (!+bytes) return `0 ${t('export.bytes.bytes')}`;
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = [
-    t('export.bytes.bytes'),
-    t('export.bytes.kb'),
-    t('export.bytes.mb'),
-    t('export.bytes.gb'),
-    t('export.bytes.tb'),
-  ];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-};
-
 export default function ExportPanel({
   exportState,
   multiSelectedPaths,
@@ -374,6 +361,7 @@ export default function ExportPanel({
       setPrintProfile(null);
       setProfileSelectionGeneration((value) => value + 1);
       useUIStore.getState().setUI({ instagramExportRequest: null });
+      setShowInstagramFraming(false);
       handleApplyPreset(preset);
       if (!appSettings) return;
       const prior = appSettings.exportPresets?.find((p) => p.id === '__last_used__');
@@ -419,7 +407,7 @@ export default function ExportPanel({
         const candidates = [...(appSettings.exportPresets ?? []), ...recipes];
         const recipe =
           candidates.find((p) => p.id === appSettings.lastInstagramExportPresetId && p.instagramRatio) ??
-          recipes.find((p) => p.id === 'recipe-instagram-crop-4x5');
+          recipes.find((p) => p.id === 'recipe-instagram-crop-3x4');
         if (!recipe) throw new Error('Instagram export recipe unavailable');
         initDone.current = true;
         rememberRecipe(recipe);
@@ -444,7 +432,9 @@ export default function ExportPanel({
         ...currentSettingsObject,
         id: '__last_used__',
         name: '__last_used__',
-        lastExportPath: exportPath,
+        lastExportPath: instagramRatio
+          ? appSettings.exportPresets?.find((p) => p.id === '__last_used__')?.lastExportPath
+          : exportPath,
       };
       const updatedPresets = [
         ...(appSettings.exportPresets ?? []).filter((p) => p.id !== '__last_used__'),
@@ -452,7 +442,7 @@ export default function ExportPanel({
       ];
       onSettingsChange({ ...appSettings, exportPresets: updatedPresets });
     },
-    [appSettings, currentSettingsObject, onSettingsChange],
+    [appSettings, currentSettingsObject, onSettingsChange, instagramRatio],
   );
 
   const padRatioWidthField = useParsedTextField(padRatioWidth, setPadRatioWidth, parseRatio);
@@ -495,6 +485,9 @@ export default function ExportPanel({
   const filenameInputRef = useRef<HTMLInputElement>(null);
   const osPlatform = useOsPlatform();
   const isAndroid = osPlatform === 'android';
+  const canExportToImmich = useImmichExportAvailable() && !isAndroid;
+  const destination = destinationType === 'immich' && !canExportToImmich ? 'customFolder' : destinationType;
+  const immichExport = useImmichExportChoice();
 
   const { status, progress, errorMessage } = exportState;
   const isExporting = [Status.Exporting, Status.Cancelling].includes(status);
@@ -513,7 +506,42 @@ export default function ExportPanel({
 
   const numImages = pathsToExport.length;
   const [instagramFrames, setInstagramFrames] = useState<Record<string, InstagramFrame>>({});
-  const [instagramBusy, setInstagramBusy] = useState(true);
+  const [showInstagramFraming, setShowInstagramFraming] = useState(false);
+  useEffect(() => {
+    setInstagramFrames({});
+    setShowInstagramFraming(false);
+  }, [instagramRatio]);
+  const [instagramFolder, setInstagramFolder] = useState('');
+  useEffect(() => {
+    if (!instagramRatio || !isVisible) return;
+    let cancelled = false;
+    void invoke<string>('instagram_export_folder', {
+      folder: appSettings?.instagramExportFolder ?? null,
+      create: false,
+    })
+      .then((folder) => {
+        if (!cancelled) setInstagramFolder(folder);
+      })
+      .catch(() => {
+        if (!cancelled) setInstagramFolder('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [instagramRatio, isVisible, appSettings?.instagramExportFolder]);
+  const chooseInstagramFolder = async () => {
+    try {
+      const folder = await open({
+        directory: true,
+        title: t('export.instagram.chooseFolder'),
+        defaultPath: instagramFolder || undefined,
+      });
+      if (typeof folder === 'string' && appSettings)
+        onSettingsChange({ ...appSettings, instagramExportFolder: folder });
+    } catch (error) {
+      toast.error(String(error));
+    }
+  };
   const onInstagramFrame = useCallback((path: string, frame: InstagramFrame) => {
     setInstagramFrames((frames) => ({ ...frames, [path]: frame }));
   }, []);
@@ -597,7 +625,12 @@ export default function ExportPanel({
   );
 
   useEffect(() => {
-    if (!isPanelReallyActive) return;
+    if (!isPanelReallyActive || instagramRatio || instagramExportRequest !== null) {
+      debouncedEstimateSize.cancel();
+      setIsEstimating(false);
+      setEstimatedSize(null);
+      return;
+    }
 
     const exportSettings: ExportSettings = {
       printProfile,
@@ -609,8 +642,8 @@ export default function ExportPanel({
       keepMetadata,
       preserveTimestamps,
       preserveFolders,
-      destinationType,
-      subfolder,
+      destinationType: instagramRatio && !isAndroid ? 'customFolder' : destination,
+      subfolder: instagramRatio && !isAndroid ? '' : subfolder,
       resize: enableResize ? { mode: resizeMode, value: resizeValue, dontEnlarge } : null,
       border: borderSettings,
       pad: padSettings,
@@ -649,6 +682,7 @@ export default function ExportPanel({
     };
   }, [
     isPanelReallyActive,
+    instagramExportRequest,
     instagramRatio,
     instagramFrames,
     pathsToExport,
@@ -702,30 +736,30 @@ export default function ExportPanel({
     }, 0);
   };
 
+  const submittingExport = useRef(false);
   const handleExport = async () => {
-    if (
-      numImages === 0 ||
-      isExporting ||
-      instagramExportRequest !== null ||
-      !isDpiValid ||
-      (instagramRatio && instagramBusy)
-    )
+    if (numImages === 0 || submittingExport.current || isExporting || instagramExportRequest !== null || !isDpiValid)
       return;
+
+    const currentEditor = useEditorStore.getState();
+    const currentEditPath = selectedImage?.path || null;
+    const currentEditAdjustments =
+      currentEditor.selectedImage?.path === currentEditPath ? currentEditor.adjustments : null;
 
     const exportSettings: ExportSettings = {
       printProfile,
       instagram: instagramRatio ? { ratio: instagramRatio, framesByPath: instagramFrames } : null,
       filenameTemplate,
       overwriteExisting:
-        overwriteExisting && (numImages > 1 || preserveFolders || destinationType === 'originalFolder'),
+        overwriteExisting && (!!instagramRatio || numImages > 1 || preserveFolders || destination === 'originalFolder'),
       jpegQuality,
       tiffBitDepth,
       dpi: supportsDpi ? dpi : undefined,
       keepMetadata,
       preserveTimestamps,
       preserveFolders,
-      destinationType,
-      subfolder,
+      destinationType: instagramRatio && !isAndroid ? 'customFolder' : destination,
+      subfolder: instagramRatio && !isAndroid ? '' : subfolder,
       resize: enableResize ? { mode: resizeMode, value: resizeValue, dontEnlarge } : null,
       border: borderSettings,
       pad: padSettings,
@@ -744,16 +778,29 @@ export default function ExportPanel({
           : null,
     };
 
+    submittingExport.current = true;
     const lastExportPath = appSettings?.exportPresets?.find((p) => p.id === '__last_used__')?.lastExportPath;
 
     try {
       const selectedFormat: FileFormat = FILE_FORMATS.find((format) => format.id === fileFormat) ?? FILE_FORMATS[0];
 
       let outputFolderOrFile = '';
-      const isOriginalFolder = destinationType === 'originalFolder';
-      const shouldChooseOutputFile = numImages === 1 && !preserveFolders && !isOriginalFolder;
+      const isInstagramFolder = !!instagramRatio && !isAndroid;
+      const isOriginalFolder = !isInstagramFolder && destination === 'originalFolder';
+      const isImmich = !isInstagramFolder && destination === 'immich';
+      const shouldChooseOutputFile =
+        !isInstagramFolder && numImages === 1 && !preserveFolders && !isOriginalFolder && !isImmich;
 
-      if (isOriginalFolder) {
+      if (isInstagramFolder) {
+        outputFolderOrFile = await invoke<string>('instagram_export_folder', {
+          folder: appSettings?.instagramExportFolder ?? null,
+          create: true,
+        });
+        setInstagramFolder(outputFolderOrFile);
+      } else if (isImmich) {
+        exportSettings.preserveFolders = false;
+        outputFolderOrFile = await prepareImmichExport(immichExport.album, immichExport.withOriginal);
+      } else if (isOriginalFolder) {
         outputFolderOrFile = 'originalFolderDummy';
       } else if (shouldChooseOutputFile) {
         const template = filenameTemplate || '';
@@ -806,8 +853,11 @@ export default function ExportPanel({
           }))
         )
           return;
+        // The desktop Save dialog already confirms replacement of this exact
+        // path. Automatic names still use the explicit overwrite toggle.
+        if (shouldChooseOutputFile && !isAndroid) exportSettings.overwriteExisting = true;
         if (!isAndroid) {
-          if (isOriginalFolder) {
+          if (isOriginalFolder || isImmich) {
             saveLastUsedPreset(lastExportPath || '');
           } else {
             const dir = shouldChooseOutputFile
@@ -820,9 +870,17 @@ export default function ExportPanel({
           }
         }
 
-        setExportState({ status: Status.Exporting, progress: { current: 0, total: numImages }, errorMessage: '' });
+        setExportState({
+          destination: isOriginalFolder || isImmich || isAndroid ? null : outputFolderOrFile,
+          errorMessage: '',
+          progress: { current: 0, total: numImages },
+          status: Status.Exporting,
+        });
         debouncedSave.flush();
         await waitForPendingEditorSaves();
+        const latestEditor = useEditorStore.getState();
+        const exportAdjustments =
+          latestEditor.selectedImage?.path === currentEditPath ? latestEditor.adjustments : currentEditAdjustments;
         await invoke(Invokes.ExportImages, {
           paths: pathsToExport,
           outputFolderOrFile: outputFolderOrFile,
@@ -830,8 +888,8 @@ export default function ExportPanel({
           baseOriginFolders: rootPaths,
           exportSettings,
           outputFormat: selectedFormat.extensions[0],
-          currentEditPath: selectedImage?.path || null,
-          currentEditAdjustments: adjustmentsRef.current || null,
+          currentEditPath,
+          currentEditAdjustments: exportAdjustments,
         });
       }
     } catch (error) {
@@ -840,6 +898,8 @@ export default function ExportPanel({
         progress,
         status: Status.Error,
       });
+    } finally {
+      submittingExport.current = false;
     }
   };
 
@@ -857,13 +917,7 @@ export default function ExportPanel({
     }
   };
 
-  const canExport =
-    instagramExportRequest === null &&
-    numImages > 0 &&
-    isPadValid &&
-    isBorderValid &&
-    isDpiValid &&
-    (!instagramRatio || !instagramBusy);
+  const canExport = instagramExportRequest === null && numImages > 0 && isPadValid && isBorderValid && isDpiValid;
   const isLut = fileFormat === FileFormats.Cube;
   const itemLabel = isLut ? t('export.labels.lut') : t('export.labels.image');
   const itemLabelPlural = isLut ? t('export.labels.lut_plural') : t('export.labels.image_plural');
@@ -888,14 +942,51 @@ export default function ExportPanel({
             {instagramExportRequest !== null && <p role="status">{t('export.instagram.loading')}</p>}
             {instagramRatio && (
               <Section title={t('export.instagram.title')}>
-                <InstagramFraming
-                  paths={pathsToExport}
-                  ratio={instagramRatio}
-                  active={isVisible && isPanelReallyActive}
+                {!isAndroid && (
+                  <div className="mb-3 space-y-2 text-xs">
+                    <p className="break-all" data-instagram-output-folder>
+                      {instagramFolder || t('export.instagram.defaultFolder')}
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        className="underline"
+                        disabled={isExporting}
+                        onClick={() => void chooseInstagramFolder()}
+                      >
+                        {t('export.instagram.chooseFolder')}
+                      </button>
+                      {appSettings?.instagramExportFolder && (
+                        <button
+                          type="button"
+                          className="underline"
+                          disabled={isExporting}
+                          onClick={() => onSettingsChange({ ...appSettings, instagramExportFolder: null })}
+                        >
+                          {t('export.instagram.useDatedFolder')}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="text-xs underline"
+                  aria-expanded={showInstagramFraming}
                   disabled={isExporting}
-                  onFrame={onInstagramFrame}
-                  onBusy={setInstagramBusy}
-                />
+                  onClick={() => setShowInstagramFraming((visible) => !visible)}
+                >
+                  {t('export.instagram.adjustFrame')}
+                </button>
+                {showInstagramFraming && (
+                  <InstagramFraming
+                    paths={pathsToExport}
+                    ratio={instagramRatio}
+                    active={isVisible && isPanelReallyActive}
+                    disabled={isExporting}
+                    onFrame={onInstagramFrame}
+                  />
+                )}
                 <button
                   type="button"
                   className="text-xs underline mt-2"
@@ -980,46 +1071,51 @@ export default function ExportPanel({
                 )}
               </Section>
             </fieldset>
-            <Section title={t('export.sections.destination')}>
-              <div className="space-y-3">
-                <Dropdown
-                  options={[
-                    { label: t('export.destination.customFolder'), value: 'customFolder' },
-                    { label: t('export.destination.originalFolder'), value: 'originalFolder' },
-                  ]}
-                  value={destinationType || 'customFolder'}
-                  onChange={(val) => setDestinationType(val as string)}
-                  disabled={isExporting}
-                  className="w-full"
-                />
+            {(!instagramRatio || isAndroid) && (
+              <Section title={t('export.sections.destination')}>
+                <div className="space-y-3">
+                  <Dropdown
+                    options={[
+                      { label: t('export.destination.customFolder'), value: 'customFolder' },
+                      { label: t('export.destination.originalFolder'), value: 'originalFolder' },
+                      ...(canExportToImmich ? [{ label: t('immich.export.destination'), value: 'immich' }] : []),
+                    ]}
+                    value={destination || 'customFolder'}
+                    onChange={(val) => setDestinationType(val as string)}
+                    disabled={isExporting}
+                    className="w-full"
+                  />
 
-                {destinationType === 'originalFolder' && (
-                  <div className="flex items-center gap-3 pl-2 border-l-2 border-surface">
-                    <Text variant={TextVariants.label} className="whitespace-nowrap min-w-[70px]">
-                      {t('export.destination.subfolder')}
-                    </Text>
-                    <input
-                      className="w-full bg-surface border border-transparent rounded-md px-3 py-2 text-sm text-text-primary focus:outline-hidden truncate"
-                      disabled={isExporting}
-                      onChange={(e) => setSubfolder(e.target.value)}
-                      type="text"
-                      value={subfolder || ''}
-                      placeholder={t('export.destination.subfolderPlaceholder')}
-                    />
-                  </div>
-                )}
-              </div>
-            </Section>
+                  {destination === 'immich' && <ImmichExportOptions disabled={isExporting} />}
 
+                  {destination === 'originalFolder' && (
+                    <div className="flex items-center gap-3 pl-2 border-l-2 border-surface">
+                      <Text variant={TextVariants.label} className="whitespace-nowrap min-w-[70px]">
+                        {t('export.destination.subfolder')}
+                      </Text>
+                      <input
+                        className="w-full bg-surface border border-transparent rounded-md px-3 py-2 text-sm text-text-primary focus:outline-hidden truncate"
+                        disabled={isExporting}
+                        onChange={(e) => setSubfolder(e.target.value)}
+                        type="text"
+                        value={subfolder || ''}
+                        placeholder={t('export.destination.subfolderPlaceholder')}
+                      />
+                    </div>
+                  )}
+                </div>
+              </Section>
+            )}
             <Section title={t('export.sections.fileNaming')}>
-              {!isAndroid && (numImages > 1 || preserveFolders || destinationType === 'originalFolder') && (
-                <Switch
-                  label={t('export.overwrite.label')}
-                  checked={overwriteExisting}
-                  onChange={setOverwriteExisting}
-                  disabled={isExporting}
-                />
-              )}
+              {!isAndroid &&
+                (instagramRatio || numImages > 1 || preserveFolders || destination === 'originalFolder') && (
+                  <Switch
+                    label={t('export.overwrite.label')}
+                    checked={overwriteExisting}
+                    onChange={setOverwriteExisting}
+                    disabled={isExporting}
+                  />
+                )}
               <input
                 className="w-full bg-surface border border-surface rounded-md p-2 text-sm text-text-primary focus:ring-accent focus:border-accent"
                 disabled={isExporting}
@@ -1399,19 +1495,21 @@ export default function ExportPanel({
       </div>
 
       <div className="p-3 border-t border-surface shrink-0 space-y-2">
-        <Text as="div" variant={TextVariants.small} color={TextColors.primary} className="text-center">
-          {isEstimating ? (
-            <span className="italic">{t('export.status.estimatingSize')}</span>
-          ) : estimatedSize !== null ? (
-            <span>
-              {numImages > 1
-                ? t('export.status.estimatedTotalSize', { size: formatBytes(estimatedSize, t) }) ||
-                  t('export.status.estimatedSize', { size: formatBytes(estimatedSize, t) })
-                : t('export.status.estimatedSize', { size: formatBytes(estimatedSize, t) })}
-              {numImages > 1 && ` (~${formatBytes(estimatedSize / numImages, t)})`}
-            </span>
-          ) : null}
-        </Text>
+        {!instagramRatio && (
+          <Text as="div" variant={TextVariants.small} color={TextColors.primary} className="text-center">
+            {isEstimating ? (
+              <span className="italic">{t('export.status.estimatingSize')}</span>
+            ) : estimatedSize !== null ? (
+              <span>
+                {numImages > 1
+                  ? t('export.status.estimatedTotalSize', { size: formatBytes(estimatedSize, t) }) ||
+                    t('export.status.estimatedSize', { size: formatBytes(estimatedSize, t) })
+                  : t('export.status.estimatedSize', { size: formatBytes(estimatedSize, t) })}
+                {numImages > 1 && ` (~${formatBytes(estimatedSize / numImages, t)})`}
+              </span>
+            ) : null}
+          </Text>
+        )}
         <motion.div
           whileTap={!(isCancelling || (status !== Status.Exporting && !canExport)) ? { scale: 0.98 } : undefined}
           transition={{ type: 'spring', stiffness: 400, damping: 17 }}

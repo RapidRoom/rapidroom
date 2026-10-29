@@ -142,6 +142,12 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     section: 'view',
   },
   {
+    action: 'toggle_viewer_window',
+    description: 'settings.keybinds.actions.toggle_viewer_window',
+    defaultCombo: ['shift', 'KeyF'],
+    section: 'view',
+  },
+  {
     action: 'show_original',
     description: 'settings.keybinds.actions.show_original',
     defaultCombo: ['KeyB'],
@@ -280,6 +286,12 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     section: 'panels',
   },
   {
+    action: 'export_instagram',
+    description: 'settings.keybinds.actions.export_instagram',
+    defaultCombo: ['ctrl', 'alt', 'KeyI'],
+    section: 'panels',
+  },
+  {
     action: 'toggle_export',
     description: 'settings.keybinds.actions.toggle_export',
     defaultCombo: ['KeyE'],
@@ -295,6 +307,12 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     action: 'toggle_right_panel',
     description: 'settings.keybinds.actions.toggle_right_panel',
     defaultCombo: ['ctrl', 'KeyB'],
+    section: 'panels',
+  },
+  {
+    action: 'toggle_dock_height',
+    description: 'settings.keybinds.actions.toggle_dock_height',
+    defaultCombo: ['ctrl', 'shift', 'KeyJ'],
     section: 'panels',
   },
   {
@@ -354,6 +372,18 @@ export const KEYBIND_DEFINITIONS: KeybindDefinition[] = [
     section: 'editing',
   },
   {
+    action: 'auto_straighten',
+    description: 'settings.keybinds.actions.auto_straighten',
+    defaultCombo: ['shift', 'KeyS'],
+    section: 'editing',
+  },
+  {
+    action: 'toggle_black_white',
+    description: 'settings.keybinds.actions.toggle_black_white',
+    defaultCombo: ['KeyV'],
+    section: 'editing',
+  },
+  {
     action: 'brush_size_up',
     description: 'settings.keybinds.actions.brush_size_up',
     defaultCombo: ['ctrl', 'ArrowUp'],
@@ -408,6 +438,23 @@ const symMap: Record<string, string> = {
 
 export function getDefaultCombo(def: KeybindDefinition, osPlatform?: string): string[] {
   return (osPlatform === 'macos' && def.macDefaultCombo) || def.defaultCombo;
+}
+
+// User bindings take priority over defaults introduced by a later version.
+export function resolveKeybindMap(
+  keybinds: Record<string, string[]> | undefined,
+  osPlatform?: string,
+): Map<string, string> {
+  const result = new Map<string, string>();
+  for (const customized of [false, true]) {
+    for (const definition of KEYBIND_DEFINITIONS) {
+      const custom = keybinds?.[definition.action];
+      if (!!custom?.length !== customized) continue;
+      const combo = customized ? custom! : getDefaultCombo(definition, osPlatform);
+      result.set(combo.join('+'), definition.action);
+    }
+  }
+  return result;
 }
 
 // Canonical identifiers keep stored shortcuts compatible while the symbol

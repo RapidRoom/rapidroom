@@ -1,6 +1,10 @@
+import { useJpegMetadataReports } from './useJpegMetadataReports';
+import { rememberAppliedStyleStack } from '../utils/appliedPreset';
+import { editStack, isStackedPhoto, stackKey, toggleStack } from '../utils/photoStacks';
+import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
 import { setDenoiseMark, useDenoiseQueueStore } from '../store/useDenoiseQueueStore';
 import { copyFilesWithSummary } from '../utils/fileTransfers';
-import { useCallback, useMemo, type MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useMemo, useRef, type MouseEvent as ReactMouseEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
@@ -40,6 +44,7 @@ import {
   Layers,
   Grip,
   Film,
+  Contrast,
   Home,
   Plane,
   Mountain,
@@ -55,6 +60,8 @@ import {
   SquareTerminal,
   Database,
   FolderSearch,
+  ScanLine,
+  MonitorUp,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
@@ -62,7 +69,7 @@ import { describeLightroomSettings, type LightroomSettingReport } from '../utils
 import { useContextMenu } from '../context/ContextMenuContext';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
-import { useProcessStore } from '../store/useProcessStore';
+import { JobKind, useProcessStore } from '../store/useProcessStore';
 import { useUIStore } from '../store/useUIStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import {
@@ -78,9 +85,9 @@ import {
 } from '../components/ui/AppProperties';
 import { Status } from '../components/ui/ExportImportProperties';
 import {
+  AutoAdjustMode,
   Color,
   COLOR_LABELS,
-  INITIAL_ADJUSTMENTS,
   normalizeLoadedAdjustments,
   type Adjustments,
 } from '../utils/adjustments';
@@ -91,16 +98,22 @@ import {
   type XmpImportSavePause,
   type XmpEditorDraft,
   useEditorActions,
+  buildAutoAdjustModeOptions,
+  reloadAdjustmentsForPaths,
 } from './useEditorActions';
 import { useLibraryActions } from './useLibraryActions';
+import { transferFiles } from './useFileOperations';
 import { globalImageCache } from '../utils/ImageLRUCache';
+import {
+  immichAlbumOf,
+  isImmichAlbumId,
+  isImmichImagePath,
+  removeFromImmichAlbum,
+} from '../components/immich/immichApi';
+import { useImmichStore } from '../components/immich/useImmichStore';
 
 interface ImportedXmpMetadata {
   adjustments?: (Partial<Adjustments> & { is_null?: boolean }) | null;
-}
-
-interface LoadedImageMetadata {
-  adjustments: (Adjustments & { is_null?: boolean }) | null;
 }
 
 interface DeleteOptions {
@@ -115,7 +128,9 @@ type XmpNotTransferredItem =
   | 'maskBrushTable'
   | 'masks'
   | 'localAdjustments'
-  | 'pointColor';
+  | 'pointColor'
+  | 'unsupportedDevelopSettings'
+  | 'unsupportedProcessVersion';
 
 interface BrushTableRefusal {
   name: string;
@@ -186,7 +201,25 @@ export interface UseAppContextMenusProps {
   handleTogglePinFolder: (path: string) => Promise<void>;
 }
 
-export function useAppContextMenus(props: UseAppContextMenusProps) {
+export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
+  const propsRef = useRef(latestProps);
+  propsRef.current = latestProps;
+  const props = useMemo<UseAppContextMenusProps>(
+    () => ({
+      handleImageSelect: (path) => propsRef.current.handleImageSelect(path),
+      handleBackToLibrary: () => propsRef.current.handleBackToLibrary(),
+      handleRenameFiles: (paths) => propsRef.current.handleRenameFiles(paths),
+      handleImportClick: (path) => propsRef.current.handleImportClick(path),
+      handleLibraryRefresh: () => propsRef.current.handleLibraryRefresh(),
+      refreshAllFolderTrees: () => propsRef.current.refreshAllFolderTrees(),
+      refreshImageList: () => propsRef.current.refreshImageList(),
+      executeDelete: (paths, options) => propsRef.current.executeDelete(paths, options),
+      handleDeleteRejected: () => propsRef.current.handleDeleteRejected(),
+      handleTogglePinFolder: (path) => propsRef.current.handleTogglePinFolder(path),
+    }),
+    [],
+  );
+  const { writeMetadata, undoMetadata, undoToken } = useJpegMetadataReports(props.refreshImageList);
   const { t } = useTranslation();
   const { showContextMenu } = useContextMenu();
 
@@ -200,6 +233,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         masks: t('contextMenus.xmpImportReport.notTransferredItems.masks'),
         pointColor: t('contextMenus.xmpImportReport.notTransferredItems.pointColor'),
         profileLook: t('contextMenus.xmpImportReport.notTransferredItems.profileLook'),
+        unsupportedDevelopSettings: t('contextMenus.xmpImportReport.notTransferredItems.unsupportedDevelopSettings'),
+        unsupportedProcessVersion: t('contextMenus.xmpImportReport.notTransferredItems.unsupportedProcessVersion'),
         whiteBalance: t('contextMenus.xmpImportReport.notTransferredItems.whiteBalance'),
       };
       return [
@@ -215,6 +250,9 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
   const {
     handleAutoAdjustments,
     handleAutoLensCorrection,
+    handleAutoStraighten,
+    handleAutoStraightenPaths,
+    handleEnableAdjustments,
     handleResetAdjustments,
     handleCopyAdjustments,
     handlePasteAdjustments,
@@ -653,10 +691,19 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       event.preventDefault();
       event.stopPropagation();
 
-      const { selectedImage, history, historyIndex, undo, redo, resetHistory, copiedAdjustments, setEditor } =
-        useEditorStore.getState();
-      const { appSettings } = useSettingsStore.getState();
-      const { setPanel, setUI } = useUIStore.getState();
+      const {
+        selectedImage,
+        adjustments,
+        history,
+        historyIndex,
+        undo,
+        redo,
+        resetHistory,
+        copiedAdjustments,
+        setEditor,
+      } = useEditorStore.getState();
+      const { appSettings, osPlatform } = useSettingsStore.getState();
+      const { setPanel, setUI, isViewerOpen, toggleViewerWindow } = useUIStore.getState();
 
       if (!selectedImage) return;
 
@@ -670,6 +717,15 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           icon: FileInput,
           onClick: () => setPanel(Panel.Export),
         },
+        ...(osPlatform !== 'android'
+          ? [
+              {
+                label: isViewerOpen ? t('contextMenus.editor.closeViewer') : t('contextMenus.editor.openViewer'),
+                icon: MonitorUp,
+                onClick: toggleViewerWindow,
+              },
+            ]
+          : []),
         {
           label: t('contextMenus.editor.exportInstagram'),
           icon: FileInput,
@@ -705,8 +761,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             {
               label: t('contextMenus.editor.autoAdjust'),
               icon: PencilSparkles,
-              onClick: handleAutoAdjustments,
               disabled: !selectedImage?.isReady,
+              submenu: buildAutoAdjustModeOptions(t, handleAutoAdjustments),
             },
             {
               label: t('contextMenus.editor.autoLensCorrection'),
@@ -715,26 +771,51 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               disabled: !selectedImage?.isReady,
             },
             {
+              label: t('contextMenus.editor.autoStraighten'),
+              icon: ScanLine,
+              onClick: handleAutoStraighten,
+              disabled: !selectedImage?.isReady,
+            },
+            {
               label: t('denoiseQueue.toggle'),
               icon: Grip,
               onClick: () => void setDenoiseMark(undefined, [selectedImage.path]),
             },
             {
-              label: t('contextMenus.editor.denoise'),
+              label: adjustments.aiDenoiseEnabled
+                ? t('contextMenus.editor.removeDenoise')
+                : t('contextMenus.editor.denoise'),
               icon: Grip,
               disabled: useUIStore.getState().denoiseModalState.isProcessing,
               onClick: () => {
-                useUIStore.getState().openDenoiseModal([selectedImage.path], selectedImage?.isRaw || false);
+                if (adjustments.aiDenoiseEnabled) {
+                  handleEnableAdjustments([selectedImage.path], { aiDenoiseEnabled: false });
+                } else {
+                  useUIStore.getState().openDenoiseModal([selectedImage.path], selectedImage?.isRaw || false);
+                }
               },
             },
             {
-              label: t('contextMenus.editor.convertNegative'),
+              label: adjustments.monochromeEnabled
+                ? t('contextMenus.editor.removeBlackWhite')
+                : t('contextMenus.editor.convertBlackWhite'),
+              icon: Contrast,
+              onClick: () =>
+                handleEnableAdjustments([selectedImage.path], {
+                  monochromeEnabled: !adjustments.monochromeEnabled,
+                }),
+              disabled: !selectedImage?.isReady,
+            },
+            {
+              label: adjustments.negativeConversionEnabled
+                ? t('contextMenus.editor.removeNegativeConversion')
+                : t('contextMenus.editor.convertNegative'),
               icon: Film,
-              onClick: () => {
-                if (selectedImage) {
-                  setUI({ negativeModalState: { isOpen: true, targetPaths: [selectedImage.path] } });
-                }
-              },
+              onClick: () =>
+                handleEnableAdjustments([selectedImage.path], {
+                  negativeConversionEnabled: !adjustments.negativeConversionEnabled,
+                }),
+              disabled: !selectedImage?.isReady,
             },
             {
               icon: LayoutTemplate,
@@ -805,15 +886,20 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               label: t('contextMenus.editor.confirmReset'),
               icon: Check,
               isDestructive: true,
-              onClick: () => {
-                const originalAspectRatio =
-                  selectedImage.width && selectedImage.height ? selectedImage.width / selectedImage.height : null;
-                resetHistory({
-                  ...INITIAL_ADJUSTMENTS,
-                  aspectRatio: originalAspectRatio,
-                  aiPatches: [],
-                });
-                setEditor({ adjustments: { ...INITIAL_ADJUSTMENTS, aspectRatio: originalAspectRatio, aiPatches: [] } });
+              onClick: async () => {
+                const before = useEditorStore.getState();
+                if (before.selectedImage?.path !== selectedImage.path) return;
+                try {
+                  const reset = await createResetAdjustmentsWithLensDefaults(selectedImage);
+                  const current = useEditorStore.getState();
+                  if (current.selectedImage?.path !== selectedImage.path || current.adjustments !== before.adjustments)
+                    return;
+                  void rememberAppliedStyleStack(selectedImage.path, null, reset);
+                  resetHistory(reset);
+                  setEditor({ adjustments: reset });
+                } catch (error) {
+                  toast.error(`Failed to reset adjustments: ${error}`);
+                }
               },
             },
           ],
@@ -841,9 +927,8 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       event.preventDefault();
       event.stopPropagation();
 
-      const { selectedImage, copiedAdjustments, setEditor } = useEditorStore.getState();
-      const { multiSelectedPaths, imageList, libraryActivePath, albumTree, activeAlbumId, setLibrary } =
-        useLibraryStore.getState();
+      const { selectedImage, copiedAdjustments } = useEditorStore.getState();
+      const { multiSelectedPaths, imageList, albumTree, activeAlbumId, setLibrary } = useLibraryStore.getState();
       const { appSettings } = useSettingsStore.getState();
       const { activeView, setUI, setPanel } = useUIStore.getState();
       const { setProcess } = useProcessStore.getState();
@@ -938,7 +1023,6 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       const cullLabel = t('contextMenus.thumbnail.cullImage', { count: selectionCount });
       const collageLabel = t('contextMenus.thumbnail.collage', { count: selectionCount });
       const stitchLabel = t('contextMenus.editor.stitchPanorama');
-      const conversionLabel = t('contextMenus.thumbnail.convertNegative', { count: selectionCount });
       const denoiseLabel = t('contextMenus.thumbnail.denoise', { count: selectionCount });
       const mergeLabel = t('contextMenus.editor.mergeHdr');
 
@@ -959,33 +1043,23 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         }
       };
 
-      const handleApplyAutoAdjustmentsToSelection = () => {
+      const handleApplyAutoAdjustmentsToSelection = (mode: AutoAdjustMode) => {
         const editingPath = activeView === 'editor' ? selectedImage?.path : undefined;
         const batchPaths = finalSelection.filter((p) => p !== editingPath);
         if (batchPaths.length < finalSelection.length) {
-          handleAutoAdjustments();
+          handleAutoAdjustments(mode);
         }
         if (batchPaths.length === 0) return;
         batchPaths.forEach((p) => globalImageCache.delete(p));
 
-        invoke(Invokes.ApplyAutoAdjustmentsToPaths, { paths: batchPaths })
-          .then(async () => {
-            if (selectedImage && batchPaths.includes(selectedImage.path)) {
-              const metadata = await invoke<LoadedImageMetadata>(Invokes.LoadMetadata, { path: selectedImage.path });
-              if (metadata.adjustments && !metadata.adjustments.is_null) {
-                const normalized = normalizeLoadedAdjustments(metadata.adjustments);
-                setEditor({ adjustments: normalized });
-                useEditorStore.getState().resetHistory(normalized);
-              }
-            }
-            if (libraryActivePath && batchPaths.includes(libraryActivePath)) {
-              const metadata = await invoke<LoadedImageMetadata>(Invokes.LoadMetadata, { path: libraryActivePath });
-              if (metadata.adjustments && !metadata.adjustments.is_null) {
-                const normalized = normalizeLoadedAdjustments(metadata.adjustments);
-                setLibrary({ libraryActiveAdjustments: normalized });
-              }
-            }
-          })
+        const beforeBatch = useEditorStore.getState();
+        invoke(Invokes.ApplyAutoAdjustmentsToPaths, { paths: batchPaths, mode })
+          .then(() =>
+            reloadAdjustmentsForPaths(batchPaths, {
+              path: beforeBatch.selectedImage?.path,
+              adjustments: beforeBatch.adjustments,
+            }),
+          )
           .catch((err) => {
             console.error('Failed to apply auto adjustments to paths:', err);
             toast.error(t('contextMenus.toasts.failedApplyAuto', { err }));
@@ -1007,6 +1081,22 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
 
       const handleRemoveFromAlbum = async () => {
         if (!activeAlbumId) return;
+        const immichAlbum = immichAlbumOf(activeAlbumId);
+        if (immichAlbum) {
+          try {
+            await removeFromImmichAlbum(immichAlbum, finalSelection);
+            const removed = new Set(finalSelection.filter((p) => !p.includes('?vc=')));
+            if (useLibraryStore.getState().activeAlbumId === activeAlbumId) {
+              setLibrary((state) => ({
+                imageList: state.imageList.filter((i) => !removed.has(i.path.split('?vc=')[0])),
+              }));
+            }
+            useImmichStore.getState().loadAlbums();
+          } catch (e) {
+            toast.error(String(e));
+          }
+          return;
+        }
         const newTree = JSON.parse(JSON.stringify(albumTree));
 
         const removeImages = (nodes: AlbumItem[]): boolean => {
@@ -1048,7 +1138,42 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
         }
       };
 
+      const targetImage = imageList.find((i) => i.path === path);
+      const targetStack = targetImage && isStackedPhoto(targetImage) ? targetImage.stack : null;
       const options = [
+        {
+          label: t('stacks.menu'),
+          icon: Layers,
+          submenu: [
+            {
+              label: t('stacks.create'),
+              disabled: finalSelection.length < 2,
+              onClick: () => void editStack(finalSelection, 'stack'),
+            },
+            {
+              label: t('stacks.unstack'),
+              disabled: !finalSelection.some((p) => imageList.find((i) => i.path === p)?.stack),
+              onClick: () => void editStack(finalSelection, 'unstack'),
+            },
+            { label: t('stacks.cover'), disabled: !targetStack, onClick: () => void editStack([path], 'cover') },
+            {
+              label: t('stacks.expandCollapse'),
+              disabled: !targetStack,
+              onClick: () => targetStack && toggleStack(stackKey(imageList.find((i) => i.path === path)!)),
+            },
+            { label: t('stacks.auto'), onClick: () => setLibrary({ stackPreviewOpen: true }) },
+            {
+              label: t('stacks.wholeMetadata'),
+              icon: useLibraryStore.getState().applyMetadataToStack ? Check : undefined,
+              onClick: () => setLibrary((s) => ({ applyMetadataToStack: !s.applyMetadataToStack })),
+            },
+            {
+              label: t('stacks.mergedResults'),
+              icon: useLibraryStore.getState().stackMergedResults ? Check : undefined,
+              onClick: () => setLibrary((s) => ({ stackMergedResults: !s.stackMergedResults })),
+            },
+          ],
+        },
         { label: t('denoiseQueue.mark'), icon: Grip, onClick: () => void setDenoiseMark(true, finalSelection) },
         { label: t('denoiseQueue.unmark'), icon: Grip, onClick: () => void setDenoiseMark(false, finalSelection) },
         {
@@ -1074,10 +1199,9 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               { type: OPTION_SEPARATOR },
             ]),
         {
-          disabled: !isSingleSelection,
           icon: Copy,
           label: t('contextMenus.editor.copyAdjustments'),
-          onClick: () => handleCopyAdjustments(finalSelection[0]),
+          onClick: () => handleCopyAdjustments(path),
         },
         {
           disabled: copiedAdjustments === null,
@@ -1092,30 +1216,88 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           onClick: () => importXmpAdjustmentsForImage(finalSelection[0]),
         },
         {
+          icon: FileUp,
+          label: t('jpegMetadata.write'),
+          onClick: () => void writeMetadata(finalSelection),
+        },
+        {
+          icon: Undo,
+          label: t('jpegMetadata.undo'),
+          disabled: !undoToken.current,
+          onClick: () => void undoMetadata(),
+        },
+        {
           label: t('contextMenus.editor.productivity'),
           icon: Gauge,
           submenu: [
-            { label: autoAdjustLabel, icon: PencilSparkles, onClick: handleApplyAutoAdjustmentsToSelection },
+            {
+              label: autoAdjustLabel,
+              icon: PencilSparkles,
+              submenu: buildAutoAdjustModeOptions(t, handleApplyAutoAdjustmentsToSelection),
+            },
             {
               label: t('contextMenus.thumbnail.autoLensCorrection', { count: selectionCount }),
               icon: Aperture,
               onClick: () => handleAutoLensCorrection(finalSelection),
             },
             {
-              label: denoiseLabel,
-              icon: Grip,
-              disabled: finalSelection.length === 0 || useUIStore.getState().denoiseModalState.isProcessing,
-              onClick: () => {
-                useUIStore.getState().openDenoiseModal(finalSelection, selectedImage?.isRaw || false);
-              },
+              label: t('contextMenus.thumbnail.autoStraighten', { count: selectionCount }),
+              icon: ScanLine,
+              onClick: () => handleAutoStraightenPaths(finalSelection),
             },
             {
-              label: conversionLabel,
+              label: denoiseLabel,
+              icon: Grip,
+              disabled: finalSelection.length === 0,
+              submenu: [
+                {
+                  label: t('contextMenus.thumbnail.enable'),
+                  icon: Check,
+                  disabled: useUIStore.getState().denoiseModalState.isProcessing,
+                  onClick: () => {
+                    useUIStore.getState().openDenoiseModal(finalSelection, selectedImage?.isRaw || false);
+                  },
+                },
+                {
+                  label: t('contextMenus.thumbnail.remove'),
+                  icon: X,
+                  onClick: () => handleEnableAdjustments(finalSelection, { aiDenoiseEnabled: false }),
+                },
+              ],
+            },
+            {
+              label: t('contextMenus.editor.convertBlackWhite'),
+              icon: Contrast,
+              disabled: selectionCount === 0,
+              submenu: [
+                {
+                  label: t('contextMenus.thumbnail.enable'),
+                  icon: Check,
+                  onClick: () => handleEnableAdjustments(finalSelection, { monochromeEnabled: true }),
+                },
+                {
+                  label: t('contextMenus.thumbnail.remove'),
+                  icon: X,
+                  onClick: () => handleEnableAdjustments(finalSelection, { monochromeEnabled: false }),
+                },
+              ],
+            },
+            {
+              label: t('contextMenus.editor.convertNegative'),
               icon: Film,
               disabled: selectionCount === 0,
-              onClick: () => {
-                setUI({ negativeModalState: { isOpen: true, targetPaths: finalSelection } });
-              },
+              submenu: [
+                {
+                  label: t('contextMenus.thumbnail.enable'),
+                  icon: Check,
+                  onClick: () => handleEnableAdjustments(finalSelection, { negativeConversionEnabled: true }),
+                },
+                {
+                  label: t('contextMenus.thumbnail.remove'),
+                  icon: X,
+                  onClick: () => handleEnableAdjustments(finalSelection, { negativeConversionEnabled: false }),
+                },
+              ],
             },
             {
               icon: LayoutTemplate,
@@ -1284,15 +1466,19 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
           ],
         },
         { type: OPTION_SEPARATOR },
-        {
-          label: t('contextMenus.thumbnail.addToAlbum'),
-          icon: FolderPlus,
-          submenu:
-            albumTree.length > 0
-              ? buildAddToAlbumMenu(albumTree, finalSelection)
-              : [{ label: t('contextMenus.thumbnail.noAlbums'), disabled: true }],
-        },
-        ...(activeAlbumId
+        ...(isImmichAlbumId(activeAlbumId)
+          ? []
+          : [
+              {
+                label: t('contextMenus.thumbnail.addToAlbum'),
+                icon: FolderPlus,
+                submenu:
+                  albumTree.length > 0
+                    ? buildAddToAlbumMenu(albumTree, finalSelection)
+                    : [{ label: t('contextMenus.thumbnail.noAlbums'), disabled: true }],
+              },
+            ]),
+        ...(activeAlbumId && (!isImmichAlbumId(activeAlbumId) || immichAlbumOf(activeAlbumId))
           ? [
               {
                 label: t('contextMenus.thumbnail.removeFromAlbum', { count: selectionCount }),
@@ -1341,6 +1527,9 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
       handleCopyAdjustments,
       handlePasteAdjustments,
       importXmpAdjustmentsForImage,
+      writeMetadata,
+      undoMetadata,
+      undoToken,
       handleAutoAdjustments,
       handleRate,
       buildFlagMenu,
@@ -1498,9 +1687,10 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
             },
             {
               label: movePastedLabel,
+              disabled: copiedFilePaths.some(isImmichImagePath),
               onClick: async () => {
                 try {
-                  await invoke(Invokes.MoveFiles, { sourcePaths: copiedFilePaths, destinationFolder: targetPath });
+                  await transferFiles(JobKind.Move, copiedFilePaths, targetPath);
                   setProcess({ copiedFilePaths: [] });
                   setLibrary({ multiSelectedPaths: [] });
                   props.refreshAllFolderTrees();
@@ -1902,12 +2092,10 @@ export function useAppContextMenus(props: UseAppContextMenusProps) {
               },
               {
                 label: movePastedLabel,
+                disabled: copiedFilePaths.some(isImmichImagePath),
                 onClick: async () => {
                   try {
-                    await invoke(Invokes.MoveFiles, {
-                      sourcePaths: copiedFilePaths,
-                      destinationFolder: currentFolderPath,
-                    });
+                    await transferFiles(JobKind.Move, copiedFilePaths, currentFolderPath as string);
                     setProcess({ copiedFilePaths: [] });
                     setLibrary({ multiSelectedPaths: [] });
                     props.refreshAllFolderTrees();

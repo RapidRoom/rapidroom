@@ -19,7 +19,21 @@ const source = ts.createSourceFile(
 );
 const constants = new Map();
 const enums = new Map();
+// Default imports of local JSON data, such as defaultAdjustments.json, are read as data.
+const jsonImports = new Map();
+const jsonImportFiles = [];
 for (const statement of source.statements) {
+  if (
+    ts.isImportDeclaration(statement) &&
+    statement.importClause?.name &&
+    ts.isStringLiteral(statement.moduleSpecifier) &&
+    statement.moduleSpecifier.text.startsWith('.') &&
+    statement.moduleSpecifier.text.endsWith('.json')
+  ) {
+    const file = path.join(root, path.dirname(sourceName), statement.moduleSpecifier.text);
+    jsonImports.set(statement.importClause.name.text, JSON.parse(fs.readFileSync(file, 'utf8')));
+    jsonImportFiles.push(path.relative(root, file));
+  }
   if (ts.isVariableStatement(statement)) {
     for (const declaration of statement.declarationList.declarations) {
       if (ts.isIdentifier(declaration.name)) constants.set(declaration.name.text, declaration.initializer);
@@ -59,6 +73,7 @@ function literal(node, depth = 0) {
   if (node.kind === ts.SyntaxKind.NullKeyword) return null;
   if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.MinusToken)
     return -literal(node.operand, depth + 1);
+  if (ts.isIdentifier(node) && jsonImports.has(node.text)) return structuredClone(jsonImports.get(node.text));
   if (ts.isIdentifier(node) && constants.has(node.text)) return literal(constants.get(node.text), depth + 1);
   if (ts.isObjectLiteralExpression(node)) {
     const value = {};
@@ -242,7 +257,12 @@ for (const file of sourceFiles) {
 
 const schema = {
   version: 1,
-  generatedFrom: [sourceName, whiteBalanceSourceName, ...sourceFiles.map((file) => path.relative(root, file))],
+  generatedFrom: [
+    sourceName,
+    ...jsonImportFiles,
+    whiteBalanceSourceName,
+    ...sourceFiles.map((file) => path.relative(root, file)),
+  ],
   conventions: {
     values:
       'Native RapidRoom adjustment values, identical to the editor controls. Ranges below are UI limits; MCP validation may accept other finite values.',

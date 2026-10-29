@@ -1,0 +1,13 @@
+{
+  "id": "mcp-independent-crops-native-regions",
+  "title": "Compare independent crops and inspect native detail through MCP",
+  "category": "fix",
+  "landed": "2026-10-13",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": ["RapidRoom/rapidroom#151"],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Read-only comparisons accept different crop and transform variants, letterbox mixed aspects, and size a selected native region to the requested bound without upsampling. Native region renders accept fractional coordinates while retaining existing integer pixel requests and all revision/history/sidecar guards."
+}

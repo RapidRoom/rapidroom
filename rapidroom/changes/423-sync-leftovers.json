@@ -1,0 +1,12 @@
+{
+  "id": "upstream-sync-unused-code-cleanup",
+  "title": "Remove unused sync leftovers and restore typed processing settings",
+  "category": "fix",
+  "landed": "2026-10-27",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original cleanup)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Remove the obsolete thumbnail-cache invoke and stale analytics event type (both already gone upstream). Keep upstream's unused compare menu and AI-mask result helpers so later upstream syncs don't hit delete conflicts. Keep current preset behavior and binary analytics transport; restore processing-setting key/value typing."
+}

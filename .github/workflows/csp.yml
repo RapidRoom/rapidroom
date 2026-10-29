@@ -9,6 +9,8 @@ on:
 jobs:
   csp:
     runs-on: ubuntu-24.04
+    # A healthy run takes about a minute; one hung for ~4h at the browser-tools step (#455).
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

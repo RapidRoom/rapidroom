@@ -3,7 +3,7 @@
 Tested application `6b3ac875a35d00d83b75b97a28c8ac486e9cd699`, current upstream `eb3556bc`:73 incoming
 commits. Normal merges retain authors/history. These artifacts contain CC0
 images and sanitized source/measurement evidence. Personal photos, raw files,
-credentials and local paths are excluded. **Josh's visual approval remains
+credentials and local paths are excluded. **The maintainer's visual approval remains
 required before any local/CI reference update or merge.**
 
 ## Result and attribution
@@ -79,11 +79,11 @@ stubs; these are not live Cloud sign-in or native CSP rewriting tests. Non-Linux
 platforms and physical pointer input remain untested.
 
 **Codex Sora inspected all26 individual panels and every Sony WB row;
-[observations and hashes](agent-inspection.json) record that inspection. Josh
+[observations and hashes](agent-inspection.json) record that inspection. The maintainer
 has not approved them.** Numeric results use original full-resolution16-bit TIFFs;
 previews use identical8-bit conversion and downsampling. References, manifest,
 approval log and tolerances remain unchanged. Hosted regression on this exact application head still needs
-Josh-approved reference reconciliation:18/18 deterministic,6 neutral
+maintainer-approved reference reconciliation:18/18 deterministic,6 neutral
 exact/12 edited mismatches. All other hosted checks pass; see [hosted CI](hosted-ci.json). No CI policy/tolerance bypass was introduced. The source review identified and
 corrected three integration blockers: equal-length map/patch cache identity,
 native MCP fog/relight support, and image-bound async map requests. Their focused

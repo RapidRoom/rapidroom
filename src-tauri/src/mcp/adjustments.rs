@@ -44,6 +44,72 @@ pub(super) fn changed_keys(before: &Value, after: &Value) -> Vec<String> {
         .collect()
 }
 
+// A read projection only: array values (notably curves) remain atomic. Never
+// feed this back as a full replacement without restoring omitted defaults.
+pub(super) fn non_default_adjustments(value: &Value) -> Result<Value, String> {
+    fn difference(value: &Value, defaults: &Value) -> Option<Value> {
+        if value == defaults {
+            return None;
+        }
+        if let (Some(values), Some(defaults)) = (value.as_object(), defaults.as_object()) {
+            let fields = values
+                .iter()
+                .filter_map(|(key, value)| {
+                    let changed = defaults
+                        .get(key)
+                        .map_or_else(|| Some(value.clone()), |default| difference(value, default));
+                    changed.map(|value| (key.clone(), value))
+                })
+                .collect::<Map<_, _>>();
+            return (!fields.is_empty()).then_some(Value::Object(fields));
+        }
+        Some(value.clone())
+    }
+    let defaults = super::tools::original_adjustments()?;
+    let mut result = difference(value, &defaults).unwrap_or_else(|| json!({}));
+    if let Some(masks) = value["masks"].as_array().filter(|masks| !masks.is_empty()) {
+        let mut local = Map::new();
+        for key in super::masks::LOCAL_ADJUSTMENTS {
+            if let Some(value) = defaults.get(*key) {
+                local.insert((*key).to_string(), value.clone());
+            }
+        }
+        // Local detail defaults differ from the global raw preprocessing defaults.
+        for key in ["colorNoiseReduction", "lumaNoiseReduction", "sharpness"] {
+            local.insert(key.into(), json!(0));
+        }
+        local.insert("sharpnessThreshold".into(), json!(15));
+        let mask_defaults =
+            json!({"visible":true,"invert":false,"opacity":100,"subMasks":[],"adjustments":local});
+        let component_defaults =
+            json!({"visible":true,"invert":false,"opacity":100,"mode":"additive"});
+        result["masks"] = Value::Array(
+            masks
+                .iter()
+                .map(|mask| {
+                    let mut sparse = difference(mask, &mask_defaults).unwrap_or_else(|| json!({}));
+                    if let Some(components) = mask["subMasks"]
+                        .as_array()
+                        .filter(|items| !items.is_empty())
+                    {
+                        sparse["subMasks"] = Value::Array(
+                            components
+                                .iter()
+                                .map(|component| {
+                                    difference(component, &component_defaults)
+                                        .unwrap_or_else(|| json!({}))
+                                })
+                                .collect(),
+                        );
+                    }
+                    sparse
+                })
+                .collect(),
+        );
+    }
+    Ok(result)
+}
+
 pub(super) fn compact_schema() -> (Value, Value) {
     let mut schema = adjustments_schema();
     let controls = &mut schema["properties"];
@@ -92,12 +158,51 @@ pub(super) fn compact_schema() -> (Value, Value) {
         local["properties"][key] = controls[key].clone();
     }
     definitions["maskAdjustments"] = local;
-    definitions["subMask"] = mask["properties"]["subMasks"]["items"].clone();
+    definitions["subMask"] = super::masks::compact_components(
+        &mask["properties"]["subMasks"]["items"],
+        &mut definitions,
+    );
     mask["properties"]["adjustments"] = reference("maskAdjustments");
     mask["properties"]["subMasks"]["items"] = reference("subMask");
     definitions["mask"] = mask;
     controls["masks"]["items"] = reference("mask");
     (schema, definitions)
+}
+
+pub(super) fn referenced_definitions(schema: &Value, definitions: &Value) -> Value {
+    fn references(value: &Value, names: &mut Vec<String>) {
+        match value {
+            Value::Object(fields) => {
+                if let Some(name) = fields
+                    .get("$ref")
+                    .and_then(Value::as_str)
+                    .and_then(|reference| reference.strip_prefix("#/$defs/"))
+                {
+                    names.push(name.to_string());
+                }
+                for (key, value) in fields {
+                    if key != "$defs" {
+                        references(value, names);
+                    }
+                }
+            }
+            Value::Array(values) => values.iter().for_each(|value| references(value, names)),
+            _ => {}
+        }
+    }
+    let mut pending = Vec::new();
+    references(schema, &mut pending);
+    let mut kept = Map::new();
+    while let Some(name) = pending.pop() {
+        if !kept.contains_key(&name) {
+            let definition = definitions
+                .get(&name)
+                .expect("static schema reference target");
+            references(definition, &mut pending);
+            kept.insert(name, definition.clone());
+        }
+    }
+    Value::Object(kept)
 }
 
 pub(super) fn adjustments_schema() -> Value {
@@ -172,6 +277,31 @@ pub(super) fn adjustments_schema() -> Value {
         ("flareAmount", "Flare amount."),
         ("lutIntensity", "LUT intensity."),
         ("transformScale", "Transform scale percentage."),
+        (
+            "aiDenoiseAmount",
+            "Blend of the non-destructive AI denoise; needs aiDenoiseEnabled.",
+        ),
+        (
+            "aiDenoiseDetail",
+            "Luminance texture kept by AI denoise; needs aiDenoiseEnabled.",
+        ),
+        (
+            "negativeRedWeight",
+            "Negative conversion red balance; 1 is neutral.",
+        ),
+        (
+            "negativeGreenWeight",
+            "Negative conversion green balance; 1 is neutral.",
+        ),
+        (
+            "negativeBlueWeight",
+            "Negative conversion blue balance; 1 is neutral.",
+        ),
+        ("negativeExposure", "Negative conversion exposure."),
+        (
+            "negativeContrast",
+            "Negative conversion contrast; 1 is neutral.",
+        ),
     ] {
         properties.insert(key.to_string(), numeric_schema(key, description));
     }
@@ -212,6 +342,16 @@ pub(super) fn adjustments_schema() -> Value {
         curves_schema("Saved point-curve channels restored when curveMode is point."),
     );
     properties.insert("parametricCurve".to_string(), parametric_curve_schema());
+    for key in ["vignetteCenterX", "vignetteCenterY", "centréX", "centréY"] {
+        properties.insert(
+            key.to_string(),
+            ranged_number_schema(
+                0.0,
+                1.0,
+                "Normalized centre in the rendered image, from 0 to 1; 0.5 is centered.",
+            ),
+        );
+    }
     properties.insert("hsl".to_string(), hsl_schema());
     properties.insert("colorGrading".to_string(), color_grading_schema());
     properties.insert("colorCalibration".to_string(), color_calibration_schema());
@@ -240,7 +380,7 @@ pub(super) fn adjustments_schema() -> Value {
     );
     properties.insert(
         "aspectRatio".to_string(),
-        json!({ "type": ["number", "null"], "exclusiveMinimum": 0 }),
+        json!({ "type": ["number", "null"], "minimum": 0, "description": "0 locks to the oriented image ratio (Original), null is Free, and positive numbers are fixed width/height ratios." }),
     );
     properties.insert(
         "activeTools".to_string(),
@@ -271,6 +411,10 @@ pub(super) fn adjustments_schema() -> Value {
         json!({ "type": "string", "enum": ["auto", "manual"] }),
     );
     properties.insert(
+        "cameraLensCorrectionVersion".to_string(),
+        json!({ "type": "integer", "enum": [0, 1], "description": "Discrete lens-policy metadata. 0 or absent preserves the existing recipe; 1 opts Auto into validated camera correction fallback. Not an amount control." }),
+    );
+    properties.insert(
         "lensBlurShape".to_string(),
         json!({ "type": "string", "enum": ["circle", "hexagon", "octagon", "ring"] }),
     );
@@ -284,6 +428,9 @@ pub(super) fn adjustments_schema() -> Value {
     );
     for key in [
         "baselineExposure",
+        "cameraExposureCompensation",
+        "aiDenoiseEnabled",
+        "negativeConversionEnabled",
         "lensBlurEnabled",
         "lensDistortionEnabled",
         "lensTcaEnabled",
@@ -561,6 +708,11 @@ fn adjustment_keys() -> Vec<String> {
         .chain(
             [
                 "baselineExposure",
+                "cameraLensCorrectionVersion",
+                "cameraExposureCompensation",
+                "aiDenoiseEnabled",
+                "aiDenoiseAmount",
+                "aiDenoiseDetail",
                 "aiPatches",
                 "sectionVisibility",
                 "activeTools",
@@ -625,7 +777,11 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                 "guidedPerspective" => validate_guided_perspective(value)?,
                 "whiteBalance" => validate_white_balance(value)?,
                 "relightLights" => validate_relight_lights(value)?,
-                "baselineExposure" | "fogEnabled" | "relightEnabled" | "relightShadows" => {
+                "baselineExposure"
+                | "cameraExposureCompensation"
+                | "fogEnabled"
+                | "relightEnabled"
+                | "relightShadows" => {
                     if !value.is_boolean() {
                         return Err(format!("adjustment {key} must be a boolean"));
                     }
@@ -643,11 +799,25 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                         return Err(format!("adjustment {key} must be a boolean map"));
                     }
                 }
+                "aspectRatio" => {
+                    if !value.is_null()
+                        && !value
+                            .as_f64()
+                            .is_some_and(|ratio| ratio.is_finite() && ratio >= 0.0)
+                    {
+                        return Err("aspectRatio must be null, 0 (Original), or a positive width/height ratio".into());
+                    }
+                }
                 "crop" => super::masks::validate_crop(value)?,
                 "masks" => super::masks::validate_masks(value)?,
                 "curveMode" => validate_string_enum(value, key, &["point", "parametric"])?,
                 "toneMapper" => validate_string_enum(value, key, &["basic", "agx"])?,
                 "lensCorrectionMode" => validate_string_enum(value, key, &["auto", "manual"])?,
+                "cameraLensCorrectionVersion" => {
+                    if !matches!(value.as_u64(), Some(0 | 1)) {
+                        return Err("cameraLensCorrectionVersion must be the integer 0 or 1".into());
+                    }
+                }
                 "lensBlurShape" => {
                     validate_string_enum(value, key, &["circle", "hexagon", "octagon", "ring"])?
                 }
@@ -1042,6 +1212,7 @@ fn validate_color_calibration(value: &Value) -> Result<(), String> {
 
 fn numeric_adjustment_range(key: &str) -> Option<(f64, f64)> {
     match key {
+        "vignetteCenterX" | "vignetteCenterY" | "centréX" | "centréY" => Some((0.0, 1.0)),
         "exposure" | "brightness" => Some((-5.0, 5.0)),
         "contrast"
         | "highlights"
@@ -1090,7 +1261,10 @@ fn numeric_adjustment_range(key: &str) -> Option<(f64, f64)> {
         | "flareAmount" => Some((0.0, 100.0)),
         "orientationSteps" => Some((0.0, 3.0)),
         "transformScale" => Some((0.0, 500.0)),
-        "lutIntensity" => Some((0.0, 100.0)),
+        "lutIntensity" | "aiDenoiseAmount" | "aiDenoiseDetail" => Some((0.0, 100.0)),
+        "negativeRedWeight" | "negativeGreenWeight" | "negativeBlueWeight" => Some((0.5, 2.0)),
+        "negativeExposure" => Some((-2.0, 2.0)),
+        "negativeContrast" => Some((0.5, 2.5)),
         _ => SPATIAL_EFFECT_RANGES
             .iter()
             .find(|(name, _, _)| *name == key)
@@ -1123,6 +1297,73 @@ pub(super) fn merge_adjustments(current: Value, changes: Value) -> Result<Value,
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn original_ratio_and_instagram_crop_survive_typed_updates() {
+        let schema = adjustments_schema();
+        assert_eq!(schema["properties"]["aspectRatio"]["minimum"], 0);
+        assert!(
+            schema["properties"]["aspectRatio"]
+                .get("exclusiveMinimum")
+                .is_none()
+        );
+        for ratio in [json!(null), json!(0), json!(0.75), json!(1.5)] {
+            assert!(validate_adjustments(&json!({"aspectRatio": ratio})).is_ok());
+        }
+        for ratio in [json!(-1), json!(false), json!("Original")] {
+            assert!(validate_adjustments(&json!({"aspectRatio": ratio})).is_err());
+        }
+        let original = super::super::tools::original_adjustments().unwrap();
+        assert_eq!(original["aspectRatio"], 0);
+        let crop = json!({"unit":"px", "x":1000, "y":100, "width":2700, "height":3600});
+        let instagram =
+            merge_adjustments(original, json!({"aspectRatio":0.75, "crop":crop})).unwrap();
+        let edited = merge_adjustments(instagram, json!({"exposure":0.5})).unwrap();
+        assert_eq!(edited["aspectRatio"], 0.75);
+        assert_eq!(edited["crop"], crop);
+    }
+
+    #[test]
+    fn centre_positions_have_bounded_typed_discovery_and_updates() {
+        let schema = adjustments_schema();
+        for key in ["vignetteCenterX", "vignetteCenterY", "centréX", "centréY"] {
+            assert_eq!(schema["properties"][key]["minimum"], 0.0);
+            assert_eq!(schema["properties"][key]["maximum"], 1.0);
+            for value in [json!(0), json!(0.5), json!(1)] {
+                assert!(validate_adjustments(&json!({(key):value})).is_ok());
+            }
+            for value in [json!(-0.1), json!(1.1), json!(null), json!("0.5")] {
+                assert!(validate_adjustments(&json!({(key):value})).is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn sparse_native_mask_snapshot_keeps_geometry_and_nondefault_nested_edits() {
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../rapidroom/validation/mcp-session-359/gui-radial-before.json"
+        ))
+        .unwrap();
+        let mut current = super::super::tools::original_adjustments().unwrap();
+        let mut mask = fixture["mask"].clone();
+        mask["adjustments"]["exposure"] = json!(0.5);
+        mask["adjustments"]["colorGrading"]["midtones"]["saturation"] = json!(17);
+        current["masks"] = json!([mask.clone()]);
+        let before = current.clone();
+        let sparse = non_default_adjustments(&current).unwrap();
+        assert_eq!(current, before);
+        assert_eq!(sparse["masks"][0]["id"], mask["id"]);
+        assert_eq!(
+            sparse["masks"][0]["subMasks"][0]["parameters"],
+            mask["subMasks"][0]["parameters"]
+        );
+        assert_eq!(
+            sparse["masks"][0]["adjustments"],
+            json!({"exposure":0.5,"colorGrading":{"midtones":{"saturation":17}}})
+        );
+        assert!(sparse["masks"][0].get("opacity").is_none());
+        assert!(sparse.get("exposure").is_none());
+    }
 
     #[test]
     fn spatial_effect_schema_and_validator_match_editor_defaults_and_ranges() {
@@ -1262,6 +1503,71 @@ mod tests {
         }
         for value in [json!(1), json!("true"), Value::Null] {
             assert!(validate_adjustments(&json!({"baselineExposure":value})).is_err());
+        }
+    }
+
+    #[test]
+    fn fresh_and_reset_raw_snapshots_accept_only_discrete_camera_policy_versions() {
+        let schema = adjustments_schema();
+        assert_eq!(
+            schema["properties"]["cameraLensCorrectionVersion"]["type"],
+            "integer"
+        );
+        assert_eq!(
+            schema["properties"]["cameraLensCorrectionVersion"]["enum"],
+            json!([0, 1])
+        );
+        assert!(!crate::all_available_adjustments().contains("cameraLensCorrectionVersion"));
+        let editor_schema: Value =
+            serde_json::from_str(include_str!("../../../rapidroom/adjustment-schema.json"))
+                .unwrap();
+        for initial in [Value::Null, crate::image_processing::default_adjustments()] {
+            let dir = tempfile::tempdir().unwrap();
+            let raw = dir.path().join("photo.ARW");
+            let sidecar = dir.path().join("photo.ARW.rrdata");
+            let raw_bytes = crate::exif_processing::rating_samples::sony_arw(true, Some("4"), None);
+            std::fs::write(&raw, &raw_bytes).unwrap();
+            let mut metadata = crate::image_processing::ImageMetadata {
+                adjustments: initial,
+                ..Default::default()
+            };
+            crate::file_management::apply_default_raw_lens_policy(
+                &mut metadata,
+                &raw,
+                &sidecar,
+                &crate::app_settings::AppSettings::default(),
+                None,
+            );
+            assert_eq!(metadata.adjustments["cameraLensCorrectionVersion"], 1);
+            let mut snapshot = json!({});
+            for (key, value) in editor_schema["parameters"].as_object().unwrap() {
+                if !key.contains('.') {
+                    snapshot[key] = value["default"].clone();
+                }
+            }
+            snapshot
+                .as_object_mut()
+                .unwrap()
+                .extend(metadata.adjustments.as_object().unwrap().clone());
+            validate_adjustments(&snapshot).unwrap();
+            for value in [json!(0), json!(1)] {
+                snapshot["cameraLensCorrectionVersion"] = value;
+                validate_adjustments(&snapshot).unwrap();
+            }
+            for value in [
+                json!(-1),
+                json!(2),
+                json!(0.5),
+                json!("1"),
+                json!(true),
+                Value::Null,
+                json!([]),
+                json!({}),
+            ] {
+                snapshot["cameraLensCorrectionVersion"] = value;
+                assert!(validate_adjustments(&snapshot).is_err());
+            }
+            assert_eq!(std::fs::read(&raw).unwrap(), raw_bytes);
         }
     }
 

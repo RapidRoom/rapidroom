@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
+import i18n from 'i18next';
+import { toast } from 'react-toastify';
 import {
+  Invokes,
   ImageFile,
   Panel,
   UiVisibility,
@@ -8,10 +11,11 @@ import {
   PanelRegion,
   WorkspaceState,
   CollapsibleSectionsState,
-  Invokes,
 } from '../components/ui/AppProperties';
 import { useEditorStore } from './useEditorStore';
 import { clampDockHeight, DEFAULT_DOCK_HEIGHT } from '../utils/dockHeight';
+
+const DOCK_LOAD_VIEWPORT = 1000;
 
 export type SwitcherPlacement = 'bottom' | 'right' | 'left' | 'top';
 export type LightsOutMode = 'off' | 'dim' | 'black';
@@ -76,11 +80,6 @@ interface DenoiseModalState {
   jobId: number | null;
 }
 
-interface NegativeConversionModalState {
-  isOpen: boolean;
-  targetPaths: Array<string>;
-}
-
 interface CullingModalState {
   isOpen: boolean;
   suggestions: CullingSuggestions | null;
@@ -121,6 +120,10 @@ export const WORKSPACE_LAYOUT_VERSION = 1;
 export const DEFAULT_PANEL_WIDTH = 350;
 export const DEFAULT_PANEL_SECTION_HEIGHT = 450;
 export const DEFAULT_BOTTOM_PANEL_HEIGHT = 144;
+const MIN_REOPENED_PANEL_WIDTH = 250;
+
+export const getReopenedPanelWidth = (width: number) =>
+  width < MIN_REOPENED_PANEL_WIDTH ? DEFAULT_PANEL_WIDTH : width;
 
 export interface NormalizedWorkspace extends WorkspaceState {
   panelLayout: Record<PanelRegion, Panel[]>;
@@ -247,7 +250,12 @@ export function reconcileWorkspace(
       ...(savedWorkspace.panelSwitcherPlacement || {}),
     },
     layoutVersion: WORKSPACE_LAYOUT_VERSION,
-    bottomDockHeight: clampDockHeight(savedWorkspace.bottomDockHeight ?? DEFAULT_DOCK_HEIGHT),
+    // Clamp against a fixed reference viewport, not window.innerHeight, which can be unsettled at load; BottomDock applies the live bounds when it renders.
+    bottomDockHeight: clampDockHeight(
+      savedWorkspace.bottomDockHeight ?? DEFAULT_DOCK_HEIGHT,
+      DOCK_LOAD_VIEWPORT,
+      DOCK_LOAD_VIEWPORT,
+    ),
   };
 }
 
@@ -262,6 +270,7 @@ export interface UIState {
   activeView: string;
   isFullScreen: boolean;
   isWindowFullScreen: boolean;
+  isViewerOpen: boolean;
   isInstantTransition: boolean;
   isLayoutReady: boolean;
   uiVisibility: UiVisibility;
@@ -274,6 +283,8 @@ export interface UIState {
   rightPanelWidth: number;
   bottomPanelHeight: number;
   bottomDockHeight: number;
+  bottomDockExpanded: boolean;
+  toggleDockHeight: () => void;
   terminalSupported: boolean;
   leftTopHeight: number;
   rightTopHeight: number;
@@ -317,7 +328,6 @@ export interface UIState {
   panoramaModalState: PanoramaModalState;
   focusStackModalState: FocusStackModalState;
   hdrModalState: HdrModalState;
-  negativeModalState: NegativeConversionModalState;
   denoiseModalState: DenoiseModalState;
   denoiseRun: number;
   openDenoiseModal: (paths: string[], isRaw: boolean) => void;
@@ -336,6 +346,7 @@ export interface UIState {
   requestSearchFocus: () => void;
   cycleLightsOut: (direction?: 1 | -1) => void;
   toggleFullScreen: () => void;
+  toggleViewerWindow: () => void;
   resetWorkspaceLayout: (isTetheringSupported?: boolean) => WorkspaceState;
 }
 
@@ -343,6 +354,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   activeView: 'library',
   isFullScreen: false,
   isWindowFullScreen: false,
+  isViewerOpen: false,
   isInstantTransition: false,
   isLayoutReady: false,
   uiVisibility: { filmstrip: true, leftPanel: true, rightPanel: true, quickFilter: false },
@@ -355,6 +367,13 @@ export const useUIStore = create<UIState>((set, get) => ({
   rightPanelWidth: DEFAULT_PANEL_WIDTH,
   bottomPanelHeight: DEFAULT_BOTTOM_PANEL_HEIGHT,
   bottomDockHeight: 240,
+  bottomDockExpanded: false,
+  toggleDockHeight: () => {
+    const state = get();
+    const panel = state.activePanels.bottom ?? state.panelLayout.bottom[0];
+    if (!panel) return;
+    set({ bottomDockExpanded: !state.bottomDockExpanded, activePanels: { ...state.activePanels, bottom: panel } });
+  },
   terminalSupported: false,
   leftTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
   rightTopHeight: DEFAULT_PANEL_SECTION_HEIGHT,
@@ -436,7 +455,6 @@ export const useUIStore = create<UIState>((set, get) => ({
     progressMessage: '',
     stitchingSourcePaths: [],
   },
-  negativeModalState: { isOpen: false, targetPaths: [] },
   denoiseModalState: {
     isOpen: false,
     isProcessing: false,
@@ -624,10 +642,22 @@ export const useUIStore = create<UIState>((set, get) => ({
     }
   },
 
+  toggleViewerWindow: () => {
+    if (get().isViewerOpen) {
+      set({ isViewerOpen: false });
+      invoke(Invokes.CloseViewerWindow).catch(console.error);
+      return;
+    }
+    invoke(Invokes.OpenViewerWindow, { title: i18n.t('editor.viewer.windowTitle') })
+      .then(() => set({ isViewerOpen: true }))
+      .catch((err) => toast.error(i18n.t('editor.viewer.openFailed', { error: String(err) })));
+  },
+
   resetWorkspaceLayout: (isTetheringSupported = false) => {
     const defaultWorkspace = reconcileWorkspace(undefined, isTetheringSupported, get().terminalSupported);
     set({
       bottomDockHeight: defaultWorkspace.bottomDockHeight,
+      bottomDockExpanded: false,
       leftPanelWidth: defaultWorkspace.leftPanelWidth,
       rightPanelWidth: defaultWorkspace.rightPanelWidth,
       leftTopHeight: defaultWorkspace.leftTopHeight,

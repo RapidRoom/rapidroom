@@ -1,0 +1,13 @@
+{
+  "id": "openvino-linux-release-payload",
+  "title": "Keep the verified OpenVINO CPU runtime in Linux release packages",
+  "category": "fix",
+  "landed": "2026-10-16",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original release staging and archive verification; existing pinned Microsoft/Intel native runtime)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Official Linux releases stage the checksum-pinned CPU-only runtime at build time. DEB/AppImage finalization restores original native bytes and relative aliases after bundling, retains notices, and fails on missing or invalid finished-package payloads. The application, models, runtime validator and rendering code are unchanged; no user runtime download or installation is added."
+}

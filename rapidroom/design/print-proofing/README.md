@@ -1,6 +1,6 @@
 # Print: soft-proofing and ICC export (design note)
 
-Issue #122, step 1. This note describes the colour pipeline as it is today, where a printer/paper proof transform fits, and how a LittleCMS reference will check the results. It changes no code. The [decisions](#decisions-for-josh) at the end are for Josh. Once they are made, the implementation follows as separate PRs.
+Issue #122, step 1. This note describes the colour pipeline as it is today, where a printer/paper proof transform fits, and how a LittleCMS reference will check the results. It changes no code. The [decisions](#decisions-for-the-maintainer) at the end are for the maintainer. Once they are made, the implementation follows as separate PRs.
 
 Upstream has only a request for this (`CyberTimon/RapidRAW#1315`). No fork has code to harvest.
 
@@ -200,9 +200,9 @@ LittleCMS **2.19** on the local Intel machine reproduces the FOGRA39 color stati
 
 The 33³ float16 LUT gives mean **0.043**, p99 **0.226**, max **1.103** ΔE2000 against unoptimised LittleCMS. The float64 LUT gives 0.041 / 0.225 / 1.100. These are CPU interpolation measurements, not a GPU accuracy or speed test. Timings are machine-specific: this run took 58 ms for a 2 MP 8-bit proof and 158 ms with gamut checking. Original cloud timings remain above with their original environment.
 
-Local profiles came from colord-data 1.4.8 (CC0 profile notices retained in the distribution). The FOGRA39 and AdobeRGB measurements and the `tificc` checks are retained with the local validation logs. No photo paper profile, real print or monitor-profile validation is claimed. The six choices below remain proposals for Josh; merging this note does not approve or implement them.
+Local profiles came from colord-data 1.4.8 (CC0 profile notices retained in the distribution). The FOGRA39 and AdobeRGB measurements and the `tificc` checks are retained with the local validation logs. No photo paper profile, real print or monitor-profile validation is claimed. The six choices below remain proposals for the maintainer; merging this note does not approve or implement them.
 
-## Decisions for Josh
+## Decisions for the maintainer
 
 1. **Output space:** proof and export from the sRGB render (recommended), or a wide-gamut output path first (rendering change, separate issue)?
 2. **Library:** add `lcms2` with vendored LittleCMS 2.19 (`static`) (recommended), or wait for `moxcms` to gain BPC and proofing?
