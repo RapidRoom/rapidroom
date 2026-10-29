@@ -1069,7 +1069,7 @@
     "embeddedPreviewWarning": "Falló el revelado RAW; se muestra la vista previa incrustada.",
     "viewer": {
       "openFailed": "No se pudo abrir la segunda ventana: {{error}}",
-      "windowTitle": "Visor de RapidRAW"
+      "windowTitle": "Visor de RapidRoom"
     }
   },
   "export": {

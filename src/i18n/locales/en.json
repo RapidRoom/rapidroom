@@ -1082,7 +1082,7 @@
     },
     "viewer": {
       "openFailed": "Could not open the second window: {{error}}",
-      "windowTitle": "RapidRAW Viewer"
+      "windowTitle": "RapidRoom Viewer"
     }
   },
   "export": {

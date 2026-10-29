@@ -994,7 +994,7 @@
     "embeddedPreviewWarning": "RAW-ontwikkeling is mislukt; de ingesloten voorbeeldweergave wordt getoond.",
     "viewer": {
       "openFailed": "Kan het tweede venster niet openen: {{error}}",
-      "windowTitle": "RapidRAW-viewer"
+      "windowTitle": "RapidRoom-viewer"
     }
   },
   "export": {

@@ -1069,7 +1069,7 @@
     "embeddedPreviewWarning": "A revelação RAW falhou; a pré-visualização incorporada está a ser apresentada.",
     "viewer": {
       "openFailed": "Não foi possível abrir a segunda janela: {{error}}",
-      "windowTitle": "Visualizador do RapidRAW"
+      "windowTitle": "Visualizador do RapidRoom"
     }
   },
   "export": {
