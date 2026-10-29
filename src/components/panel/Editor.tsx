@@ -30,6 +30,7 @@ import {
 import EditorToolbar from './editor/EditorToolbar';
 import EmbeddedPreviewWarning from './EmbeddedPreviewWarning';
 import ImageCanvas from './editor/ImageCanvas';
+import { canvasBackgroundRgb, resolveEditorCanvasBackground } from '../../utils/editorCanvasBackground';
 import ReferencePane from './editor/ReferencePane';
 import { Mask, SubMask } from './right/Masks';
 import { Panel, TransformState, Invokes } from '../ui/AppProperties';
@@ -62,8 +63,6 @@ const parseRgb = (rgbStr: string): [number, number, number, number] => {
   }
   return [0, 0, 0, 1.0];
 };
-
-const NEUTRAL_GREY_RGB: [number, number, number, number] = [128 / 255, 128 / 255, 128 / 255, 1.0];
 
 const checkCropValid = (pixelCrop: Partial<Crop>, imageW: number, imageH: number, rotation: number) => {
   if (pixelCrop.x === undefined || pixelCrop.y === undefined || !pixelCrop.width || !pixelCrop.height) {
@@ -1502,7 +1501,10 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     const rootStyle = getComputedStyle(document.documentElement);
     const bgPrimaryStr = rootStyle.getPropertyValue('--app-bg-primary') || 'rgb(24, 24, 24)';
     const bgSecondaryStr = rootStyle.getPropertyValue('--app-bg-secondary') || 'rgb(35, 35, 35)';
-    const isNeutralGrey = appSettings?.editorNeutralGreyBg ?? false;
+    const editorCanvasBackground = resolveEditorCanvasBackground(
+      appSettings?.editorCanvasBackground,
+      appSettings?.editorNeutralGreyBg,
+    );
 
     wgpuStateRef.current = {
       useWgpuRenderer: appSettings?.useWgpuRenderer,
@@ -1512,11 +1514,12 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       uncroppedAdjustedPreviewUrl,
       showOriginal,
       bgPrimary: isLightsOut ? [0, 0, 0, 1] : parseRgb(bgPrimaryStr),
-      bgSecondary: isLightsOut ? [0, 0, 0, 1] : isNeutralGrey ? NEUTRAL_GREY_RGB : parseRgb(bgSecondaryStr),
+      bgSecondary: isLightsOut ? [0, 0, 0, 1] : canvasBackgroundRgb(editorCanvasBackground, parseRgb(bgSecondaryStr)),
     };
   }, [
     appSettings?.useWgpuRenderer,
     appSettings?.editorNeutralGreyBg,
+    appSettings?.editorCanvasBackground,
     selectedImage?.isReady,
     hasRenderedFirstFrame,
     isCropping,
@@ -1532,6 +1535,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   }, [
     appSettings?.useWgpuRenderer,
     appSettings?.editorNeutralGreyBg,
+    appSettings?.editorCanvasBackground,
     isLightsOut,
     selectedImage?.isReady,
     hasRenderedFirstFrame,
@@ -2387,6 +2391,10 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   const isWgpuActive = appSettings?.useWgpuRenderer !== false && hasRenderedFirstFrame;
   const hasRenderedAnyPreview = hasRenderedFirstFrame || !!finalPreviewUrl;
+  const editorCanvasBackground = resolveEditorCanvasBackground(
+    appSettings?.editorCanvasBackground,
+    appSettings?.editorNeutralGreyBg,
+  );
 
   return (
     <div
@@ -2467,9 +2475,28 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
               'rounded-none',
               appSettings?.useWgpuRenderer !== false &&
                 !isFullScreen &&
-                clsx('ring-[9999px]', isLightsOut ? 'ring-black' : 'ring-bg-secondary'),
+                clsx(
+                  'ring-[9999px]',
+                  isLightsOut
+                    ? 'ring-black'
+                    : {
+                        black: 'ring-black',
+                        'dark-grey': 'ring-[#303030]',
+                        'mid-grey': 'ring-[#808080]',
+                        theme: 'ring-bg-secondary',
+                        white: 'ring-white',
+                      }[editorCanvasBackground],
+                ),
               !isWgpuActive &&
-                (isLightsOut ? 'bg-black' : appSettings?.editorNeutralGreyBg ? 'bg-[#808080]' : 'bg-bg-secondary'),
+                (isLightsOut
+                  ? 'bg-black'
+                  : {
+                      black: 'bg-black',
+                      'dark-grey': 'bg-[#303030]',
+                      'mid-grey': 'bg-[#808080]',
+                      theme: 'bg-bg-secondary',
+                      white: 'bg-white',
+                    }[editorCanvasBackground]),
             )}
             style={{ cursor: cursorStyle }}
             onContextMenu={onContextMenu}

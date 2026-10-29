@@ -332,6 +332,8 @@ export interface AppSettings {
   activeWaveformChannel?: string;
   useWgpuRenderer?: boolean;
   editorNeutralGreyBg?: boolean;
+  /** Editor surround; `undefined` retains the old theme or neutral-grey behaviour. */
+  editorCanvasBackground?: 'theme' | 'black' | 'dark-grey' | 'mid-grey' | 'white';
   canvasInputMode?: 'mouse' | 'trackpad';
   whiteBalanceMode?: WhiteBalanceMode;
   zoomSpeedMultiplier?: number;
