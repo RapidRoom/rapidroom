@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createInstance } from 'i18next';
-import en from '../i18n/locales/en.json';
+import upstreamEn from '../i18n/locales/en.json';
+import rapidroomEn from '../i18n/locales/rapidroom/en.json';
+import { deepMerge } from '../i18n/rapidroom.mjs';
 import { describeLightroomSettings, type LightroomSettingReport } from './lightroomImportReport';
+
+const en = deepMerge(upstreamEn, rapidroomEn);
 
 describe('Lightroom setting report', () => {
   it('shows counts, individual fields, honest reasons and bounded omissions', async () => {

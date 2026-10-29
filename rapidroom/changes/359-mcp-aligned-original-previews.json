@@ -1,0 +1,13 @@
+{
+  "id": "mcp-aligned-original-previews",
+  "title": "Align neutral MCP previews with edited crop and lens geometry",
+  "category": "feature",
+  "landed": "2026-10-29",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Kimi)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "AI-assisted implementation: get_preview accepts originalGeometry=edit with original or side_by_side to retain the edited crop, orientation, transforms, lens geometry and tone mapper while neutralizing other adjustments. Fractional regions therefore inspect the same location on original and edited renders. The source default is accepted on any preview; side-by-side neutral tone follows the selected edit's exposure policy. AI patches such as generative remove are not geometry, so patched areas do not line up. Reads do not modify edits, history or sidecars."
+}

@@ -105,3 +105,45 @@ def run_history_checks(case, smoke):
         raise RuntimeError("Codex read-only calls changed the editor")
     smoke.step("actual Codex context/history/comparison reads preserve state", {"version":version,"called":sorted(called),
         "state_revision_history_unchanged":True})
+
+    before_crop = image_state(url, image, token=token)
+    read_tool(url, token, "update_adjustments", {"imagePath": image,
+        "expectedRevision": before_crop["editRevision"],
+        "changes": {"crop": {"x": 500, "y": 100, "width": 1800, "height": 2400, "unit": "px"}}})
+    cropped = image_state(url, image, token=token)
+    cropped_history = read_tool(url, token, "history_list", {"imagePath": image})
+    edited = read_tool(url, token, "get_preview", {"imagePath": image, "maxDimension": 256})
+    source = read_tool(url, token, "get_preview", {"imagePath": image, "maxDimension": 256, "original": True})
+    aligned = read_tool(url, token, "get_preview", {"imagePath": image, "maxDimension": 256,
+        "original": True, "originalGeometry": "edit"})
+    comparison = read_tool(url, token, "get_preview", {"imagePath": image, "maxDimension": 256,
+        "side_by_side": True, "originalGeometry": "edit"})
+    measured = read_tool(url, token, "sample_region", {"imagePath": image, "maxDimension": 256,
+        "stage": "original", "region": {"x": 0, "y": 0, "width": 1, "height": 1}})
+    if (aligned["width"], aligned["height"]) != (edited["width"], edited["height"]):
+        raise RuntimeError("Aligned original did not retain edited crop geometry")
+    if (source["width"], source["height"]) == (aligned["width"], aligned["height"]):
+        raise RuntimeError("Crop fixture did not distinguish source and edited geometry")
+    if (measured["width"], measured["height"]) != (aligned["width"], aligned["height"]):
+        raise RuntimeError("Aligned preview and original-stage measurement geometry disagree")
+    if source["originalGeometry"] != "source" or aligned["originalGeometry"] != "edit" or comparison["originalGeometry"] != "edit":
+        raise RuntimeError("Preview geometry receipts are incorrect")
+    if image_state(url, image, token=token) != cropped or read_tool(url, token, "history_list", {"imagePath": image}) != cropped_history:
+        raise RuntimeError("Aligned preview reads changed state, revision or history")
+    for options in ({"originalGeometry": "edit"}, {"original": True, "originalGeometry": "invalid"}):
+        value = rpc(url, "tools/call", {"name": "get_preview", "arguments": {"imagePath": image, **options}}, token=token)
+        if not value.get("isError"):
+            raise RuntimeError("Invalid originalGeometry combination was accepted")
+    smoke.step("aligned original preview/comparison retain edited geometry and preserve reads", {
+        "edited_dimensions": [edited["width"], edited["height"]],
+        "source_dimensions": [source["width"], source["height"]],
+        "aligned_dimensions": [aligned["width"], aligned["height"]],
+        "measurement_dimensions": [measured["width"], measured["height"]],
+        "comparison_geometry": comparison["originalGeometry"],
+        "state_revision_history_unchanged": True, "invalid_combinations_refused": True})
+    latest = image_state(url, image, token=token)
+    read_tool(url, token, "update_adjustments", {"imagePath": image,
+        "expectedRevision": latest["editRevision"],
+        "changes": {"crop": before_crop["adjustments"]["crop"]}})
+    if image_state(url, image, token=token)["adjustments"] != before_crop["adjustments"]:
+        raise RuntimeError("Crop fixture did not restore the previous edit")

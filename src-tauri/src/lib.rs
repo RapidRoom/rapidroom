@@ -1176,6 +1176,9 @@ fn run_editor_job(app_handle: &tauri::AppHandle, job: PreviewJob) {
                 viewer_window::schedule_viewer_render(app_handle);
             }
         }
+        Err(e) if e == "No original image loaded" => {
+            log::debug!("Preview job superseded while an image loads");
+        }
         Err(e) => {
             log::error!("Preview worker error: {}", e);
         }
