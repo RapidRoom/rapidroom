@@ -2,12 +2,12 @@
   "id": "denoise-compare-touch-handoff",
   "title": "Keep denoise comparison dragging attached to the surviving touch",
   "category": "fix",
-  "landed": "2026-10-27",
+  "landed": "2026-10-28",
   "authors": ["yojen7"],
   "source": "RapidRoom/rapidroom@6532c3deb85176c86f349790a78e8f1f646831d6 (salvaged fix)",
   "commits": ["https://github.com/RapidRoom/rapidroom/commit/6532c3deb85176c86f349790a78e8f1f646831d6"],
   "upstream_issues": [],
   "upstream_prs": [],
   "rendering_change": false,
-  "notes": "Select slider versus pan using the touch still on screen, reset the pan origin and clear stale drag flags after a pinch. Physical touch-device acceptance remains required."
+  "notes": "Select slider versus pan using the touch still on screen, reset the pan origin and clear stale drag flags after a pinch. Not tested on a physical touch device; the maintainer approved merging it without that check (2026-10-28)."
 }
