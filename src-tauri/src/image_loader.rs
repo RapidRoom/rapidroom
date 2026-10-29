@@ -1152,6 +1152,7 @@ pub fn get_or_decode_pristine(
                     true,
                 )
                 .map_err(|e| e.to_string())?;
+                crate::as_shot::as_shot_from_bytes(&path_str, bytes);
                 Ok((
                     loaded.image,
                     exif_processing::read_exif_data(&path_str, bytes),

@@ -777,6 +777,20 @@ const normalizeColorGrading = (loaded: Partial<ColorGradingProps> | undefined): 
   shadows: { ...INITIAL_COLOR_GRADING.shadows, ...loaded?.shadows },
 });
 
+export const CROP_GEOMETRY_KEYS = [
+  'crop',
+  'aspectRatio',
+  'rotation',
+  'orientationSteps',
+  'flipHorizontal',
+  'flipVertical',
+] as const satisfies ReadonlyArray<keyof Adjustments>;
+
+export type CropGeometry = Pick<Adjustments, (typeof CROP_GEOMETRY_KEYS)[number]>;
+
+export const pickCropGeometry = (adjustments: Adjustments): CropGeometry =>
+  Object.fromEntries(CROP_GEOMETRY_KEYS.map((key) => [key, structuredClone(adjustments[key])])) as CropGeometry;
+
 export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any => {
   if (!loadedAdjustments) {
     return INITIAL_ADJUSTMENTS;
