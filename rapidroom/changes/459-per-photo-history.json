@@ -1,0 +1,12 @@
+{
+  "id": "per-photo-history",
+  "title": "Keep undo history when switching photos",
+  "category": "fix",
+  "landed": "2026-10-28",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Keeps the 50 most recently used photos' labelled undo stacks in memory, keyed by exact image path. Returning restores a stack only when its current step matches the loaded adjustments. This is the in-memory first step toward #306; history is not persisted to sidecars."
+}

@@ -3,7 +3,12 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
 import { useDroppable, useDndMonitor } from '@dnd-kit/core';
-import { DEFAULT_PANEL_SECTION_HEIGHT, SwitcherPlacement, useUIStore } from '../../store/useUIStore';
+import {
+  DEFAULT_PANEL_SECTION_HEIGHT,
+  getReopenedPanelWidth,
+  SwitcherPlacement,
+  useUIStore,
+} from '../../store/useUIStore';
 import { Panel, PanelRegion } from '../ui/AppProperties';
 import PanelSwitcher, { MobilePanelSwitcher } from './PanelSwitcher';
 
@@ -85,7 +90,7 @@ function RegionDroppableContainer({
       const x = activeRect.left + activeRect.width / 2 - rect.left;
       const y = activeRect.top + activeRect.height / 2 - rect.top;
 
-      let intendedPlacement: SwitcherPlacement = 'bottom';
+      let intendedPlacement: SwitcherPlacement;
       if (side === 'left') {
         const isTopLeft = y < (-rect.height / rect.width) * x + rect.height;
         intendedPlacement = isTopLeft ? 'left' : 'bottom';
@@ -243,7 +248,7 @@ function SplitOverlayDropzone({
       const x = activeRect.left + activeRect.width / 2 - rect.left;
       const y = activeRect.top + activeRect.height / 2 - rect.top;
 
-      let intendedPlacement: SwitcherPlacement = 'bottom';
+      let intendedPlacement: SwitcherPlacement;
       if (side === 'left') {
         const isTopLeft = y < (-rect.height / rect.width) * x + rect.height;
         intendedPlacement = isTopLeft ? 'left' : 'bottom';
@@ -450,7 +455,7 @@ export default function SidePanelArea({
               if (isCollapsed) {
                 setUI((s) => ({
                   uiVisibility: { ...s.uiVisibility, rightPanel: true },
-                  rightPanelWidth: s.rightPanelWidth < 250 ? 350 : s.rightPanelWidth,
+                  rightPanelWidth: getReopenedPanelWidth(s.rightPanelWidth),
                 }));
               }
             }}

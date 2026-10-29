@@ -130,6 +130,10 @@ it('ends when a competing picker starts', async () => {
   await act(async () => useEditorStore.getState().setEditor({ isWbPickerActive: true }));
   expect(useEditorStore.getState().isPointColorPickerActive).toBe(false);
 });
+it('ends when the Relight picker starts', async () => {
+  await act(async () => useEditorStore.getState().setEditor({ isRelightPickerActive: true }));
+  expect(useEditorStore.getState().isPointColorPickerActive).toBe(false);
+});
 it('keeps picking from a visible Adjustments dock when another dock is active', async () => {
   await act(async () =>
     useUIStore.getState().setUI({

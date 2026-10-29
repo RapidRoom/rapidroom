@@ -1,0 +1,50 @@
+{
+  "tested_application_head": "4bea590bbd66b074877cad96626b427783c6d9a0",
+  "harness_sha256": "80d6e1a6e2ff92f2d64d3bf79712616cc7b40772e9c743893073e0f8b93a9655",
+  "browser": "Chromium152.0.7977.82 (Arch Linux)",
+  "playwright_core": "1.63.0",
+  "default": {
+    "policy": "configured",
+    "csp": "default-src 'self'; script-src 'self' https://clerk.getrapidraw.com; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost blob: data:; font-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://api.github.com https://raw.githubusercontent.com https://clerk.getrapidraw.com; frame-src https://www.openstreetmap.org; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+    "cloud": false,
+    "rendered": true,
+    "pageErrors": [],
+    "violations": [],
+    "clerkRequests": [],
+    "authBridgeCalls": [],
+    "authBackendStubbed": true,
+    "remoteScriptBlocked": true
+  },
+  "persisted_cloud_unavailable_backend": {
+    "policy": "configured",
+    "csp": "default-src 'self'; script-src 'self' https://clerk.getrapidraw.com; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost blob: data:; font-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://api.github.com https://raw.githubusercontent.com https://clerk.getrapidraw.com; frame-src https://www.openstreetmap.org; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+    "cloud": true,
+    "rendered": true,
+    "pageErrors": [],
+    "violations": [],
+    "clerkRequests": [],
+    "authBridgeCalls": ["plugin:clerk|initialize"],
+    "authBackendStubbed": true,
+    "remoteScriptBlocked": true
+  },
+  "negative_policy_probes": [
+    {
+      "case": "unsafe-eval",
+      "rejected": true
+    },
+    {
+      "case": "wildcard-connect",
+      "rejected": true
+    },
+    {
+      "case": "remote-font",
+      "rejected": true
+    },
+    {
+      "case": "script-rewrite-exception",
+      "rejected": true
+    }
+  ],
+  "passed": true,
+  "scope": "Built frontend and HTTP CSP with a stub Tauri bridge. Default makes no auth call; persisted cloud calls initialization once and handles the intentionally unavailable auth backend. No live Clerk script, account sign-in, native CSP rewriting or Rust-side requests are exercised."
+}

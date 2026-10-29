@@ -2,16 +2,19 @@ import { useEffect } from 'react';
 import { useUIStore } from '../store/useUIStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 
+type AndroidBackWindow = Window & { __handleAndroidBack?: () => void };
+
 export function useAndroidBackHandler() {
   useEffect(() => {
     const osPlatform = useSettingsStore.getState().osPlatform;
     if (osPlatform !== 'android') return;
 
-    (window as any).__handleAndroidBack = () => {
+    const androidWindow = window as AndroidBackWindow;
+    androidWindow.__handleAndroidBack = () => {
       const ui = useUIStore.getState();
 
       if (ui.confirmModalState.isOpen) {
-        ui.setUI((state: any) => ({ confirmModalState: { ...state.confirmModalState, isOpen: false } }));
+        ui.setUI((state) => ({ confirmModalState: { ...state.confirmModalState, isOpen: false } }));
         return;
       }
       if (ui.isCreateFolderModalOpen) {
@@ -76,13 +79,9 @@ export function useAndroidBackHandler() {
         });
         return;
       }
-      if (ui.negativeModalState.isOpen) {
-        ui.setUI((state: any) => ({ negativeModalState: { ...state.negativeModalState, isOpen: false } }));
-        return;
-      }
       if (ui.denoiseModalState.isOpen) {
         if (ui.denoiseModalState.isProcessing) return;
-        ui.setUI((state: any) => ({ denoiseModalState: { ...state.denoiseModalState, isOpen: false } }));
+        ui.setUI((state) => ({ denoiseModalState: { ...state.denoiseModalState, isOpen: false } }));
         return;
       }
       if (ui.cullingModalState.isOpen) {
@@ -102,7 +101,7 @@ export function useAndroidBackHandler() {
     };
 
     return () => {
-      delete (window as any).__handleAndroidBack;
+      delete androidWindow.__handleAndroidBack;
     };
   }, []);
 }

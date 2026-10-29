@@ -15,11 +15,11 @@ fn escape(value: &str) -> String {
 }
 
 pub fn group_name(xmp: &str) -> Option<String> {
-    crate::xmp::element_text(xmp, CRS, "Group")
-        .ok()
-        .flatten()
-        .filter(|s| !s.trim().is_empty())
-        .map(|s| s.trim().to_string())
+    let properties = crate::xmp::photo_properties(xmp, CRS).ok()?;
+    let crate::xmp::PhotoProperty::Scalar(group) = properties.get("Group")? else {
+        return None;
+    };
+    (!group.is_empty()).then(|| group.clone())
 }
 
 pub fn exact_adjustments(xmp: &str) -> Result<Option<Value>, String> {

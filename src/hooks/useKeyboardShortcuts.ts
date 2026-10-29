@@ -1,14 +1,18 @@
+import { setDenoiseMark, useDenoiseQueueStore } from '../store/useDenoiseQueueStore';
 import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { ImageFile, ImageFlag, Panel, ExifOverlay } from '../components/ui/AppProperties';
-import { KEYBIND_DEFINITIONS, getDefaultCombo, normalizeCombo } from '../utils/keyboardUtils';
+import { ExifOverlay, ImageFile, ImageFlag, LibraryViewMode, Panel } from '../components/ui/AppProperties';
+import { ToolType } from '../components/panel/right/Masks';
+import { resolveKeybindMap, normalizeCombo } from '../utils/keyboardUtils';
 import { useEditorStore } from '../store/useEditorStore';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
-import { useUIStore } from '../store/useUIStore';
+import { getReopenedPanelWidth, useUIStore } from '../store/useUIStore';
 import { useProcessStore } from '../store/useProcessStore';
 import { debouncedSetHistory, useEditorActions } from './useEditorActions';
-import { createResetAdjustmentsForImage } from '../utils/adjustments';
+import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
+import { rememberAppliedStyleStack } from '../utils/appliedPreset';
+import { editStack } from '../utils/photoStacks';
 import { useLibraryActions } from './useLibraryActions';
 import { pointColorScope, selectedPointColorTarget, removePointColor } from '../utils/pointColorCommands';
 import { registerAppActions, executeAppAction } from '../utils/appActions';
@@ -19,6 +23,12 @@ import { fitPercent as getFitPercent, getDpr, percentFromTransform, stepZoomIn, 
 const getCurrentZoomPercent = (editor: { baseRenderSize?: { renderScale: number }; zoom: number }): number => {
   const renderScale = editor.baseRenderSize?.renderScale;
   return renderScale && renderScale > 0 ? percentFromTransform(renderScale, editor.zoom, getDpr()) : 1;
+};
+
+const getParentFolder = (path: string) => {
+  const physicalPath = path.split('?vc=')[0];
+  const separator = Math.max(physicalPath.lastIndexOf('/'), physicalPath.lastIndexOf('\\'));
+  return separator === -1 ? '' : physicalPath.slice(0, separator);
 };
 
 interface KeyboardShortcutsProps {
@@ -44,13 +54,16 @@ export const useKeyboardShortcuts = ({
 }: KeyboardShortcutsProps) => {
   const {
     handleRotate,
+    handleAutoStraighten,
     handleCopyAdjustments,
     handlePasteAdjustments,
     toggleShowOriginal,
     handleAutoAdjustments,
     setAdjustments,
+    handleCropOrientationToggle,
+    handleEnableAdjustments,
   } = useEditorActions();
-  const { handleRate, handleSetFlag, handleSetColorLabel } = useLibraryActions();
+  const { handleRate, handleSetFlag, handleToggleFlag, handleSetColorLabel } = useLibraryActions();
 
   const sortedListRef = useRef(sortedImageList);
   useEffect(() => {
@@ -70,6 +83,8 @@ export const useKeyboardShortcuts = ({
     }
   }, []);
 
+  const keybindSettings = useSettingsStore((state) => state.appSettings?.keybinds);
+  const shortcutPlatform = useSettingsStore((state) => state.osPlatform);
   useEffect(() => {
     const getStoreState = () => ({
       editor: useEditorStore.getState(),
@@ -78,21 +93,19 @@ export const useKeyboardShortcuts = ({
       settings: useSettingsStore.getState(),
       process: useProcessStore.getState(),
     });
-
     type StoreState = ReturnType<typeof getStoreState>;
-    const comboMap = new Map<string, string>();
-    const { appSettings, osPlatform } = useSettingsStore.getState();
-    const keybinds = appSettings?.keybinds;
-
-    for (const def of KEYBIND_DEFINITIONS) {
-      const userCombo = keybinds?.[def.action];
-      const effective = userCombo && userCombo.length > 0 ? userCombo : getDefaultCombo(def, osPlatform);
-      if (effective) {
-        comboMap.set(effective.join('+'), def.action);
-      }
+    interface ShortcutAction {
+      shouldFire?: (state: StoreState) => boolean;
+      execute: (event: KeyboardEvent, state: StoreState) => void;
     }
+    interface BuiltinShortcut {
+      match(event: KeyboardEvent, state: StoreState): boolean;
+      execute(event: KeyboardEvent, state: StoreState): void;
+    }
+    const { appSettings, osPlatform } = useSettingsStore.getState();
+    const comboMap = resolveKeybindMap(appSettings?.keybinds, osPlatform);
 
-    const getImagePathsForCopy = (s: any): Array<string> => {
+    const getImagePathsForCopy = (s: StoreState): Array<string> => {
       if (s.editor.selectedImage) {
         return [s.editor.selectedImage.path];
       }
@@ -138,7 +151,19 @@ export const useKeyboardShortcuts = ({
         ? null
         : selectedPointColorTarget(s.editor.adjustments, scope, s.editor.selectedPointColorId);
     };
-    const actions: Record<string, any> = {
+    const getPreviewIndex = (s: StoreState) => {
+      const findIndex = (path: string | null | undefined) => {
+        if (!path) return -1;
+        const exactIndex = sortedListRef.current.findIndex((img) => img.path === path);
+        if (exactIndex >= 0 || path.includes('?vc=')) return exactIndex;
+        // An external open can select the original while only a virtual copy is visible.
+        return sortedListRef.current.findIndex((img) => img.path.split('?vc=')[0] === path);
+      };
+      const requestedIndex = findIndex(s.library.libraryActivePath);
+      return requestedIndex >= 0 ? requestedIndex : findIndex(s.editor.selectedImage?.path);
+    };
+
+    const actions: Record<string, ShortcutAction> = {
       point_color_picker: {
         shouldFire: (s: StoreState) =>
           s.ui.activeView === 'editor' &&
@@ -164,6 +189,7 @@ export const useKeyboardShortcuts = ({
             pointColorPickerMaskId: scope,
             isWbPickerActive: false,
             mixerPickerProperty: null,
+            isRelightPickerActive: false,
           });
         },
       },
@@ -181,10 +207,21 @@ export const useKeyboardShortcuts = ({
       },
       reset_adjustments: {
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage?.isReady,
-        execute: (_event: unknown, s: StoreState) => {
-          debouncedSetHistory.flush();
-          setAdjustments(createResetAdjustmentsForImage(s.editor.selectedImage));
-          debouncedSetHistory.flush();
+        execute: async (_event: unknown, s: StoreState) => {
+          const image = s.editor.selectedImage;
+          const before = s.editor.adjustments;
+          try {
+            const reset = await createResetAdjustmentsWithLensDefaults(image);
+            const current = useEditorStore.getState();
+            if (current.selectedImage !== image || !current.selectedImage?.isReady || current.adjustments !== before)
+              return;
+            debouncedSetHistory.flush();
+            void rememberAppliedStyleStack(current.selectedImage.path, null, reset);
+            setAdjustments(() => reset, 'Reset adjustments');
+            debouncedSetHistory.flush();
+          } catch (error) {
+            toast.error(`Failed to reset adjustments: ${error}`);
+          }
         },
       },
       auto_adjustments: {
@@ -206,50 +243,50 @@ export const useKeyboardShortcuts = ({
         },
       },
       open_image: {
-        shouldFire: (s: any) => s.ui.activeView === 'library' && s.library.libraryActivePath !== null,
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'library' && s.library.libraryActivePath !== null,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           handleImageSelect(s.library.libraryActivePath!, true);
         },
       },
       copy_adjustments: {
         shouldFire: () => true,
-        execute: (e: any) => {
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           handleCopyAdjustments();
         },
       },
       paste_adjustments: {
         shouldFire: () => true,
-        execute: (e: any) => {
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           handlePasteAdjustments();
         },
       },
       copy_image_path: {
-        shouldFire: (s: any) => getImagePathsForCopy(s).length > 0,
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) => getImagePathsForCopy(s).length > 0,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           handleCopyImagePaths(getImagePathsForCopy(s));
         },
       },
       copy_files: {
-        shouldFire: (s: any) => s.library.multiSelectedPaths.length > 0,
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) => s.library.multiSelectedPaths.length > 0,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           s.process.setProcess({ copiedFilePaths: s.library.multiSelectedPaths });
         },
       },
       paste_files: {
         shouldFire: () => true,
-        execute: (e: any) => {
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           handlePasteFiles('copy');
         },
       },
       select_all: {
         shouldFire: () => sortedListRef.current.length > 0,
-        execute: (e: any, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           s.library.setLibrary({ multiSelectedPaths: sortedListRef.current.map((f: ImageFile) => f.path) });
           if (s.ui.activeView === 'library') {
@@ -260,8 +297,8 @@ export const useKeyboardShortcuts = ({
         },
       },
       delete_selected: {
-        shouldFire: (s: any) => !s.editor.activeMaskContainerId && !s.editor.activeAiPatchContainerId,
-        execute: (e: any) => {
+        shouldFire: (s: StoreState) => !s.editor.activeMaskContainerId && !s.editor.activeAiPatchContainerId,
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           handleDeleteSelected();
         },
@@ -274,28 +311,28 @@ export const useKeyboardShortcuts = ({
         },
       },
       preview_prev: {
-        shouldFire: (s: any) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          const currentIndex = sortedListRef.current.findIndex((img) => img.path === s.editor.selectedImage!.path);
+          const currentIndex = getPreviewIndex(s);
           if (currentIndex === -1) return;
           const nextIndex = currentIndex - 1 < 0 ? sortedListRef.current.length - 1 : currentIndex - 1;
           handleImageSelect(sortedListRef.current[nextIndex].path, true);
         },
       },
       preview_next: {
-        shouldFire: (s: any) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          const currentIndex = sortedListRef.current.findIndex((img) => img.path === s.editor.selectedImage!.path);
+          const currentIndex = getPreviewIndex(s);
           if (currentIndex === -1) return;
           const nextIndex = currentIndex + 1 >= sortedListRef.current.length ? 0 : currentIndex + 1;
           handleImageSelect(sortedListRef.current[nextIndex].path, true);
         },
       },
       zoom_in_step: {
-        shouldFire: (s: any) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           const currentPercent = getCurrentZoomPercent(s.editor);
           handleZoomChange(
@@ -304,8 +341,8 @@ export const useKeyboardShortcuts = ({
         },
       },
       zoom_out_step: {
-        shouldFire: (s: any) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           const currentPercent = getCurrentZoomPercent(s.editor);
           handleZoomChange(
@@ -314,8 +351,8 @@ export const useKeyboardShortcuts = ({
         },
       },
       cycle_zoom: {
-        shouldFire: (s: any) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           const currentPercent = Math.round(getCurrentZoomPercent(s.editor) * 100);
           const renderScale = s.editor.baseRenderSize?.renderScale;
@@ -332,8 +369,8 @@ export const useKeyboardShortcuts = ({
         },
       },
       zoom_in: {
-        shouldFire: (s: any) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           const currentPercent = getCurrentZoomPercent(s.editor);
           handleZoomChange(
@@ -342,8 +379,8 @@ export const useKeyboardShortcuts = ({
         },
       },
       zoom_out: {
-        shouldFire: (s: any) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           const currentPercent = getCurrentZoomPercent(s.editor);
           handleZoomChange(
@@ -352,53 +389,54 @@ export const useKeyboardShortcuts = ({
         },
       },
       zoom_fit: {
-        shouldFire: (s: any) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
-        execute: (e: any) => {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           handleZoomChange(0, true);
         },
       },
       zoom_100: {
-        shouldFire: (s: any) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
-        execute: (e: any) => {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           handleZoomChange(1.0);
         },
       },
       rotate_left: {
-        shouldFire: (s: any) => !!s.editor.selectedImage || !!s.library.libraryActivePath,
-        execute: (e: any) => {
+        shouldFire: (s: StoreState) => !!s.editor.selectedImage || !!s.library.libraryActivePath,
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           handleRotate(-90);
         },
       },
       rotate_right: {
-        shouldFire: (s: any) => !!s.editor.selectedImage || !!s.library.libraryActivePath,
-        execute: (e: any) => {
+        shouldFire: (s: StoreState) => !!s.editor.selectedImage || !!s.library.libraryActivePath,
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           handleRotate(90);
         },
       },
       undo: {
-        shouldFire: (s: any) => s.ui.activeView === 'editor' && !!s.editor.selectedImage && s.editor.historyIndex > 0,
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) =>
+          s.ui.activeView === 'editor' && !!s.editor.selectedImage && s.editor.historyIndex > 0,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           s.editor.undo();
         },
       },
       redo: {
-        shouldFire: (s: any) =>
+        shouldFire: (s: StoreState) =>
           s.ui.activeView === 'editor' &&
           !!s.editor.selectedImage &&
           s.editor.historyIndex < s.editor.history.length - 1,
-        execute: (e: any, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           s.editor.redo();
         },
       },
       toggle_fullscreen: {
-        shouldFire: (s: any) => !!s.editor.selectedImage,
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) => !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           s.ui.toggleFullScreen();
         },
@@ -417,9 +455,16 @@ export const useKeyboardShortcuts = ({
           s.ui.cycleLightsOut(-1);
         },
       },
+      toggle_viewer_window: {
+        shouldFire: (s: StoreState) => s.settings.osPlatform !== 'android',
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          s.ui.toggleViewerWindow();
+        },
+      },
       show_original: {
-        shouldFire: (s: any) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
-        execute: (e: any) => {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           toggleShowOriginal();
         },
@@ -433,28 +478,28 @@ export const useKeyboardShortcuts = ({
       },
       toggle_adjustments: {
         shouldFire: () => true,
-        execute: (e: any, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           s.ui.setPanel(Panel.Adjustments);
         },
       },
       toggle_crop_panel: {
         shouldFire: () => true,
-        execute: (e: any, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           s.ui.setPanel(Panel.Crop);
         },
       },
       toggle_masks: {
         shouldFire: () => true,
-        execute: (e: any, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           s.ui.setPanel(Panel.Masks);
         },
       },
       toggle_ai: {
         shouldFire: () => true,
-        execute: (e: any, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           s.ui.setPanel(Panel.Ai);
         },
@@ -473,29 +518,30 @@ export const useKeyboardShortcuts = ({
       },
       toggle_presets: {
         shouldFire: () => true,
-        execute: (e: any, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           s.ui.setPanel(Panel.Presets);
         },
       },
       toggle_metadata: {
         shouldFire: () => true,
-        execute: (e: any, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           s.ui.setPanel(Panel.Metadata);
         },
       },
       toggle_folder_tree: {
         shouldFire: () => true,
-        execute: (e: any, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           s.ui.setPanel(Panel.FolderTree);
         },
       },
       toggle_analytics: {
-        shouldFire: (s: any) => !!s.editor.selectedImage,
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) => !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
+          if (!s.settings.appSettings) return;
           const nextVisibility = !s.editor.isWaveformVisible;
           s.editor.setEditor({ isWaveformVisible: nextVisibility });
           s.settings.handleSettingsChange({
@@ -504,48 +550,64 @@ export const useKeyboardShortcuts = ({
           });
         },
       },
+      export_instagram: {
+        shouldFire: (s: StoreState) => !!s.editor.selectedImage || s.library.multiSelectedPaths.length > 0,
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          s.ui.setUI({ instagramExportRequest: Date.now() });
+          s.ui.setPanel(Panel.Export);
+        },
+      },
       toggle_export: {
         shouldFire: () => true,
-        execute: (e: any, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           s.ui.setPanel(Panel.Export);
         },
       },
       toggle_left_panel: {
         shouldFire: () => true,
-        execute: (e: any, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           const isOpening = !s.ui.uiVisibility.leftPanel;
-          s.ui.setUI((state: any) => ({
+          s.ui.setUI((state) => ({
             uiVisibility: { ...state.uiVisibility, leftPanel: isOpening },
-            leftPanelWidth: isOpening && state.leftPanelWidth < 250 ? 350 : state.leftPanelWidth,
+            leftPanelWidth: isOpening ? getReopenedPanelWidth(state.leftPanelWidth) : state.leftPanelWidth,
           }));
         },
       },
       toggle_right_panel: {
         shouldFire: () => true,
-        execute: (e: any, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           const isOpening = !s.ui.uiVisibility.rightPanel;
-          s.ui.setUI((state: any) => ({
+          s.ui.setUI((state) => ({
             uiVisibility: { ...state.uiVisibility, rightPanel: isOpening },
-            rightPanelWidth: isOpening && state.rightPanelWidth < 250 ? 350 : state.rightPanelWidth,
+            rightPanelWidth: isOpening ? getReopenedPanelWidth(state.rightPanelWidth) : state.rightPanelWidth,
           }));
         },
       },
-      toggle_bottom_panel: {
-        shouldFire: (s: any) => s.ui.activeView !== 'library',
-        execute: (e: any, s: any) => {
+      toggle_dock_height: {
+        shouldFire: (s: StoreState) => s.ui.panelLayout.bottom.length > 0,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          s.ui.setUI((state: any) => ({
+          s.ui.toggleDockHeight();
+        },
+      },
+      toggle_bottom_panel: {
+        shouldFire: (s: StoreState) => s.ui.activeView !== 'library',
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          s.ui.setUI((state) => ({
             uiVisibility: { ...state.uiVisibility, filmstrip: !state.uiVisibility.filmstrip },
           }));
         },
       },
       toggle_library_exif: {
-        shouldFire: (s: any) => s.ui.activeView === 'library',
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'library',
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
+          if (!s.settings.appSettings) return;
           const current = s.settings.appSettings?.exifOverlay || ExifOverlay.Off;
           const nextState = {
             [ExifOverlay.Off]: ExifOverlay.Hover,
@@ -557,21 +619,21 @@ export const useKeyboardShortcuts = ({
       },
       open_settings: {
         shouldFire: () => true,
-        execute: (e: any, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           s.ui.setUI({ isSettingsOpen: true });
         },
       },
       focus_search: {
-        shouldFire: (s: any) => s.ui.activeView === 'library',
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'library',
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           s.ui.requestSearchFocus();
         },
       },
       toggle_crop: {
-        shouldFire: (s: any) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
-        execute: (e: any, s: any) => {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           if (s.ui.activePanel === Panel.Crop) {
             s.editor.setEditor({ isStraightenActive: !s.editor.isStraightenActive });
@@ -581,46 +643,72 @@ export const useKeyboardShortcuts = ({
           }
         },
       },
+      auto_straighten: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          if (s.ui.activePanel !== Panel.Crop) {
+            s.ui.setPanel(Panel.Crop);
+          }
+          handleAutoStraighten();
+        },
+      },
+      toggle_black_white: {
+        shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          handleEnableAdjustments([s.editor.selectedImage!.path], {
+            monochromeEnabled: !s.editor.adjustments.monochromeEnabled,
+          });
+        },
+      },
       rate_0: {
         shouldFire: () => true,
-        execute: (e: any) => {
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           rateAndAdvance(0);
         },
       },
       rate_1: {
         shouldFire: () => true,
-        execute: (e: any) => {
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           rateAndAdvance(1);
         },
       },
       rate_2: {
         shouldFire: () => true,
-        execute: (e: any) => {
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           rateAndAdvance(2);
         },
       },
       rate_3: {
         shouldFire: () => true,
-        execute: (e: any) => {
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           rateAndAdvance(3);
         },
       },
       rate_4: {
         shouldFire: () => true,
-        execute: (e: any) => {
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           rateAndAdvance(4);
         },
       },
       rate_5: {
         shouldFire: () => true,
-        execute: (e: any) => {
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           rateAndAdvance(5);
+        },
+      },
+      toggle_denoise_mark: {
+        shouldFire: () => true,
+        execute: (e: KeyboardEvent) => {
+          e.preventDefault();
+          void setDenoiseMark();
         },
       },
       flag_pick: {
@@ -637,6 +725,20 @@ export const useKeyboardShortcuts = ({
           handleSetFlag(ImageFlag.Reject);
         },
       },
+      toggle_pick: {
+        shouldFire: () => true,
+        execute: (e: KeyboardEvent) => {
+          e.preventDefault();
+          handleToggleFlag(ImageFlag.Pick);
+        },
+      },
+      toggle_reject: {
+        shouldFire: () => true,
+        execute: (e: KeyboardEvent) => {
+          e.preventDefault();
+          handleToggleFlag(ImageFlag.Reject);
+        },
+      },
       unflag: {
         shouldFire: () => true,
         execute: (e: KeyboardEvent) => {
@@ -646,54 +748,54 @@ export const useKeyboardShortcuts = ({
       },
       color_label_none: {
         shouldFire: () => true,
-        execute: (e: any) => {
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           handleSetColorLabel(null);
         },
       },
       color_label_red: {
         shouldFire: () => true,
-        execute: (e: any) => {
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           handleSetColorLabel('red');
         },
       },
       color_label_yellow: {
         shouldFire: () => true,
-        execute: (e: any) => {
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           handleSetColorLabel('yellow');
         },
       },
       color_label_green: {
         shouldFire: () => true,
-        execute: (e: any) => {
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           handleSetColorLabel('green');
         },
       },
       color_label_blue: {
         shouldFire: () => true,
-        execute: (e: any) => {
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           handleSetColorLabel('blue');
         },
       },
       color_label_purple: {
         shouldFire: () => true,
-        execute: (e: any) => {
+        execute: (e: KeyboardEvent) => {
           e.preventDefault();
           handleSetColorLabel('purple');
         },
       },
       brush_size_up: {
-        shouldFire: (s: any) =>
+        shouldFire: (s: StoreState) =>
           s.ui.activeView === 'editor' &&
           !!s.editor.selectedImage &&
           (s.ui.activePanel === Panel.Masks || s.ui.activePanel === Panel.Ai),
-        execute: (e: any, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          const currentSettings = s.editor.brushSettings || { size: 50 };
+          const currentSettings = s.editor.brushSettings ?? { size: 50, feather: 50, tool: ToolType.Brush };
           const newSize = Math.min((currentSettings.size || 50) + 10, 200);
           s.editor.setEditor({
             brushSettings: { ...currentSettings, size: newSize },
@@ -701,13 +803,13 @@ export const useKeyboardShortcuts = ({
         },
       },
       brush_size_down: {
-        shouldFire: (s: any) =>
+        shouldFire: (s: StoreState) =>
           s.ui.activeView === 'editor' &&
           !!s.editor.selectedImage &&
           (s.ui.activePanel === Panel.Masks || s.ui.activePanel === Panel.Ai),
-        execute: (e: any, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          const currentSettings = s.editor.brushSettings || { size: 50 };
+          const currentSettings = s.editor.brushSettings ?? { size: 50, feather: 50, tool: ToolType.Brush };
           const newSize = Math.max((currentSettings.size || 50) - 10, 1);
           s.editor.setEditor({
             brushSettings: { ...currentSettings, size: newSize },
@@ -722,16 +824,53 @@ export const useKeyboardShortcuts = ({
           id,
           {
             available: () => !action.shouldFire || action.shouldFire(getStoreState()),
-            execute: () => action.execute({ preventDefault() {} }, getStoreState()),
+            execute: () => action.execute(new KeyboardEvent('keydown'), getStoreState()),
           },
         ]),
       ),
     );
 
-    const builtinShortcuts = [
+    const builtinShortcuts: BuiltinShortcut[] = [
+      {
+        match: (e: KeyboardEvent, s: ReturnType<typeof getStoreState>) =>
+          (e.ctrlKey || e.metaKey) && !e.altKey && e.code === 'KeyG' && s.ui.activeView === 'library',
+        execute: (e: KeyboardEvent, s: ReturnType<typeof getStoreState>) => {
+          e.preventDefault();
+          void editStack(s.library.multiSelectedPaths, e.shiftKey ? 'unstack' : 'stack');
+        },
+      },
+      {
+        match: (e: KeyboardEvent, s: StoreState) =>
+          s.ui.activeView === 'editor' &&
+          s.ui.activePanel === Panel.Crop &&
+          !!s.editor.selectedImage?.isReady &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          !e.altKey &&
+          ['Enter', 'NumpadEnter', 'KeyX'].includes(e.code),
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          if (e.repeat) return;
+          // The slider drag owns its preview crop until it commits on release.
+          if (s.editor.isRotationActive || s.editor.liveRotation !== null) return;
+          if (e.code === 'KeyX') {
+            handleCropOrientationToggle();
+            return;
+          }
+          debouncedSetHistory.flush();
+          s.editor.setEditor({
+            isStraightenActive: false,
+            isGuidedPerspectiveActive: false,
+            liveRotation: null,
+            isRotationActive: false,
+          });
+          s.ui.setPanel(Panel.Adjustments);
+          handleZoomChange(0, true);
+        },
+      },
       {
         match: (e: KeyboardEvent) => e.code === 'Escape',
-        execute: (e: KeyboardEvent, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           if (s.ui.lightsOutMode !== 'off') s.ui.setUI({ lightsOutMode: 'off' });
           else if (s.editor.isStraightenActive) s.editor.setEditor({ isStraightenActive: false });
@@ -749,26 +888,26 @@ export const useKeyboardShortcuts = ({
         },
       },
       {
-        match: (e: KeyboardEvent, s: any) => {
+        match: (e: KeyboardEvent, s: StoreState) => {
           const isDeleteKey = s.settings.osPlatform === 'macos' ? e.code === 'Backspace' : e.code === 'Delete';
           return isDeleteKey && (!!s.editor.activeMaskContainerId || !!s.editor.activeAiPatchContainerId);
         },
-        execute: (e: KeyboardEvent, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
           if (s.editor.activeMaskContainerId) {
-            s.editor.setEditor((state: any) => ({
+            s.editor.setEditor((state) => ({
               adjustments: {
                 ...state.adjustments,
-                masks: state.adjustments.masks.filter((c: any) => c.id !== s.editor.activeMaskContainerId),
+                masks: state.adjustments.masks.filter((c) => c.id !== s.editor.activeMaskContainerId),
               },
               activeMaskContainerId: null,
               activeMaskId: null,
             }));
           } else if (s.editor.activeAiPatchContainerId) {
-            s.editor.setEditor((state: any) => ({
+            s.editor.setEditor((state) => ({
               adjustments: {
                 ...state.adjustments,
-                aiPatches: state.adjustments.aiPatches.filter((c: any) => c.id !== s.editor.activeAiPatchContainerId),
+                aiPatches: state.adjustments.aiPatches.filter((c) => c.id !== s.editor.activeAiPatchContainerId),
               },
               activeAiPatchContainerId: null,
               activeAiSubMaskId: null,
@@ -777,31 +916,59 @@ export const useKeyboardShortcuts = ({
         },
       },
       {
-        match: (e: KeyboardEvent, s: any) =>
+        match: (e: KeyboardEvent, s: StoreState) =>
           s.ui.activeView === 'library' && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code),
-        execute: (e: KeyboardEvent, s: any) => {
+        execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          const isNext = e.code === 'ArrowRight' || e.code === 'ArrowDown';
           const activePath = s.library.libraryActivePath;
           if (!activePath || sortedListRef.current.length === 0) return;
-          const currentIndex = sortedListRef.current.findIndex((img) => img.path === activePath);
-          if (currentIndex === -1) return;
-          let nextIndex = isNext ? currentIndex + 1 : currentIndex - 1;
-          if (nextIndex >= sortedListRef.current.length) nextIndex = 0;
-          if (nextIndex < 0) nextIndex = sortedListRef.current.length - 1;
-          const nextImage = sortedListRef.current[nextIndex];
-          if (nextImage) {
-            s.library.setLibrary({ libraryActivePath: nextImage.path, multiSelectedPaths: [nextImage.path] });
-            handleImageSelect(nextImage.path, false);
+          const selectPath = (path: string) => {
+            s.library.setLibrary({ libraryActivePath: path, multiSelectedPaths: [path] });
+            handleImageSelect(path, false);
+          };
+          const isVertical = e.code === 'ArrowUp' || e.code === 'ArrowDown';
+          const isNext = e.code === 'ArrowRight' || e.code === 'ArrowDown';
+          const gridRows: Array<Array<{ path: string; center: number }>> = s.library.libraryGridRows;
+          const rowIndex = isVertical ? gridRows.findIndex((row) => row.some((item) => item.path === activePath)) : -1;
+          if (rowIndex !== -1) {
+            const targetRow = gridRows[rowIndex + (isNext ? 1 : -1)];
+            if (!targetRow) return;
+            const center = gridRows[rowIndex].find((item) => item.path === activePath)!.center;
+            const closest = targetRow.reduce((best, item) =>
+              Math.abs(item.center - center) < Math.abs(best.center - center) ? item : best,
+            );
+            selectPath(closest.path);
+            return;
           }
+          const recursive = s.settings.appSettings?.libraryViewMode === LibraryViewMode.Recursive;
+          const navigationList = recursive
+            ? sortedListRef.current.filter((img) => getParentFolder(img.path) === getParentFolder(activePath))
+            : sortedListRef.current;
+          const currentIndex = navigationList.findIndex((img) => img.path === activePath);
+          // A member hidden by collapsing its stack is not in the list:
+          // start from the first (next) or last (previous) visible photo.
+          let nextIndex =
+            currentIndex === -1
+              ? isNext
+                ? 0
+                : navigationList.length - 1
+              : isNext
+                ? currentIndex + 1
+                : currentIndex - 1;
+          if (nextIndex >= navigationList.length) nextIndex = 0;
+          if (nextIndex < 0) nextIndex = navigationList.length - 1;
+          const nextImage = navigationList[nextIndex];
+          if (nextImage) selectPath(nextImage.path);
         },
       },
     ];
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return;
       const state = getStoreState();
 
       const isModalOpen =
+        useDenoiseQueueStore.getState().setupOpen ||
         state.ui.isCreateFolderModalOpen ||
         state.ui.isRenameFolderModalOpen ||
         state.ui.isRenameFileModalOpen ||
@@ -811,10 +978,9 @@ export const useKeyboardShortcuts = ({
         state.ui.panoramaModalState.isOpen ||
         state.ui.cullingModalState.isOpen ||
         state.ui.collageModalState.isOpen ||
-        state.ui.denoiseModalState.isOpen ||
-        state.ui.negativeModalState.isOpen;
+        state.ui.denoiseModalState.isOpen;
 
-      if (isModalOpen) return;
+      if (isModalOpen || state.library.stackPreviewOpen) return;
 
       if (state.ui.isSettingsOpen) {
         if (event.code === 'Escape') {
@@ -825,7 +991,9 @@ export const useKeyboardShortcuts = ({
       }
 
       const isInputFocused =
-        document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA' ||
+        (document.activeElement instanceof HTMLElement && document.activeElement.isContentEditable);
       if (isInputFocused) return;
 
       for (const builtin of builtinShortcuts) {
@@ -852,6 +1020,8 @@ export const useKeyboardShortcuts = ({
       unregisterActions();
     };
   }, [
+    keybindSettings,
+    shortcutPlatform,
     handleAutoAdjustments,
     setAdjustments,
     handleBackToLibrary,
@@ -861,12 +1031,16 @@ export const useKeyboardShortcuts = ({
     handleImageSelect,
     handlePasteFiles,
     handleZoomChange,
+    handleCropOrientationToggle,
     handleRotate,
+    handleAutoStraighten,
     handleCopyAdjustments,
     handleCopyImagePaths,
     handlePasteAdjustments,
+    handleEnableAdjustments,
     handleRate,
     handleSetFlag,
+    handleToggleFlag,
     handleSetColorLabel,
     toggleShowOriginal,
   ]);

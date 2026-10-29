@@ -35,6 +35,7 @@ export default function PointColorPanel({ points, onChange, isForMask = false, o
               pointColorPickerMaskId: scope,
               isWbPickerActive: false,
               mixerPickerProperty: null,
+              isRelightPickerActive: false,
             })
           }
           className={`p-1.5 rounded-md ${active ? 'bg-accent text-button-text' : 'hover:bg-bg-secondary text-text-secondary'}`}

@@ -15,10 +15,11 @@ use tokio::task::JoinHandle;
 use wgpu::{Texture, TextureView};
 
 use crate::ai_processing::AiState;
-use crate::cache_utils::DecodedImageCache;
+use crate::as_shot::AsShot;
+use crate::cache_utils::{DecodeFlights, DecodedImageCache};
 use crate::camera_tethering::CameraSession;
-use crate::gpu_processing::GpuProcessor;
-use crate::image_processing::GpuContext;
+use crate::gpu_processing::{DisplayLayer, GpuProcessor};
+use crate::image_processing::{GpuContext, RenderOptions};
 use crate::launch_request::ExternalEditSession;
 use crate::lens_correction::LensDatabase;
 use crate::lut_processing::Lut;
@@ -105,11 +106,64 @@ pub struct WindowState {
     pub fullscreen: bool,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PreviewTarget {
+    Editor,
+    Viewer,
+}
+
+impl PreviewTarget {
+    pub const ALL: [PreviewTarget; 2] = [PreviewTarget::Editor, PreviewTarget::Viewer];
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub struct FrameContent {
+    pub job_hash: u64,
+    pub patch_hash: u64,
+    pub render: RenderOptions,
+}
+
+#[derive(Clone, Copy)]
+pub struct ShownFrame {
+    pub content: FrameContent,
+    pub resolution: u32,
+}
+
+#[derive(Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ViewerImage {
+    pub path: String,
+    pub width: u32,
+    pub height: u32,
+}
+
+pub struct ViewerSource {
+    pub path: String,
+    pub adjustments: serde_json::Value,
+    pub content: FrameContent,
+    pub interactive: bool,
+}
+
+#[derive(Default)]
+pub struct ViewerSession {
+    pub frame: Option<Vec<u8>>,
+    pub shown: Option<ShownFrame>,
+    pub source: Option<ViewerSource>,
+    pub image: Option<ViewerImage>,
+    pub target_resolution: Option<u32>,
+}
+
+pub struct ViewerState {
+    pub background: [f32; 4],
+    pub session: ViewerSession,
+}
+
 #[derive(Clone)]
 pub struct LoadedImage {
     pub path: String,
     pub image: Arc<DynamicImage>,
     pub is_raw: bool,
+    pub as_shot: AsShot,
 }
 
 #[derive(Clone)]
@@ -124,11 +178,22 @@ pub struct CachedPreview {
 }
 
 pub struct GpuImageCache {
+    pub entries: Vec<GpuImageEntry>,
+}
+
+pub struct GpuImageEntry {
+    pub id: u64,
     pub texture: Texture,
     pub texture_view: TextureView,
+    pub gf_coeffs_view: TextureView,
+    pub gf_structure_view: TextureView,
+    pub haze_view: TextureView,
+    pub airlight_view: TextureView,
+    pub is_raw: u32,
     pub width: u32,
     pub height: u32,
     pub transform_hash: u64,
+    pub source: (usize, usize),
 }
 
 pub struct GpuProcessorState {
@@ -139,6 +204,7 @@ pub struct GpuProcessorState {
 
 pub struct PreviewJob {
     pub adjustments: serde_json::Value,
+    pub layer: DisplayLayer,
     pub is_interactive: bool,
     pub target_resolution: Option<u32>,
     pub roi: Option<(f32, f32, f32, f32)>,
@@ -148,9 +214,14 @@ pub struct PreviewJob {
     pub responder: tokio::sync::oneshot::Sender<Vec<u8>>,
 }
 
+pub enum PreviewTask {
+    Editor(PreviewJob),
+    Viewer,
+}
+
 pub struct AnalyticsJob {
     pub path: String,
-    pub image: Arc<DynamicImage>,
+    pub frame: crate::image_processing::AnalyticsFrame,
     pub compute_waveform: bool,
     pub active_waveform_channel: Option<String>,
 }
@@ -210,7 +281,8 @@ impl MetadataManager {
 }
 
 pub type ThumbnailGeometryEntry = (u64, Arc<DynamicImage>, f32);
-pub type TransformedImageCache = (u64, Arc<DynamicImage>, (f32, f32));
+pub type TransformedImageCache = (u64, Arc<DynamicImage>, f32, (f32, f32));
+pub type TransformedPreview = (Arc<DynamicImage>, f32, (f32, f32));
 
 #[cfg(feature = "mcp")]
 #[derive(Clone)]
@@ -227,6 +299,7 @@ pub struct McpRuntime {
     pub port: Mutex<u16>,
     pub editor_state: Mutex<Option<McpEditorState>>,
     pub ui_waiters: Mutex<HashMap<String, oneshot::Sender<Result<serde_json::Value, String>>>>,
+    pub(crate) name_echoes: Mutex<crate::assistant_text::NameEchoes>,
 }
 
 #[cfg(feature = "mcp")]
@@ -237,6 +310,7 @@ impl McpRuntime {
             port: Mutex::new(0),
             editor_state: Mutex::new(None),
             ui_waiters: Mutex::new(HashMap::new()),
+            name_echoes: Mutex::new(crate::assistant_text::NameEchoes::default()),
         }
     }
 }
@@ -253,8 +327,10 @@ pub struct AppState {
     pub gpu_crash_flag_path: Mutex<Option<PathBuf>>,
     pub original_image: Mutex<Option<LoadedImage>>,
     pub cached_preview: Mutex<Option<CachedPreview>>,
+    pub viewer_cached_preview: Mutex<Option<CachedPreview>>,
     pub gpu_context: Mutex<Option<GpuContext>>,
     pub gpu_image_cache: Mutex<Option<GpuImageCache>>,
+    pub viewer_gpu_image_cache: Mutex<Option<GpuImageCache>>,
     pub gpu_processor: Mutex<Option<GpuProcessorState>>,
     pub ai_state: Mutex<Option<AiState>>,
     pub ai_init_lock: TokioMutex<()>,
@@ -271,16 +347,22 @@ pub struct AppState {
     pub pending_edit_session: Mutex<Option<ExternalEditSession>>,
     pub thumbnail_cancellation_token: Arc<AtomicBool>,
     pub thumbnail_progress: Mutex<ThumbnailProgressTracker>,
-    pub preview_worker_tx: Mutex<Option<Sender<PreviewJob>>>,
+    pub preview_worker_tx: Mutex<Option<Sender<PreviewTask>>>,
     pub analytics_worker_tx: Mutex<Option<Sender<AnalyticsJob>>>,
+    pub analytics_channel: Mutex<Option<tauri::ipc::Channel>>,
     pub mask_cache: Mutex<HashMap<u64, GrayImage>>,
     pub patch_cache: Mutex<HashMap<String, serde_json::Value>>,
     pub geometry_cache: Mutex<HashMap<u64, DynamicImage>>,
     pub thumbnail_geometry_cache: Mutex<HashMap<String, ThumbnailGeometryEntry>>,
     pub lens_db: Mutex<Option<Arc<LensDatabase>>>,
     pub load_image_generation: Arc<AtomicUsize>,
+    pub wgpu_presented_generation: AtomicUsize,
     pub full_warped_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
-    pub patched_warped_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
+    pub full_warped_build_lock: Mutex<()>,
+    pub patched_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
+    pub warped_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
+    pub working_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
+    pub effects_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
     pub full_transformed_cache: Mutex<Option<TransformedImageCache>>,
     pub decoded_image_cache: Mutex<DecodedImageCache>,
     /// Only one full-resolution decode at a time. Arrowing through a folder
@@ -289,11 +371,30 @@ pub struct AppState {
     /// the machine runs out of memory. Stale waiters bail on the generation
     /// check as soon as they get the permit.
     pub decode_permit: Arc<tokio::sync::Semaphore>,
+    pub decode_flights: DecodeFlights,
     pub thumbnail_manager: Arc<ThumbnailManager>,
+    pub memory_budget: Arc<crate::memory_budget::MemoryBudget>,
     pub metadata_manager: Arc<MetadataManager>,
     pub disks_cache: Mutex<Option<Disks>>,
     pub disks_cache_refreshing: AtomicBool,
     pub camera_session: Mutex<CameraSession>,
     #[cfg(feature = "mcp")]
     pub mcp: McpRuntime,
+    pub viewer: Mutex<ViewerState>,
+}
+
+impl AppState {
+    pub fn cached_preview_for(&self, target: PreviewTarget) -> &Mutex<Option<CachedPreview>> {
+        match target {
+            PreviewTarget::Editor => &self.cached_preview,
+            PreviewTarget::Viewer => &self.viewer_cached_preview,
+        }
+    }
+
+    pub fn gpu_image_cache_for(&self, target: PreviewTarget) -> &Mutex<Option<GpuImageCache>> {
+        match target {
+            PreviewTarget::Editor => &self.gpu_image_cache,
+            PreviewTarget::Viewer => &self.viewer_gpu_image_cache,
+        }
+    }
 }

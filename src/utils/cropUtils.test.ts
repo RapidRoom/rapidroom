@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { Crop } from 'react-image-crop';
-import { calculateCenteredCrop, normalizeCropChange } from './cropUtils';
+import {
+  calculateCenteredCrop,
+  calculateAreaPreservingCrop,
+  calculateAutoCropForRotation,
+  getOrientedDimensions,
+  isCropWithinBounds,
+  normalizeCropChange,
+  resolveAspectRatio,
+  zoomCrop,
+} from './cropUtils';
 
 const full: Crop = { unit: 'px', x: 0, y: 0, width: 7008, height: 4672 };
 
@@ -44,5 +53,74 @@ describe('equivalent full-frame crop changes', () => {
     const percent: Crop = { unit: '%', x: 0, y: 0, width: 100, height: 100 };
     expect(normalizeCropChange(null, percent, 100, 100)).toBe(percent);
     expect(normalizeCropChange(null, full, 0, 0)).toBe(full);
+  });
+});
+
+describe('Original ratio and fixed Instagram crop compatibility', () => {
+  it.each([0, 1, 2, 3])('resolves Original against oriented axes at step %i', (steps) => {
+    expect(resolveAspectRatio(0, { width: 6000, height: 4000 }, steps)).toBe(steps % 2 ? 2 / 3 : 1.5);
+    expect(resolveAspectRatio(null, { width: 6000, height: 4000 }, steps)).toBeNull();
+    expect(resolveAspectRatio(1.5, { width: 6000, height: 4000 }, steps)).toBe(1.5);
+  });
+
+  it('waits for real dimensions instead of inventing a lock', () => {
+    expect(resolveAspectRatio(0, null, 0)).toBeNull();
+    for (const width of [0, -1, NaN, Infinity]) {
+      expect(resolveAspectRatio(0, { width, height: 4000 }, 0)).toBeNull();
+    }
+    expect(resolveAspectRatio(0, { width: 6000, height: 0 }, 0)).toBeNull();
+  });
+
+  it.each([0.75, 0.8, 1, 1080 / 565])('keeps fixed Instagram ratio %f across image orientations', (ratio) => {
+    for (const steps of [0, 1, 2, 3]) {
+      const resolved = resolveAspectRatio(ratio, { width: 6000, height: 4000 }, steps);
+      const crop = calculateCenteredCrop(6000, 4000, steps, resolved, 5)!;
+      const image = getOrientedDimensions(6000, 4000, steps);
+      expect(resolved).toBe(ratio);
+      expect(crop.width / crop.height).toBeCloseTo(ratio, 2);
+      expect(isCropWithinBounds(crop, image.width, image.height, 5)).toBe(true);
+    }
+  });
+
+  it('uses the image ratio for Original crop zoom and the crop ratio for Free zoom', () => {
+    const crop: Crop = { unit: 'px', x: 2000, y: 1000, width: 1000, height: 1000 };
+    const original = zoomCrop(crop, 0.8, 6000, 4000, 0, 0);
+    const free = zoomCrop(crop, 0.8, 6000, 4000, 0, null);
+    expect(original.width / original.height).toBeCloseTo(1.5, 2);
+    expect(free.width / free.height).toBe(1);
+  });
+});
+
+describe('saved percentage crop geometry regression', () => {
+  const percent: Crop = { unit: '%', x: 10, y: 20, width: 30, height: 60 };
+  const pixels: Crop = { unit: 'px', x: 600, y: 800, width: 1800, height: 2400 };
+
+  it('keeps saved percent metadata on display completion while retaining a one-pixel gesture', () => {
+    const saved: Crop = { unit: '%', x: 10, y: 10, width: 30, height: 60 };
+    const completed: Crop = { unit: 'px', x: 461, y: 308, width: 1382, height: 1843 };
+    expect(normalizeCropChange(saved, completed, 4608, 3072)).toBe(saved);
+    expect(normalizeCropChange(saved, { ...completed, x: 462 }, 4608, 3072)).toEqual({ ...completed, x: 462 });
+    const fullPercent: Crop = { unit: '%', x: 0, y: 0, width: 100, height: 100 };
+    expect(normalizeCropChange(fullPercent, { unit: 'px', x: 0, y: 0, width: 4608, height: 3072 }, 4608, 3072)).toBe(
+      fullPercent,
+    );
+  });
+
+  it('preserves the same frame area and centre when switching from3:4 to4:5', () => {
+    const expected = calculateAreaPreservingCrop(6000, 4000, 0, 0.8, 0, pixels)!;
+    const changed = calculateAreaPreservingCrop(6000, 4000, 0, 0.8, 0, percent)!;
+    expect(changed).toEqual(expected);
+    expect(changed.width).toBeGreaterThan(1800);
+    expect(changed.height).toBeGreaterThan(2000);
+    expect(Math.abs(changed.x + changed.width / 2 - 1500)).toBeLessThanOrEqual(0.5);
+    expect(Math.abs(changed.y + changed.height / 2 - 2000)).toBeLessThanOrEqual(0.5);
+  });
+
+  it('straightens a saved percentage ROI in image pixels without collapsing it', () => {
+    const changed = calculateAutoCropForRotation(6000, 4000, 0, 0.75, 1, percent, 1)!;
+    expect(changed).toEqual(calculateAutoCropForRotation(6000, 4000, 0, 0.75, 1, pixels, 1));
+    expect(changed.width).toBeGreaterThan(1000);
+    expect(changed.height).toBeGreaterThan(1500);
+    expect(isCropWithinBounds(changed, 6000, 4000, 1)).toBe(true);
   });
 });

@@ -1,0 +1,12 @@
+{
+  "id": "consistent-assistant-dock",
+  "title": "Keep assistant dock controls consistent and start collapsed",
+  "category": "fix",
+  "landed": "2026-10-15",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "One fixed-position chevron and a constant-height clickable header expand and collapse every bottom-dock panel. Hide the dock on the start screen, start folder sessions collapsed, and bound saved and resized heights to the viewport. Fixes #300 and #301."
+}

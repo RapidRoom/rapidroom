@@ -10,7 +10,10 @@ import {
   useDroppable,
   useSensor,
   useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   PresetImportFailure,
@@ -39,6 +42,8 @@ import {
   Wrench,
   Star,
   Settings2,
+  Check,
+  X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfigurePresetModal from '../../modals/ConfigurePresetModal';
@@ -48,32 +53,41 @@ import Button from '../../ui/Button';
 import Text from '../../ui/Text';
 import Slider from '../../ui/Slider';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
-import { Adjustments, ADJUSTMENT_GROUPS } from '../../../utils/adjustments';
-import { OPTION_SEPARATOR, Panel, Preset, SelectedImage } from '../../ui/AppProperties';
+import { ADJUSTMENT_GROUPS } from '../../../utils/adjustments';
+import { OPTION_SEPARATOR, Preset, type Folder } from '../../ui/AppProperties';
 import { useEditorStore } from '../../../store/useEditorStore';
 import { useUIStore } from '../../../store/useUIStore';
 import { debouncedSetHistory, useEditorActions } from '../../../hooks/useEditorActions';
-import { mixAdjustments } from '../../../utils/presetAmount';
+import { mixPresetAdjustments } from '../../../utils/presetAmount';
+import {
+  usePresetApplication,
+  preparePresetApplication,
+  commitPresetApplication,
+  prepareStyleRemoval,
+} from '../../../utils/presetApplication';
+import { useAppliedPreset } from '../../../hooks/useAppliedPreset';
 import { presetUnavailableReason, filterPresetLibrary } from '../../../utils/presetBrowser';
 import { clearPresetHoverPreview, showPresetHoverPreview } from '../../../utils/presetHoverPreview';
 
 interface DroppableFolderItemProps {
-  children: any;
-  folder: any;
+  children: ReactNode;
+  folder: FolderWithId;
   isExpanded: boolean;
   isVirtual?: boolean;
-  onContextMenu(event: any, folder: any): void;
+  onContextMenu(event: ReactMouseEvent, item: UserPreset): void;
   onToggle(id: string): void;
 }
 
 interface DraggablePresetItemProps {
-  onApply(preset: any): void;
-  onContextMenu(event: any, preset: any): void;
+  onApply(preset: Preset): void;
+  onContextMenu(event: ReactMouseEvent, item: UserPreset): void;
   onToggleFavorite(): void;
-  preset: any;
+  preset: Preset;
   dndId?: string;
   disabled?: boolean;
   isActive?: boolean;
+  isApplied?: boolean;
+  appliedPosition?: number;
   intensity?: number;
   onIntensityChange?: (val: number) => void;
   onDragStateChange?: (isDragging: boolean) => void;
@@ -81,13 +95,24 @@ interface DraggablePresetItemProps {
 }
 
 interface FolderProps {
-  folder: any;
+  folder: Folder;
 }
+
+type FolderWithId = Folder & { id: string };
+type FolderPresetItem = UserPreset & { folder: FolderWithId };
+type UserPresetItem = UserPreset & { preset: Preset };
+
+const isFolderPresetItem = (item: UserPreset): item is FolderPresetItem => Boolean(item.folder?.id);
+const isUserPresetItem = (item: UserPreset): item is UserPresetItem => Boolean(item.preset);
 
 interface FolderState {
   isOpen: boolean;
-  folder: any;
+  folder: FolderWithId | null;
 }
+
+type ActivePresetItem = { type: PresetListType.Preset; data: Preset };
+type ActiveFolderItem = { type: PresetListType.Folder; data: FolderWithId };
+type ActiveItem = ActivePresetItem | ActiveFolderItem;
 
 interface ModalState {
   isOpen: boolean;
@@ -98,6 +123,8 @@ interface PresetItemDisplayProps {
   preset: Preset;
   onToggleFavorite?: () => void;
   isActive?: boolean;
+  isApplied?: boolean;
+  appliedPosition?: number;
   intensity?: number;
   onIntensityChange?: (val: number) => void;
   onDragStateChange?: (isDragging: boolean) => void;
@@ -134,6 +161,8 @@ function PresetItemDisplay({
   preset,
   onToggleFavorite,
   isActive,
+  isApplied,
+  appliedPosition,
   intensity,
   onIntensityChange,
   onDragStateChange,
@@ -155,11 +184,31 @@ function PresetItemDisplay({
   }, [supportsMasks, supportsGeometry, t]);
 
   return (
-    <div className="group flex flex-col px-2.5 py-1.5 rounded-md bg-surface hover:bg-surface-hover transition-colors cursor-grabbing">
+    <div
+      className={`group flex flex-col px-2.5 py-1.5 rounded-md hover:bg-surface-hover transition-colors cursor-grabbing ${isApplied ? 'bg-primary/10 ring-1 ring-inset ring-primary/50' : 'bg-surface'}`}
+    >
       <div className="flex items-center gap-2">
-        <Text color={TextColors.primary} className="grow min-w-0 truncate">
-          {preset.name}
-        </Text>
+        <div className="grow min-w-0" data-tooltip={preset.description}>
+          <Text color={TextColors.primary} className="truncate">
+            {preset.name}
+          </Text>
+          {preset.description && <p className="text-xs text-text-secondary truncate">{preset.description}</p>}
+        </div>
+        {isApplied && (
+          <span className="flex items-center gap-1 shrink-0 text-primary text-xs">
+            {appliedPosition ? (
+              <span
+                aria-label={`Applied Style ${appliedPosition}`}
+                className="rounded-full bg-primary/20 min-w-5 h-5 text-center leading-5"
+              >
+                {appliedPosition}
+              </span>
+            ) : (
+              <Check size={14} aria-label={t('editor.presets.applied')} />
+            )}
+            {intensity !== undefined && intensity !== 100 && <span>{intensity}%</span>}
+          </span>
+        )}
         {(isTool || supportsMasks || supportsGeometry) && (
           <div className="flex items-center gap-1.5 shrink-0 text-text-secondary" data-tooltip={tooltipContent}>
             {isTool && <Wrench size={12} aria-label={t('editor.presets.types.tool')} />}
@@ -195,8 +244,8 @@ function PresetItemDisplay({
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: 'easeInOut' }}
             className="w-full cursor-auto overflow-hidden"
-            onClick={(e: any) => e.stopPropagation()}
-            onPointerDown={(e: any) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <div className="mt-2 pb-1">
               <Slider
@@ -204,7 +253,7 @@ function PresetItemDisplay({
                 max={200}
                 defaultValue={100}
                 value={intensity ?? 100}
-                onChange={(e: any) => onIntensityChange(Number(e.target.value))}
+                onChange={(e) => onIntensityChange(Number(e.target.value))}
                 onDragStateChange={onDragStateChange}
                 label={t('editor.presets.amount')}
                 step={1}
@@ -241,6 +290,8 @@ function DraggablePresetItem({
   dndId,
   disabled,
   isActive,
+  isApplied,
+  appliedPosition,
   intensity,
   onIntensityChange,
   onDragStateChange,
@@ -264,7 +315,7 @@ function DraggablePresetItem({
   });
 
   const setCombinedRef = useCallback(
-    (node: any) => {
+    (node: HTMLElement | null) => {
       setDraggableNodeRef(node);
       setDroppableNodeRef(node);
     },
@@ -287,7 +338,7 @@ function DraggablePresetItem({
       aria-disabled={!!unavailable}
       onClick={() => !unavailable && onApply(preset)}
       onKeyDown={(e) => handleActivationKey(e, () => !unavailable && onApply(preset))}
-      onContextMenu={(e: any) => onContextMenu(e, { preset })}
+      onContextMenu={(e) => onContextMenu(e, { preset })}
       onMouseEnter={() => onHoverChange?.(preset)}
       onMouseLeave={() => onHoverChange?.(null)}
       ref={setCombinedRef}
@@ -304,6 +355,8 @@ function DraggablePresetItem({
           preset={preset}
           onToggleFavorite={onToggleFavorite}
           isActive={isActive}
+          isApplied={isApplied}
+          appliedPosition={appliedPosition}
           intensity={intensity}
           onIntensityChange={onIntensityChange}
           onDragStateChange={onDragStateChange}
@@ -356,7 +409,7 @@ function DroppableFolderItem({
         className={`flex items-center gap-2 p-2 rounded-lg bg-surface ${isVirtual ? 'cursor-pointer' : 'cursor-grab'}`}
         onClick={() => onToggle(folder.id)}
         onKeyDown={(e) => handleActivationKey(e, () => onToggle(folder.id))}
-        onContextMenu={isVirtual ? undefined : (e: any) => onContextMenu(e, { folder })}
+        onContextMenu={isVirtual ? undefined : (e) => onContextMenu(e, { folder })}
         ref={setDraggableNodeRef}
         {...listeners}
         {...attributes}
@@ -390,7 +443,7 @@ function RootDroppableArea({
   onContextMenu,
 }: {
   children: React.ReactNode;
-  onContextMenu: (e: any) => void;
+  onContextMenu: (e: ReactMouseEvent<HTMLDivElement>) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'root' });
 
@@ -408,6 +461,13 @@ function RootDroppableArea({
 export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProps) {
   const { t } = useTranslation();
   const selectedImage = useEditorStore((s) => s.selectedImage);
+  const appliedPreset = useAppliedPreset();
+  const appliedStyles = appliedPreset?.stack?.entries ?? [];
+  const appliedPosition = (id: string) => {
+    const index = appliedStyles.findIndex((entry) => entry.presetId === id);
+    return index < 0 ? undefined : index + 1;
+  };
+  const [appliedExpanded, setAppliedExpanded] = useState(true);
   const adjustments = useEditorStore((s) => s.adjustments);
   const setEditor = useEditorStore((s) => s.setEditor);
   const { setAdjustments } = useEditorActions();
@@ -434,17 +494,16 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
   const [isAddFolderModalOpen, setIsAddFolderModalOpen] = useState(false);
   const [renameFolderState, setRenameFolderState] = useState<FolderState>({ isOpen: false, folder: null });
   const [expandedFolders, setExpandedFolders] = useState(new Set<string>([FAVORITES_FOLDER_ID]));
-  const [activeItem, setActiveItem] = useState<any>(null);
+  const [activeItem, setActiveItem] = useState<ActiveItem | null>(null);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
 
   const [query, setQuery] = useState('');
   const [compatibleOnly, setCompatibleOnly] = useState(false);
   const exportNewXmp = useRef(false);
-  const presetBase = useRef<Adjustments | null>(null);
-  const lastPresetEdit = useRef<Adjustments | null>(null);
+  const application = usePresetApplication((state) => state.application);
 
-  const [activePresetId, setActivePresetId] = useState<string | null>(null);
-  const [presetIntensity, setPresetIntensity] = useState<number>(100);
+  const activePresetId = application?.stack ? null : (application?.preset.id ?? null);
+  const presetIntensity = application?.amount ?? 100;
   const [isActivePresetExpanded, setIsActivePresetExpanded] = useState(true);
 
   const activeView = useUIStore((s) => s.activeView);
@@ -455,16 +514,17 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
       if (
         preset &&
         !presetUnavailableReason(preset, selectedImage?.exif?.Model) &&
+        !appliedPosition(preset.id) &&
         preset.id !== activePresetId &&
         activeView === 'editor' &&
         selectedImage?.isReady
       ) {
-        showPresetHoverPreview(mixAdjustments(preset.adjustments, 100, useEditorStore.getState().adjustments));
+        showPresetHoverPreview(mixPresetAdjustments(preset, 100, useEditorStore.getState().adjustments, selectedImage));
       } else {
         clearPresetHoverPreview();
       }
     },
-    [activePresetId, activeView, selectedImage?.isReady, selectedImage?.exif?.Model],
+    [activePresetId, activeView, selectedImage, appliedPreset],
   );
 
   useEffect(() => clearPresetHoverPreview, []);
@@ -509,29 +569,26 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
   );
 
   const allItemsMap = useMemo(() => {
-    const map = new Map();
-    presets.forEach((item: any) => {
+    const map = new Map<string, ActiveItem>();
+    presets.forEach((item) => {
       if (item.preset) {
         map.set(item.preset.id, { type: PresetListType.Preset, data: item.preset });
-      } else if (item.folder) {
+      } else if (isFolderPresetItem(item)) {
         map.set(item.folder.id, { type: PresetListType.Folder, data: item.folder });
-        item.folder.children.forEach((p: any) => map.set(p.id, { type: PresetListType.Preset, data: p }));
+        item.folder.children.forEach((preset) => map.set(preset.id, { type: PresetListType.Preset, data: preset }));
       }
     });
     return map;
   }, [presets]);
 
   const itemParentMap = useMemo(() => {
-    const map = new Map();
-    presets.forEach((item: UserPreset) => {
+    const map = new Map<string, string | null>();
+    presets.forEach((item) => {
       if (item.preset) {
         map.set(item.preset.id, null);
-      } else if (item.folder) {
+      } else if (isFolderPresetItem(item)) {
         map.set(item.folder.id, null);
-        item.folder.children.forEach((p: UserPreset) => {
-          if (!item?.folder) {
-            return;
-          }
+        item.folder.children.forEach((p) => {
           map.set(p.id, item.folder.id);
         });
       }
@@ -551,48 +608,49 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
     });
   };
 
-  useEffect(() => {
-    setActivePresetId(null);
-    presetBase.current = null;
-    lastPresetEdit.current = null;
-  }, [selectedImage?.path, selectedImage?.isReady]);
-
-  useEffect(() => {
-    if (activePresetId && lastPresetEdit.current !== adjustments) {
-      setActivePresetId(null);
-      presetBase.current = null;
+  const handleRemoveStyle = (id: string) => {
+    clearPresetHoverPreview();
+    debouncedSetHistory.flush();
+    try {
+      const plan = prepareStyleRemoval(id);
+      commitPresetApplication(plan, (next) => setAdjustments(() => next, plan.application.label));
+      debouncedSetHistory.flush();
+    } catch (error) {
+      toast.info(String(error instanceof Error ? error.message : error));
     }
-  }, [adjustments, activePresetId]);
+  };
 
   const handleApplyPreset = (preset: Preset) => {
     if (!selectedImage?.isReady || presetUnavailableReason(preset, selectedImage.exif?.Model)) return;
     setHoverPreview(null);
-    if (activePresetId === preset.id) {
+    if (appliedPosition(preset.id)) {
+      handleRemoveStyle(preset.id);
+      return;
+    }
+    if (preset.presetType === 'tool' && activePresetId === preset.id) {
       setIsActivePresetExpanded((expanded) => !expanded);
       return;
     }
-
-    setActivePresetId(preset.id);
-    setIsActivePresetExpanded(true);
-    setPresetIntensity(100);
-
     debouncedSetHistory.flush();
-    presetBase.current = useEditorStore.getState().adjustments;
-    const next = { ...presetBase.current, ...mixAdjustments(preset.adjustments, 100, presetBase.current) };
-    lastPresetEdit.current = next;
-    setAdjustments(() => next);
-    debouncedSetHistory.flush();
+    try {
+      const plan = preparePresetApplication(preset, 100);
+      commitPresetApplication(plan, (next) => setAdjustments(() => next, plan.application.label));
+      setAppliedExpanded(true);
+      setIsActivePresetExpanded(true);
+      debouncedSetHistory.flush();
+    } catch (error) {
+      toast.info(String(error instanceof Error ? error.message : error));
+    }
   };
 
   const handleIntensityChange = useCallback(
     (preset: Preset, intensity: number) => {
-      setPresetIntensity(intensity);
-      const base = presetBase.current;
-      if (!base || useEditorStore.getState().adjustments !== lastPresetEdit.current) return;
-      const mixed = mixAdjustments(preset.adjustments, intensity, base);
-      const next = { ...base, ...mixed };
-      lastPresetEdit.current = next;
-      setAdjustments(() => next);
+      try {
+        const plan = preparePresetApplication(preset, intensity);
+        commitPresetApplication(plan, (next) => setAdjustments(() => next, plan.application.label));
+      } catch (error) {
+        toast.info(String(error instanceof Error ? error.message : error));
+      }
     },
     [setAdjustments],
   );
@@ -606,7 +664,8 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
     if (configureModalState.preset) {
       configurePreset(configureModalState.preset.id, name, includeMasks, includeCropTransform, presetType);
     } else {
-      const preset = addPreset(name, null, includeMasks, includeCropTransform, presetType);
+      const preset = await addPreset(name, null, includeMasks, includeCropTransform, presetType);
+      if (!preset) return;
       if (exportNewXmp.current) {
         exportNewXmp.current = false;
         await handleExportXmp(preset);
@@ -645,16 +704,16 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
     }, 300);
   };
 
-  const handleDragStart = (event: any) => {
+  const handleDragStart = (event: DragStartEvent) => {
     setHoverPreview(null);
-    setActiveItem(allItemsMap.get(event.active.id) ?? null);
+    setActiveItem(allItemsMap.get(String(event.active.id)) ?? null);
   };
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveItem(null);
 
-    const activeId = active.id;
+    const activeId = String(active.id);
     const activeParentId = itemParentMap.get(activeId);
     const activeType = active.data.current?.type;
 
@@ -669,7 +728,7 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
       return;
     }
 
-    const overId = over.id;
+    const overId = String(over.id);
     const overParentId = itemParentMap.get(overId);
     const overType = over.data.current?.type;
 
@@ -800,74 +859,72 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
     }
   };
 
-  const handleContextMenu = (event: any, item: UserPreset) => {
+  const handleContextMenu = (event: ReactMouseEvent, item: UserPreset) => {
     event.preventDefault();
     clearPresetHoverPreview();
     event.stopPropagation();
 
-    const isFolder = !!item.folder;
-    const data = isFolder ? item.folder : item.preset;
-
-    let options = [];
-    if (isFolder) {
-      options = [
-        {
-          icon: Edit,
-          label: t('editor.presets.menu.renameFolder'),
-          onClick: () => setRenameFolderState({ isOpen: true, folder: data }),
-        },
-        {
-          icon: FileDown,
-          label: t('editor.presets.menu.exportFolder'),
-          onClick: () => handleExport(item),
-        },
-        { type: OPTION_SEPARATOR },
-        {
-          icon: Trash2,
-          isDestructive: true,
-          label: t('editor.presets.menu.deleteFolder'),
-          onClick: () => handleDeleteItem(data?.id ?? null, true),
-        },
-      ];
-    } else {
-      options = [
-        {
-          icon: Save,
-          label: t('editor.presets.menu.overwrite'),
-          onClick: () => overwritePreset(data?.id ?? null),
-        },
-        {
-          icon: Settings2,
-          label: t('editor.presets.menu.configurePreset'),
-          onClick: () => setConfigureModalState({ isOpen: true, preset: data as Preset }),
-        },
-        { type: OPTION_SEPARATOR },
-        {
-          icon: CopyPlus,
-          label: t('editor.presets.menu.duplicatePreset'),
-          onClick: () => duplicatePreset(data?.id ?? null),
-        },
-        {
-          icon: FileDown,
-          label: t('editor.presets.menu.exportPreset'),
-          onClick: () => handleExport(item),
-        },
-        { label: t('editor.presets.lightroomXmp'), onClick: () => item.preset && handleExportXmp(item.preset) },
-        { type: OPTION_SEPARATOR },
-        {
-          icon: Trash2,
-          isDestructive: true,
-          label: t('editor.presets.menu.deletePreset'),
-          onClick: () => handleDeleteItem(data?.id ?? null, false),
-        },
-      ];
-    }
+    const options = item.folder
+      ? [
+          {
+            icon: Edit,
+            label: t('editor.presets.menu.renameFolder'),
+            onClick: () => {
+              if (isFolderPresetItem(item)) setRenameFolderState({ isOpen: true, folder: item.folder });
+            },
+          },
+          {
+            icon: FileDown,
+            label: t('editor.presets.menu.exportFolder'),
+            onClick: () => handleExport(item),
+          },
+          { type: OPTION_SEPARATOR },
+          {
+            icon: Trash2,
+            isDestructive: true,
+            label: t('editor.presets.menu.deleteFolder'),
+            onClick: () => handleDeleteItem(item.folder?.id ?? null, true),
+          },
+        ]
+      : item.preset
+        ? [
+            {
+              icon: Save,
+              label: t('editor.presets.menu.overwrite'),
+              onClick: () => overwritePreset(item.preset?.id ?? null),
+            },
+            {
+              icon: Settings2,
+              label: t('editor.presets.menu.configurePreset'),
+              onClick: () => setConfigureModalState({ isOpen: true, preset: item.preset ?? null }),
+            },
+            { type: OPTION_SEPARATOR },
+            {
+              icon: CopyPlus,
+              label: t('editor.presets.menu.duplicatePreset'),
+              onClick: () => duplicatePreset(item.preset?.id ?? null),
+            },
+            {
+              icon: FileDown,
+              label: t('editor.presets.menu.exportPreset'),
+              onClick: () => handleExport(item),
+            },
+            { label: t('editor.presets.lightroomXmp'), onClick: () => item.preset && handleExportXmp(item.preset) },
+            { type: OPTION_SEPARATOR },
+            {
+              icon: Trash2,
+              isDestructive: true,
+              label: t('editor.presets.menu.deletePreset'),
+              onClick: () => handleDeleteItem(item.preset?.id ?? null, false),
+            },
+          ]
+        : [];
 
     showContextMenu(event.clientX, event.clientY, options);
   };
 
-  const handleBackgroundContextMenu = (event: any) => {
-    if (!event.currentTarget.contains(event.target)) {
+  const handleBackgroundContextMenu = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) {
       return;
     }
     event.preventDefault();
@@ -898,8 +955,8 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
     () => filterPresetLibrary(presets, query, compatibleOnly, selectedImage?.exif?.Model),
     [presets, query, compatibleOnly, selectedImage?.exif?.Model],
   );
-  const folders = useMemo(() => visiblePresets.filter((item: UserPreset) => item.folder), [visiblePresets]);
-  const rootPresets = useMemo(() => visiblePresets.filter((item: UserPreset) => item.preset), [visiblePresets]);
+  const folders = useMemo(() => visiblePresets.filter(isFolderPresetItem), [visiblePresets]);
+  const rootPresets = useMemo(() => visiblePresets.filter(isUserPresetItem), [visiblePresets]);
   const favoritesFolder = useMemo(
     () => ({
       id: FAVORITES_FOLDER_ID,
@@ -978,6 +1035,76 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
             {t('editor.presets.compatibleOnly')}
           </label>
         </div>
+        {appliedStyles.length > 0 && (
+          <section
+            aria-label="Applied Styles"
+            className="mx-3 mb-2 rounded-lg border border-border-color bg-surface shrink-0 max-h-[45%] overflow-y-auto"
+          >
+            <button
+              type="button"
+              className="flex items-center gap-2 w-full p-2 text-left"
+              aria-expanded={appliedExpanded}
+              onClick={() => setAppliedExpanded((expanded) => !expanded)}
+            >
+              {appliedExpanded ? <FolderOpen size={18} /> : <FolderIcon size={18} />}
+              <span className="grow font-medium">{t('editor.presets.appliedFolder')}</span>
+              <span>{appliedStyles.length}/3</span>
+            </button>
+            {appliedExpanded && (
+              <div className="pl-3 pr-2 pb-2 space-y-2">
+                {appliedStyles.map((entry, index) => (
+                  <div key={entry.presetId} data-applied-style={entry.presetId} className="rounded-md bg-card p-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 grow min-w-0 text-left"
+                        aria-label={`Remove Style ${index + 1}: ${entry.name}`}
+                        onClick={() => handleRemoveStyle(entry.presetId)}
+                      >
+                        <span className="shrink-0 rounded-full bg-primary/20 min-w-5 h-5 text-center leading-5 text-primary">
+                          {index + 1}
+                        </span>
+                        <span className="truncate">{entry.name}</span>
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Remove ${entry.name}`}
+                        className="shrink-0 p-1"
+                        onClick={() => handleRemoveStyle(entry.presetId)}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                    {entry.bakedIn ? (
+                      <p className="text-xs text-text-secondary mt-1">{t('editor.presets.bakedInNotice')}</p>
+                    ) : (
+                      <Slider
+                        min={0}
+                        max={200}
+                        step={1}
+                        defaultValue={100}
+                        value={entry.amount}
+                        label={t('editor.presets.amount')}
+                        onChange={(event) =>
+                          handleIntensityChange(
+                            {
+                              id: entry.presetId,
+                              name: entry.name,
+                              adjustments: entry.adjustments,
+                              presetType: 'style',
+                            },
+                            Number(event.target.value),
+                          )
+                        }
+                        onDragStateChange={handleDragStateChange}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
         <RootDroppableArea onContextMenu={handleBackgroundContextMenu}>
           {isLoading && presets.length === 0 ? (
             <Text
@@ -1013,11 +1140,20 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
                       dndId={`${FAVORITES_FOLDER_ID}:${preset.id}`}
                       disabled
                       onApply={handleApplyPreset}
-                      onContextMenu={(e: any) => handleContextMenu(e, { preset })}
+                      onContextMenu={(e) => handleContextMenu(e, { preset })}
                       onToggleFavorite={() => toggleFavorite(preset.id)}
                       preset={preset}
                       isActive={preset.id === activePresetId && isActivePresetExpanded}
-                      intensity={preset.id === activePresetId ? presetIntensity : 100}
+                      isApplied={!!appliedPosition(preset.id) || preset.id === appliedPreset?.id}
+                      appliedPosition={appliedPosition(preset.id)}
+                      intensity={
+                        appliedStyles.find((entry) => entry.presetId === preset.id)?.amount ??
+                        (preset.id === activePresetId
+                          ? presetIntensity
+                          : preset.id === appliedPreset?.id
+                            ? appliedPreset.amount
+                            : 100)
+                      }
                       onIntensityChange={(val) => handleIntensityChange(preset, val)}
                       onDragStateChange={handleDragStateChange}
                       onHoverChange={setHoverPreview}
@@ -1028,7 +1164,7 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
               <AnimatePresence>
                 {folders
                   .filter((item: UserPreset) => item.folder?.id !== deletingItemId)
-                  .map((item: UserPreset, index: number) => (
+                  .map((item: FolderPresetItem, index: number) => (
                     <motion.div
                       animate="visible"
                       custom={index}
@@ -1041,7 +1177,7 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
                       <DroppableFolderItem
                         folder={item.folder}
                         isExpanded={!!query.trim() || (item.folder?.id ? expandedFolders.has(item.folder?.id) : false)}
-                        onContextMenu={(e: any) => handleContextMenu(e, item)}
+                        onContextMenu={(e) => handleContextMenu(e, item)}
                         onToggle={toggleFolder}
                       >
                         <AnimatePresence>
@@ -1055,11 +1191,20 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
                               >
                                 <DraggablePresetItem
                                   onApply={handleApplyPreset}
-                                  onContextMenu={(e: any) => handleContextMenu(e, { preset })}
+                                  onContextMenu={(e) => handleContextMenu(e, { preset })}
                                   onToggleFavorite={() => toggleFavorite(preset.id)}
                                   preset={preset}
                                   isActive={preset.id === activePresetId && isActivePresetExpanded}
-                                  intensity={preset.id === activePresetId ? presetIntensity : 100}
+                                  isApplied={!!appliedPosition(preset.id) || preset.id === appliedPreset?.id}
+                                  appliedPosition={appliedPosition(preset.id)}
+                                  intensity={
+                                    appliedStyles.find((entry) => entry.presetId === preset.id)?.amount ??
+                                    (preset.id === activePresetId
+                                      ? presetIntensity
+                                      : preset.id === appliedPreset?.id
+                                        ? appliedPreset.amount
+                                        : 100)
+                                  }
                                   onIntensityChange={(val) => handleIntensityChange(preset, val)}
                                   onDragStateChange={handleDragStateChange}
                                   onHoverChange={setHoverPreview}
@@ -1074,7 +1219,7 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
               <AnimatePresence>
                 {rootPresets
                   .filter((item: UserPreset) => item.preset?.id !== deletingItemId)
-                  .map((item: UserPreset, index: number) => (
+                  .map((item: UserPresetItem, index: number) => (
                     <motion.div
                       animate="visible"
                       custom={folders.length + index}
@@ -1086,11 +1231,20 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
                     >
                       <DraggablePresetItem
                         onApply={handleApplyPreset}
-                        onContextMenu={(e: any) => handleContextMenu(e, item)}
+                        onContextMenu={(e) => handleContextMenu(e, item)}
                         onToggleFavorite={() => item.preset && toggleFavorite(item.preset.id)}
                         preset={item.preset}
                         isActive={item.preset?.id === activePresetId && isActivePresetExpanded}
-                        intensity={item.preset?.id === activePresetId ? presetIntensity : 100}
+                        isApplied={!!appliedPosition(item.preset.id) || item.preset?.id === appliedPreset?.id}
+                        appliedPosition={appliedPosition(item.preset.id)}
+                        intensity={
+                          appliedStyles.find((entry) => entry.presetId === item.preset.id)?.amount ??
+                          (item.preset.id === activePresetId
+                            ? presetIntensity
+                            : item.preset.id === appliedPreset?.id
+                              ? appliedPreset.amount
+                              : 100)
+                        }
                         onIntensityChange={(val) => handleIntensityChange(item.preset as Preset, val)}
                         onHoverChange={setHoverPreview}
                       />
@@ -1113,7 +1267,7 @@ export default function PresetsPanel({ onNavigateToCommunity }: PresetsPanelProp
           onSave={handleAddFolder}
         />
         <RenameFolderModal
-          currentName={renameFolderState.folder?.name}
+          currentName={renameFolderState.folder?.name ?? ''}
           isOpen={renameFolderState.isOpen}
           onClose={() => setRenameFolderState({ isOpen: false, folder: null })}
           onSave={handleRenameFolderSave}
