@@ -84,7 +84,7 @@ export function sanitizeFilenameTemplate(template: string | null | undefined): s
   const hasUnknownToken = usedTokens.some((token) => !knownTokens.has(token));
   return hasUnknownToken ? DEFAULT_FILENAME_TEMPLATE : template;
 }
-export const DEFAULT_EXPORT_DPI = 300;
+export const DEFAULT_EXPORT_DPI = 96;
 export const MAX_EXPORT_DPI = 65535;
 
 export type InstagramRatio = '4:5' | '3:4' | '9:16' | '1.91:1';
