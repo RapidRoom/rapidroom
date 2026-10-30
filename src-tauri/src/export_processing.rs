@@ -1322,12 +1322,18 @@ fn save_image_with_metadata(
     }
 
     #[cfg(not(target_os = "android"))]
-    write_export_bytes(
-        output_path,
-        &image_bytes,
-        export_settings.overwrite_existing,
-    )
-    .map_err(|e| format!("Failed to write file to '{}': {}", output_path.display(), e))?;
+    {
+        if let Some(parent) = output_path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create folder '{}': {}", parent.display(), e))?;
+        }
+        write_export_bytes(
+            output_path,
+            &image_bytes,
+            export_settings.overwrite_existing,
+        )
+        .map_err(|e| format!("Failed to write file to '{}': {}", output_path.display(), e))?;
+    }
 
     Ok(())
 }

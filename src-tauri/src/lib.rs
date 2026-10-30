@@ -107,6 +107,7 @@ mod photo_stacks;
 mod preset_application;
 mod preset_converter;
 mod preset_xmp;
+mod preview_jpeg;
 mod raw_processing;
 mod relight;
 mod starter_presets;
@@ -1061,10 +1062,7 @@ fn process_preview_job(
         let step_start = std::time::Instant::now();
 
         let _encode_span = perf_trace::span("job.jpeg_encode");
-        let encode_result = Encoder::new(Preset::BaselineFastest)
-            .quality(jpeg_quality)
-            .fast_color(true)
-            .encode_imgref(img_ref);
+        let encode_result = preview_jpeg::encode_rgba(img_ref, jpeg_quality, true);
 
         match encode_result {
             Ok(jpeg_bytes) => {
@@ -2375,13 +2373,11 @@ async fn render_preview_for_path(
                 final_image.to_rgb8(),
             )));
         }
-        let (width, height) = final_image.dimensions();
         let _encode_span = perf_trace::span("full.jpeg_encode");
-        let rgb_pixels = final_image.to_rgb8().into_vec();
-
-        let bytes = Encoder::new(Preset::BaselineFastest)
-            .quality(92)
-            .encode_rgb(&rgb_pixels, width, height)
+        let rgba = final_image.into_rgba8();
+        let (width, height) = rgba.dimensions();
+        let pixels = ImgRef::new(rgba.as_raw().as_rgba(), width as usize, height as usize);
+        let bytes = preview_jpeg::encode_rgba(pixels, 92, false)
             .map_err(|e| format!("Failed to encode with mozjpeg-rs: {}", e))?;
 
         culling_preview::ensure_current(&cancel_token)?;
@@ -2428,7 +2424,10 @@ fn setup_logging(app_handle: &tauri::AppHandle) {
                 message
             ))
         })
-        .level(level)
+        .level(level.max(log::LevelFilter::Warn))
+        .filter(move |metadata| {
+            !raw_processing::swallow_prefix_log(metadata) && metadata.level() <= level
+        })
         // fern panics when a stderr write fails (e.g. output piped into `head`),
         // and the panic hook below logs again, which aborts the process.
         .chain(fern::Output::call(|record| {
@@ -2449,6 +2448,9 @@ fn setup_logging(app_handle: &tauri::AppHandle) {
     }
 
     panic::set_hook(Box::new(|info| {
+        if raw_processing::is_reading_prefix() {
+            return;
+        }
         let message = if let Some(s) = info.payload().downcast_ref::<&'static str>() {
             s.to_string()
         } else if let Some(s) = info.payload().downcast_ref::<String>() {

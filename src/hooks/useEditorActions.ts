@@ -22,6 +22,7 @@ import {
   INITIAL_ADJUSTMENTS,
   COPYABLE_ADJUSTMENT_KEYS,
   PasteMode,
+  CROP_GEOMETRY_KEYS,
   LensAdjustment,
   getActiveTools,
   mergeActiveTools,
@@ -36,7 +37,7 @@ import {
   normalizeCropChange,
   resolveAspectRatio,
 } from '../utils/cropUtils';
-import { Invokes, type Option, type SelectedImage } from '../components/ui/AppProperties';
+import { Invokes, type Option, Panel, type SelectedImage } from '../components/ui/AppProperties';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { isPathInCardRoot } from '../utils/cardMode';
 import i18n from 'i18next';
@@ -298,12 +299,40 @@ export const buildAutoAdjustModeOptions = (t: TFunction, onSelect: (mode: AutoAd
     onClick: () => onSelect(mode),
   }));
 
+export const applyCrop = () => {
+  useEditorStore.getState().setEditor({ isStraightenActive: false, liveRotation: null });
+  useUIStore.getState().setPanel(Panel.Adjustments);
+};
+
+export const cancelCrop = () => {
+  const { cropSessionSnapshot, selectedImage, adjustments, setEditor } = useEditorStore.getState();
+  applyCrop();
+  if (cropSessionSnapshot && cropSessionSnapshot.path === (selectedImage?.path ?? null)) {
+    const { geometry } = cropSessionSnapshot;
+    const hasChanged = CROP_GEOMETRY_KEYS.some(
+      (key) => JSON.stringify(adjustments[key]) !== JSON.stringify(geometry[key]),
+    );
+    if (hasChanged) {
+      setEditor((state) => {
+        const newAdjustments = { ...state.adjustments, ...geometry };
+        debouncedSetHistory(newAdjustments);
+        return {
+          adjustments: newAdjustments,
+          ...(state.showOriginal ? { showOriginal: false, previewOverride: null } : {}),
+        };
+      });
+    }
+  }
+};
+
 export function useEditorActions() {
   const { t } = useTranslation();
   const setEditor = useEditorStore((s) => s.setEditor);
 
   const setAdjustments = useCallback(
     (value: Partial<Adjustments> | ((prev: Adjustments) => Adjustments), label?: string) => {
+      // A labelled action gets its own history step instead of merging with pending slider edits.
+      if (label) debouncedSetHistory.flush();
       setEditor((state) => {
         const prev = state.adjustments;
         const newAdjustments = typeof value === 'function' ? value(prev) : { ...prev, ...value };
@@ -320,6 +349,7 @@ export function useEditorActions() {
           ...(state.showOriginal ? { showOriginal: false, previewOverride: null } : {}),
         };
       });
+      if (label) debouncedSetHistory.flush();
     },
     [setEditor],
   );

@@ -1826,11 +1826,17 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   }, [showSpinner]);
 
   useEffect(() => {
-    if (!isCropping || !selectedImage?.width || !selectedImage?.height) {
+    const { aspectRatio, orientationSteps = 0, crop: storedCrop, rotation = 0 } = adjustments;
+
+    if (!isCropping) {
+      prevCropParams.current = { rotation, aspectRatio, orientationSteps };
       return;
     }
 
-    const { aspectRatio, orientationSteps = 0, crop: storedCrop, rotation = 0 } = adjustments;
+    if (!selectedImage?.width || !selectedImage?.height) {
+      return;
+    }
+
     const effectiveRotation = liveRotation !== null && liveRotation !== undefined ? liveRotation : rotation;
 
     const imageChanged = prevCropParams.current?.imagePath !== selectedImage.path;
