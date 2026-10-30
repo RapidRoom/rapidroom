@@ -8453,6 +8453,21 @@ mod tests {
         assert_eq!(relative.metadata.adjustments["tint"], -4.0);
         assert_eq!(relative.metadata.adjustments["whiteBalance"], Value::Null);
         assert!(!relative.not_transferred.contains(&"whiteBalance"));
+
+        fs::write(&sidecar, serde_json::to_string(&existing).unwrap()).unwrap();
+        fs::write(
+            &xmp,
+            r#"<rdf:Description crs:WhiteBalance="As Shot"
+                crs:Temperature="6800" crs:Tint="+38" />"#,
+        )
+        .unwrap();
+        let as_shot =
+            import_xmp_adjustments_to_sidecar(source.to_str().unwrap(), &xmp, None).unwrap();
+        assert_eq!(as_shot.metadata.adjustments["temperature"], 0.0);
+        assert_eq!(as_shot.metadata.adjustments["tint"], 0.0);
+        assert_eq!(as_shot.metadata.adjustments["whiteBalance"], Value::Null);
+        assert_eq!(as_shot.metadata.adjustments["exposure"], 0.5);
+        assert!(!as_shot.not_transferred.contains(&"whiteBalance"));
     }
 
     #[test]
@@ -8840,7 +8855,9 @@ mod lightroom_xmp_import_tests {
             assert_eq!(adjustment(&imported.metadata, key), expected, "{key}");
         }
         assert!(imported.metadata.adjustments.get("crop").is_none());
-        assert!(imported.metadata.adjustments.get("temperature").is_none());
+        assert_eq!(imported.metadata.adjustments["temperature"], 0.0);
+        assert_eq!(imported.metadata.adjustments["tint"], 0.0);
+        assert_eq!(imported.metadata.adjustments["whiteBalance"], Value::Null);
 
         assert_eq!(
             imported.sidecar_path,
