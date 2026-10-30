@@ -775,7 +775,11 @@ fn process_preview_job(
     }
 
     let mut adjustments_clone = adjustments_json;
-    crate::camera_lens::resolve_snapshot(&mut adjustments_clone, &loaded_image.path, &state);
+    crate::camera_lens::resolve_snapshot_read_only(
+        &mut adjustments_clone,
+        &loaded_image.path,
+        &state,
+    );
     crate::ai_denoise::ensure_generated(app_handle, &loaded_image, &adjustments_clone);
 
     let new_transform_hash =
