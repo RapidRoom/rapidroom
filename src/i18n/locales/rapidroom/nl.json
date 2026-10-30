@@ -58,6 +58,11 @@
     }
   },
   "editor": {
+    "metadata": {
+      "camera": {
+        "focusDistance": "Scherpstelafstand"
+      }
+    },
     "presets": {
       "favorites": "Favorieten",
       "tooltips": {

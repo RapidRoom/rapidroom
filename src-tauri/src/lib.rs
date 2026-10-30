@@ -110,6 +110,7 @@ mod preset_xmp;
 mod preview_jpeg;
 mod raw_processing;
 mod relight;
+mod sony_focus;
 mod starter_presets;
 mod storage;
 mod tagging;
