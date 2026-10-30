@@ -2681,7 +2681,9 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           onUndo={undo}
           selectedImage={selectedImage}
           isComparing={showOriginal || compareView !== 'off'}
-          compareMode={appSettings?.compareMode ?? 'toggle'}
+          compareMode={
+            showOriginal ? 'toggle' : compareView !== 'off' ? compareView : (appSettings?.compareMode ?? 'toggle')
+          }
           isReferenceViewActive={isReferenceViewOn}
           onToggleReferenceView={() => dispatchReferenceView({ type: 'open-chooser' })}
           adjustmentsHistory={adjustmentsHistory}

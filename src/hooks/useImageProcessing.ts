@@ -198,7 +198,12 @@ export function useImageProcessing(
           return { originalPreview: { path: image.path, sourcePath: referencePath ?? image.path, url } };
         });
       } catch {
-        if (key === originalRequestKeyRef.current) {
+        const current = useEditorStore.getState().selectedImage;
+        if (
+          key === originalRequestKeyRef.current &&
+          current?.path === image.path &&
+          current?.loadGeneration === image.loadGeneration
+        ) {
           originalRequestKeyRef.current = null;
           if (referencePath)
             setEditor({ originalPreview: { path: image.path, sourcePath: referencePath, url: null, error: true } });

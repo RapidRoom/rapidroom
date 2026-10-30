@@ -10,8 +10,11 @@ def select_mode(smoke, wait_for, mode):
     smoke.execute("""const button=document.querySelector('[data-testid=editor-compare-toggle]');
       button.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2}));return true;""")
     wait_for(lambda: smoke.execute("return document.querySelectorAll('[role=menuitemradio]').length===4;"), "compare mode menu")
+    before = smoke.execute("return document.querySelector('[data-editor-viewport] svg image')?.getAttribute('href');")
     smoke.execute("""const buttons=[...document.querySelectorAll('[role=menuitemradio]')];
       buttons[arguments[0]].click();return true;""", [list(LABELS).index(mode)])
+    if mode == "toggle":
+        wait_for(lambda: smoke.execute("return document.querySelector('[data-editor-viewport] svg image')?.getAttribute('href')!==arguments[0];", [before]), "original toggle render", 90)
     expected = "off" if mode == "toggle" else mode
     wait_for(lambda: smoke.execute("""return document.querySelector('[data-compare-view]')?.dataset.compareView===arguments[0]
       &&document.querySelector('[data-testid=editor-compare-toggle]')?.getAttribute('aria-pressed')==='true';""", [expected]), "compare " + mode, 90)
