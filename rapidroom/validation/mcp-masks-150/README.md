@@ -27,6 +27,6 @@ round trips. Native interaction uses radial masks; it does not exercise every
 component through the GUI or invoke AI mask generation. #120's remaining AI,
 preview-coordinate, virtual-copy, preset and library work is not closed.
 
-[Inspection](inspection.json) records agent visual inspection; it is not Josh's
+[Inspection](inspection.json) records agent visual inspection; it is not the maintainer's
 visual approval. Application test logs and full screenshots remain local because
 they contain operational paths; only the allowlisted summary and CC0 crops ship.

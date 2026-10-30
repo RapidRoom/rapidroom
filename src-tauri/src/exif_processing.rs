@@ -47,8 +47,9 @@ impl ExifCacheState {
     }
 }
 
+static EXIF_CACHE: OnceLock<Mutex<ExifCacheState>> = OnceLock::new();
+
 fn get_exif_cache() -> &'static Mutex<ExifCacheState> {
-    static EXIF_CACHE: OnceLock<Mutex<ExifCacheState>> = OnceLock::new();
     EXIF_CACHE.get_or_init(|| {
         std::thread::spawn(|| {
             loop {
@@ -101,6 +102,29 @@ pub fn flush_all_dirty_caches() {
             }
         }
     }
+}
+
+/// Storage page: clear the EXIF disk cache (upstream).
+pub fn clear_disk_cache() -> Result<(), String> {
+    let mut state = get_exif_cache()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    state.cache.clear();
+    state.dirty.clear();
+    let Some(read_dir) = state
+        .cache_dir
+        .as_ref()
+        .and_then(|dir| fs::read_dir(dir).ok())
+    else {
+        return Ok(());
+    };
+    for path in read_dir.filter_map(|e| e.ok()).map(|e| e.path()) {
+        if path.is_file() {
+            fs::remove_file(&path)
+                .map_err(|e| format!("Failed to remove {}: {}", path.display(), e))?;
+        }
+    }
+    Ok(())
 }
 
 fn load_rrcache_for_folder(folder: &Path) {
@@ -251,22 +275,125 @@ pub fn truncate_large_exif(value: &str) -> String {
 }
 
 pub fn load_sidecar(sidecar_path: &Path) -> ImageMetadata {
-    let _lock = crate::file_management::SIDECAR_METADATA_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
-    load_sidecar_unlocked(sidecar_path)
+    // Each sidecar is atomically replaced; readers see a complete old or new
+    // document and need not serialize a whole folder behind metadata writes.
+    let (meta, healed) = read_sidecar(sidecar_path);
+    if healed {
+        // Reload under the shared write guard before persisting normalization:
+        // a read snapshot must not overwrite a concurrent edit.
+        if crate::file_management::update_sidecar(sidecar_path, |_| {}).is_ok() {
+            log::info!(
+                "Auto-healed bloated sidecar for: {}",
+                sidecar_path.display()
+            );
+        }
+    }
+    meta
 }
 
+// Safe inside a sidecar transaction: normalization here never acquires a
+// second write guard. The transaction's caller publishes the normalized data.
 pub(crate) fn load_sidecar_unlocked(sidecar_path: &Path) -> ImageMetadata {
+    read_sidecar(sidecar_path).0
+}
+
+/// Sidecars whose bytes the editor could not parse, keyed by physical path with
+/// the blake3 of the unreadable bytes. Callers that read a sidecar get defaults
+/// back, so any later write would silently replace the user's recipe; the write
+/// path consults this registry and refuses until the bytes change.
+static UNREADABLE_SIDECARS: OnceLock<Mutex<HashMap<PathBuf, blake3::Hash>>> = OnceLock::new();
+
+fn unreadable_key(path: &Path) -> PathBuf {
+    fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+fn mark_unreadable(path: &Path, content: &[u8], reason: &str) {
+    log::warn!(
+        "Sidecar {} cannot be read ({reason}); it will not be overwritten",
+        path.display()
+    );
+    UNREADABLE_SIDECARS
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(unreadable_key(path), blake3::hash(content));
+}
+
+fn mark_readable(path: &Path) {
+    if let Some(registry) = UNREADABLE_SIDECARS.get() {
+        let mut registry = registry.lock().unwrap_or_else(|e| e.into_inner());
+        if !registry.is_empty() {
+            registry.remove(&unreadable_key(path));
+        }
+    }
+}
+
+/// Called by every sidecar writer while it holds the sidecar lock.
+pub(crate) fn refuse_unreadable_overwrite(path: &Path) -> std::io::Result<()> {
+    let Some(registry) = UNREADABLE_SIDECARS.get() else {
+        return Ok(());
+    };
+    let mut registry = registry.lock().unwrap_or_else(|e| e.into_inner());
+    if registry.is_empty() {
+        return Ok(());
+    }
+    let key = unreadable_key(path);
+    let Some(hash) = registry.get(&key).copied() else {
+        return Ok(());
+    };
+    match fs::read(path) {
+        Ok(bytes) if blake3::hash(&bytes) == hash => Err(std::io::Error::other(format!(
+            "The edits in {} could not be read, so they were not overwritten. Fix or move the file and try again.",
+            path.display()
+        ))),
+        _ => {
+            registry.remove(&key);
+            Ok(())
+        }
+    }
+}
+
+/// Parse a sidecar the way the editor does. Older or hand-written files may lack
+/// the bookkeeping fields (`version`, `rating`) that the next save fills in.
+/// `None` means the bytes are not a usable sidecar.
+pub(crate) fn parse_sidecar_metadata(content: &str) -> Option<ImageMetadata> {
+    let mut value: serde_json::Value = serde_json::from_str(content).ok()?;
+    let object = value.as_object_mut()?;
+    object.entry("version").or_insert(serde_json::json!(1));
+    object.entry("rating").or_insert(serde_json::json!(0));
+    serde_json::from_value(value).ok()
+}
+
+fn read_sidecar(sidecar_path: &Path) -> (ImageMetadata, bool) {
     if !sidecar_path.exists() {
-        return ImageMetadata::default();
+        return (ImageMetadata::default(), false);
     }
 
-    let Ok(content) = fs::read_to_string(sidecar_path) else {
-        return ImageMetadata::default();
+    let Ok(bytes) = fs::read(sidecar_path) else {
+        return (ImageMetadata::default(), false);
+    };
+    let Ok(content) = String::from_utf8(bytes) else {
+        mark_unreadable(
+            sidecar_path,
+            &fs::read(sidecar_path).unwrap_or_default(),
+            "not UTF-8",
+        );
+        return (ImageMetadata::default(), false);
     };
 
-    let mut meta = serde_json::from_str::<ImageMetadata>(&content).unwrap_or_default();
+    let mut meta = if content.trim().is_empty() {
+        ImageMetadata::default()
+    } else if let Some(meta) = parse_sidecar_metadata(&content) {
+        mark_readable(sidecar_path);
+        meta
+    } else {
+        mark_unreadable(
+            sidecar_path,
+            content.as_bytes(),
+            "invalid or mistyped fields",
+        );
+        return (ImageMetadata::default(), false);
+    };
     let mut healed = false;
 
     if let Some(ref mut exif_map) = meta.exif {
@@ -278,15 +405,7 @@ pub(crate) fn load_sidecar_unlocked(sidecar_path: &Path) -> ImageMetadata {
         }
     }
 
-    if healed && let Ok(json) = serde_json::to_string_pretty(&meta) {
-        let _ = crate::file_management::write_file_atomically(sidecar_path, json);
-        log::info!(
-            "Auto-healed bloated sidecar for: {}",
-            sidecar_path.display()
-        );
-    }
-
-    meta
+    (meta, healed)
 }
 
 /// Seed only an unedited image; existing sidecar framing stays in the original
@@ -326,6 +445,28 @@ pub fn load_sidecar_with_exif(sidecar_path: &Path, source_path: &Path) -> ImageM
     }
 
     meta
+}
+
+/// Upstream's sidecar update API, routed through RapidRoom's locked, atomic writer.
+/// RapidRoom never deletes a sidecar that holds only defaults: RapidRoom sidecars also carry
+/// explicit unrated/unflagged choices, framing, denoise and stack membership.
+pub fn update_sidecar(
+    sidecar_path: &Path,
+    source_path: &Path,
+    update: impl FnOnce(&mut ImageMetadata),
+) -> std::io::Result<ImageMetadata> {
+    if crate::immich::is_placeholder(source_path)
+        && let Some(parent) = sidecar_path.parent()
+    {
+        fs::create_dir_all(parent)?;
+    }
+    let update = std::cell::RefCell::new(Some(update));
+    crate::file_management::update_sidecar(sidecar_path, |metadata| {
+        if let Some(update) = update.borrow_mut().take() {
+            update(metadata);
+        }
+    })
+    .map_err(std::io::Error::other)
 }
 
 fn to_ur64(val: &exif::Rational) -> uR64 {
@@ -2269,22 +2410,29 @@ fn embed_jpeg_xmp(image_bytes: &mut Vec<u8>, packet: &str) {
 }
 
 fn embed_png_xmp(image_bytes: &mut Vec<u8>, packet: &str) {
+    let mut data = b"XML:com.adobe.xmp\0\0\0\0\0".to_vec();
+    data.extend_from_slice(packet.as_bytes());
+    insert_png_chunk(image_bytes, b"iTXt", &data);
+}
+
+pub fn insert_png_chunk(image_bytes: &mut Vec<u8>, chunk_type: &[u8; 4], data: &[u8]) {
     const IHDR_END: usize = 33;
 
-    if image_bytes.len() < IHDR_END || &image_bytes[12..16] != b"IHDR" {
+    if image_bytes.len() < IHDR_END
+        || &image_bytes[..8] != b"\x89PNG\r\n\x1a\n"
+        || &image_bytes[12..16] != b"IHDR"
+    {
         return;
     }
 
-    let mut data = b"XML:com.adobe.xmp\0\0\0\0\0".to_vec();
-    data.extend_from_slice(packet.as_bytes());
     let mut crc = crc32fast::Hasher::new();
-    crc.update(b"iTXt");
-    crc.update(&data);
+    crc.update(chunk_type);
+    crc.update(data);
 
     let mut chunk = Vec::with_capacity(data.len() + 12);
     chunk.extend_from_slice(&(data.len() as u32).to_be_bytes());
-    chunk.extend_from_slice(b"iTXt");
-    chunk.extend_from_slice(&data);
+    chunk.extend_from_slice(chunk_type);
+    chunk.extend_from_slice(data);
     chunk.extend_from_slice(&crc.finalize().to_be_bytes());
     image_bytes.splice(IHDR_END..IHDR_END, chunk);
 }
@@ -2337,6 +2485,64 @@ fn save_primary_metadata(image_path: &Path, metadata: &ImageMetadata) -> std::io
     crate::file_management::update_sidecar(&primary, |current| current.exif = metadata.exif.clone())
         .map(|_| ())
         .map_err(std::io::Error::other)
+}
+
+// Query variants deliberately do not heal primary metadata, migrate legacy
+// files, invalidate dirty cache entries or initialize a cache-writer thread.
+fn query_primary_exif(path: &Path) -> Option<HashMap<String, String>> {
+    let bytes = fs::read(path).ok()?;
+    let metadata: ImageMetadata = serde_json::from_slice(&bytes).ok()?;
+    metadata.exif.map(|map| {
+        map.into_iter()
+            .map(|(key, value)| (key, truncate_large_exif(&value)))
+            .collect()
+    })
+}
+fn query_cache_file(image_path: &Path, cache_path: &Path) -> Option<HashMap<String, String>> {
+    let (mtime, size) = get_file_stamp(image_path)?;
+    let cache: HashMap<String, CachedExifEntry> =
+        serde_json::from_slice(&fs::read(cache_path).ok()?).ok()?;
+    cache
+        .get(image_path.file_name()?.to_str()?)
+        .filter(|entry| entry.mtime_ns == mtime && entry.size == size)
+        .map(|entry| entry.data.clone())
+}
+fn query_cached_exif(image_path: &Path) -> Option<HashMap<String, String>> {
+    let folder = image_path.parent()?;
+    let (mtime, size) = get_file_stamp(image_path)?;
+    let state = EXIF_CACHE.get()?.lock().ok()?;
+    if let Some(entries) = state.cache.get(folder) {
+        return entries
+            .get(image_path.file_name()?.to_str()?)
+            .filter(|entry| entry.mtime_ns == mtime && entry.size == size)
+            .map(|entry| entry.data.clone());
+    }
+    let cache_path = state.get_cache_file_path(folder)?;
+    drop(state);
+    query_cache_file(image_path, &cache_path)
+}
+pub(crate) fn read_exif_for_query(
+    sidecar_path: &Path,
+    source_path: &Path,
+) -> Option<HashMap<String, String>> {
+    if let Some(exif) = query_primary_exif(sidecar_path)
+        .or_else(|| query_primary_exif(&get_primary_sidecar_path(source_path)))
+        .or_else(|| query_cached_exif(source_path))
+        .or_else(|| {
+            fs::read(get_rrexif_path(source_path))
+                .ok()
+                .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        })
+    {
+        return Some(exif);
+    }
+    let path = source_path.to_string_lossy();
+    let exif = if let Ok(bytes) = file_management::read_file_mapped(source_path) {
+        read_exif_data_from_bytes(&path, &bytes)
+    } else {
+        read_exif_data_from_bytes(&path, &fs::read(source_path).ok()?)
+    };
+    (!exif.is_empty()).then_some(exif)
 }
 
 pub fn read_rrexif_sidecar(image_path: &Path) -> Option<HashMap<String, String>> {
@@ -3425,5 +3631,95 @@ mod capture_offset_tests {
             parse_raw_creation_date(Some(date), [Some("invalid"), Some("-10:00")]),
             parse_raw_creation_date(Some(date), [Some("-10:00"), None])
         );
+    }
+}
+
+#[cfg(test)]
+mod readonly_query_tests {
+    use super::*;
+    fn snapshot(paths: &[&Path]) -> Vec<(Vec<u8>, std::time::SystemTime)> {
+        paths
+            .iter()
+            .map(|p| {
+                (
+                    fs::read(p).unwrap(),
+                    p.metadata().unwrap().modified().unwrap(),
+                )
+            })
+            .collect()
+    }
+    #[test]
+    fn queries_preserve_long_primary_legacy_physical_exif_and_cache_files() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("source.jpg");
+        let mut encoded = Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(2, 1, image::Rgb([30, 60, 90])))
+            .write_to(&mut encoded, image::ImageFormat::Jpeg)
+            .unwrap();
+        let mut bytes = encoded.into_inner();
+        let mut tags = Metadata::new();
+        tags.set_tag(ExifTag::Make("Canon".into()));
+        tags.write_to_vec(&mut bytes, FileExtension::JPEG).unwrap();
+        fs::write(&source, &bytes).unwrap();
+        let primary = get_primary_sidecar_path(&source);
+        let legacy = get_rrexif_path(&source);
+        let cache = directory.path().join("exif-cache.json");
+        fs::write(&legacy, r#"{"Make":"Legacy","unknown":"keep"}"#).unwrap();
+        let (mtime, size) = get_file_stamp(&source).unwrap();
+        fs::write(&cache,serde_json::to_vec(&serde_json::json!({"source.jpg":{"mtime_ns":mtime,"size":size,"data":{"Make":"Cache"},"future":42}})).unwrap()).unwrap();
+        for primary_exif in [
+            serde_json::json!({"Make":"Primary","LongField":"z".repeat(900)}),
+            serde_json::Value::Null,
+        ] {
+            fs::write(&primary,serde_json::to_vec(&serde_json::json!({"version":1,"rating":0,"exif":primary_exif,"adjustments":{"exposure":0.7},"future_owner_field":{"keep":true}})).unwrap()).unwrap();
+            serde_json::from_slice::<ImageMetadata>(&fs::read(&primary).unwrap()).unwrap();
+            let paths = [
+                source.as_path(),
+                primary.as_path(),
+                legacy.as_path(),
+                cache.as_path(),
+            ];
+            let before = snapshot(&paths);
+            let exif = read_exif_for_query(&primary, &source).unwrap();
+            if primary_exif.is_null() {
+                assert_eq!(exif["Make"], "Legacy");
+            } else {
+                assert_eq!(exif["Make"], "Primary");
+                assert!(exif["LongField"].len() < 500);
+            }
+            assert_eq!(query_cache_file(&source, &cache).unwrap()["Make"], "Cache");
+            assert_eq!(snapshot(&paths), before);
+        }
+        fs::remove_file(&legacy).unwrap();
+        let paths = [source.as_path(), primary.as_path(), cache.as_path()];
+        let before = snapshot(&paths);
+        assert_eq!(
+            read_exif_for_query(&primary, &source).unwrap()["Make"],
+            "Canon"
+        );
+        assert_eq!(snapshot(&paths), before);
+        let virtual_sidecar = directory.path().join("source-copy.rrdata");
+        fs::write(
+            &virtual_sidecar,
+            r#"{"version":1,"rating":0,"adjustments":{"exposure":1},"future":"keep"}"#,
+        )
+        .unwrap();
+        fs::write(
+            &primary,
+            r#"{"version":1,"rating":0,"adjustments":null,"exif":{"Make":"Physical primary"},"future":"keep"}"#,
+        )
+        .unwrap();
+        let paths = [
+            source.as_path(),
+            primary.as_path(),
+            virtual_sidecar.as_path(),
+            cache.as_path(),
+        ];
+        let before = snapshot(&paths);
+        assert_eq!(
+            read_exif_for_query(&virtual_sidecar, &source).unwrap()["Make"],
+            "Physical primary"
+        );
+        assert_eq!(snapshot(&paths), before);
     }
 }

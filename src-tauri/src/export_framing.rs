@@ -110,6 +110,9 @@ pub fn geometry_signature(adjustments: &Value) -> String {
         "flipHorizontal":adjustments["flipHorizontal"].as_bool().unwrap_or(false),
         "flipVertical":adjustments["flipVertical"].as_bool().unwrap_or(false),
     });
+    if adjustments["crop"]["unit"].as_str() == Some("%") {
+        geometry["crop"]["unit"] = json!("%");
+    }
     if adjustments["lensCorrectionMode"].as_str() == Some("auto")
         && adjustments["cameraLensCorrectionVersion"].as_u64() == Some(1)
     {

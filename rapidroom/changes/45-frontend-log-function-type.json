@@ -1,0 +1,14 @@
+{
+  "id": "frontend-log-function-name-narrowing",
+  "title": "Use function narrowing for frontend log names",
+  "category": "ci",
+  "landed": "2026-10-26",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation with Codex)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "The serializer reads a function's name directly after its existing typeof narrowing, removing an unsafe Function cast with identical output."
+}

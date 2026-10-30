@@ -2,6 +2,7 @@ import { ExportPreset } from './ExportImportProperties';
 import { Adjustments, CopyPasteSettings } from '../../utils/adjustments';
 import { ToolType } from '../panel/right/Masks';
 import type { WhiteBalance, WhiteBalanceMode } from '../../utils/whiteBalance';
+import type { ImmichSettings } from '../immich/immichApi';
 
 export const GLOBAL_KEYS = [
   ' ',
@@ -37,10 +38,11 @@ export enum Invokes {
   ApplyAdjustments = 'apply_adjustments',
   ApplyAdjustmentsToPaths = 'apply_adjustments_to_paths',
   ApplyAutoAdjustmentsToPaths = 'apply_auto_adjustments_to_paths',
-  ApplyDenoising = 'apply_denoising',
+  ApplyAutoStraightenToPaths = 'apply_auto_straighten_to_paths',
   CalculateAutoAdjustments = 'calculate_auto_adjustments',
   SampleWhiteBalance = 'sample_white_balance',
   BatchDenoiseImages = 'batch_denoise_images',
+  CalculateAutoStraighten = 'calculate_auto_straighten',
   CancelAiTask = 'cancel_ai_task',
   CancelDenoise = 'cancel_denoise',
   CancelExport = 'cancel_export',
@@ -49,6 +51,7 @@ export enum Invokes {
   ClearAiTags = 'clear_ai_tags',
   ClearAllTags = 'clear_all_tags',
   GetThumbnailCacheUsage = 'get_thumbnail_cache_usage',
+  ClearAiDenoiseCache = 'clear_ai_denoise_cache',
   ClearThumbnailCache = 'clear_thumbnail_cache',
   CopyFiles = 'copy_files',
   CreateDenoiseJob = 'create_denoise_job',
@@ -56,23 +59,34 @@ export enum Invokes {
   CreateVirtualCopy = 'create_virtual_copy',
   CullImages = 'cull_images',
   DeleteFolder = 'delete_folder',
+  DiscardAiJobs = 'discard_ai_jobs',
+  ApplyDenoising = 'apply_denoising',
   DuplicateFile = 'duplicate_file',
   EstimateExportSizes = 'estimate_export_sizes',
   ExportImages = 'export_images',
   FrontendLog = 'frontend_log',
   GenerateAiForegroundMask = 'generate_ai_foreground_mask',
   GenerateAiSkyMask = 'generate_ai_sky_mask',
+  GenerateAiTextMask = 'generate_ai_text_mask',
+  GenerateAiFaceMask = 'generate_ai_face_mask',
   GenerateAiSubjectMask = 'generate_ai_subject_mask',
   GenerateExportFilename = 'generate_export_filename',
   GeneratePreviewForPath = 'generate_preview_for_path',
   GenerateMaskOverlay = 'generate_mask_overlay',
   GeneratePresetPreview = 'generate_preset_preview',
   GenerateUncroppedPreview = 'generate_uncropped_preview',
+  GetStorageUsage = 'get_storage_usage',
+  ClearAiMapsCache = 'clear_ai_maps_cache',
+  ClearAiModels = 'clear_ai_models',
+  ClearImmichCache = 'clear_immich_cache',
+  ClearMetadataCache = 'clear_metadata_cache',
+  GetAiJobsStatus = 'get_ai_jobs_status',
   GetFolderTree = 'get_folder_tree',
   GetLastRename = 'get_last_rename',
   GetFolderChildren = 'get_folder_children',
   GetLogFilePath = 'get_log_file_path',
   GetOrCreateInternalLibraryRoot = 'get_or_create_internal_library_root',
+  GetPendingAiPaths = 'get_pending_ai_paths',
   GetPinnedFolderTrees = 'get_pinned_folder_trees',
   GetSupportedFileTypes = 'get_supported_file_types',
   HandleExportPresetsToFile = 'handle_export_presets_to_file',
@@ -85,12 +99,12 @@ export enum Invokes {
   ImportFiles = 'import_files',
   InvokeGenerativeReplaseWithMaskDef = 'invoke_generative_replace_with_mask_def',
   IsTetheringSupported = 'is_tethering_supported',
-  IsRaw9Available = 'is_raw9_available',
   ListImagesInDir = 'list_images_in_dir',
   CountUnshownVideos = 'count_unshown_videos',
   ListImagesRecursive = 'list_images_recursive',
   LoadImage = 'load_image',
   LoadMetadata = 'load_metadata',
+  ReadCompareAdjustments = 'read_compare_adjustments',
   GetDefaultRawLensAdjustments = 'get_default_raw_lens_adjustments',
   GetLensCorrectionResolution = 'get_lens_correction_resolution',
   LoadPresets = 'load_presets',
@@ -113,10 +127,14 @@ export enum Invokes {
   RemoveTagForPaths = 'remove_tag_for_paths',
   RenameFiles = 'rename_files',
   RenameFolder = 'rename_folder',
+  PauseAiJobs = 'pause_ai_jobs',
+  IsRaw9Available = 'is_raw9_available',
+  QueueAiJobs = 'queue_ai_jobs',
   ResetAdjustmentsForPaths = 'reset_adjustments_for_paths',
+  ResumeAiJobs = 'resume_ai_jobs',
+  RetryFailedAiJobs = 'retry_failed_ai_jobs',
   SaveMetadataAndUpdateThumbnail = 'save_metadata_and_update_thumbnail',
   SaveCollage = 'save_collage',
-  SaveDenoisedImage = 'save_denoised_image',
   SavePanorama = 'save_panorama',
   SaveHdr = 'save_hdr',
   SavePresets = 'save_presets',
@@ -132,12 +150,15 @@ export enum Invokes {
   StartBackgroundIndexing = 'start_background_indexing',
   StitchPanorama = 'stitch_panorama',
   StitchFocusStack = 'stitch_focus_stack',
+  SubscribeAnalytics = 'subscribe_analytics',
+  SaveDenoisedImage = 'save_denoised_image',
   SaveFocusStack = 'save_focus_stack',
   MergeHdr = 'merge_hdr',
   TestAIConnectorConnection = 'test_ai_connector_connection',
   SampleDisplayArea = 'sample_display_area',
   UndoLastRename = 'undo_last_rename',
   UpdateWgpuTransform = 'update_wgpu_transform',
+  ReleaseOriginalPreview = 'release_original_preview',
   UpdateExifFields = 'update_exif_fields',
   FetchCommunityPresets = 'fetch_community_presets',
   GenerateAllCommunityPreviews = 'generate_all_community_previews',
@@ -251,7 +272,11 @@ export type GroupingMode = 'off' | GroupPreference;
 export interface AppSettings {
   terminalSettings?: TerminalSettings;
   mcpEnabled?: boolean;
+  aiCacheLimitGb?: number;
+  aiMapsCacheLimitGb?: number;
+  thumbnailCacheLimitGb?: number;
   aiConnectorAddress?: string;
+  aiGpuAcceleration?: boolean;
   aiProvider?: string;
   decorations?: any;
   editorPreviewResolution?: number;
@@ -262,6 +287,8 @@ export interface AppSettings {
   highResZoomMultiplier?: number;
   enableLivePreviews?: boolean;
   livePreviewQuality?: string;
+  exportWorkerThreads?: number;
+  exportMemoryLimit?: number;
   enableAiTagging?: boolean;
   aiTagCount?: number;
   customAiTags?: string[];
@@ -331,6 +358,7 @@ export interface AppSettings {
   groupPreferredType?: GroupPreference; // legacy
   alwaysDecodeRawThumbnails?: boolean;
   workspace?: WorkspaceState;
+  immich?: ImmichSettings;
 }
 
 export interface TerminalTab {
@@ -443,6 +471,7 @@ export interface ImageFile {
   is_cloud_placeholder: boolean;
   is_raw: boolean;
   group_id: string | null;
+  needs_ai?: boolean;
 }
 
 export interface Option {
@@ -552,14 +581,11 @@ export interface AdjustmentLayout {
 }
 
 export interface WaveformData {
-  blue: string;
-  green: string;
   height: number;
-  luma: string;
-  red: string;
-  rgb: string;
-  parade: string;
-  vectorscope: string;
+  luma: ImageBitmap | null;
+  rgb: ImageBitmap | null;
+  parade: ImageBitmap | null;
+  vectorscope: ImageBitmap | null;
   width: number;
 }
 

@@ -5,9 +5,19 @@ import { getReferenceLabel } from '../utils/referenceView';
 import { afterPendingLibraryMetadataWrites } from '../utils/libraryMetadataWrites';
 import { listMcpPresets, resolveMcpPreset, presetCatalogSelector, type PresetSelector } from '../utils/mcpPresets';
 import { usePresetCatalog } from '../store/usePresetCatalog';
-import { preparePresetApplication, commitPresetApplication } from '../utils/presetApplication';
+import {
+  preparePresetApplication,
+  commitPresetApplication,
+  prepareStyleRemoval,
+  activeStyleStack,
+} from '../utils/presetApplication';
 import { clearPresetHoverPreview } from '../utils/presetHoverPreview';
-import { hashPresetAdjustments, useAppliedPresetStore, loadAppliedPreset } from '../utils/appliedPreset';
+import {
+  hashPresetAdjustments,
+  useAppliedPresetStore,
+  loadAppliedPreset,
+  rememberStyleSnapshot,
+} from '../utils/appliedPreset';
 import { toast } from 'react-toastify';
 import { isPathInCardRoot } from '../utils/cardMode';
 import { describeHistoryChange, sameAdjustmentValue } from '../utils/editHistory';
@@ -32,6 +42,8 @@ interface McpCommand {
     | 'request-delete-image'
     | 'list-presets'
     | 'apply-preset'
+    | 'list-applied-styles'
+    | 'remove-style'
     | 'select-image'
     | 'get-histogram'
     | 'apply-adjustments'
@@ -142,6 +154,7 @@ async function applyEdit(
   nextAdjustments: Adjustments,
   baseAdjustments?: Adjustments,
   label?: string,
+  forceHistory = false,
 ): Promise<boolean> {
   debouncedSetHistory.flush();
   const editor = useEditorStore.getState();
@@ -154,16 +167,15 @@ async function applyEdit(
     throw new Error(
       'Active image or edit changed before the single-mask operation; read the current revision and retry',
     );
-  if (sameAdjustmentValue(nextAdjustments, editor.adjustments)) {
-    return true;
-  }
+  const pixelsChanged = !sameAdjustmentValue(nextAdjustments, editor.adjustments);
+  if (!forceHistory && !pixelsChanged) return true;
   const previousRenderVersion = editor.previewRenderVersion;
   editor.setEditor({ adjustments: nextAdjustments });
   const details = describeHistoryChange(editor.adjustments, nextAdjustments, 'assistant');
   if (label) details.label = label;
   editor.pushHistory(nextAdjustments, details);
   toast.info(details.label, { autoClose: 2500 });
-  return waitForAdjustmentRender(path, previousRenderVersion, nextAdjustments);
+  return pixelsChanged ? waitForAdjustmentRender(path, previousRenderVersion, nextAdjustments) : true;
 }
 
 async function syncState(path: string): Promise<McpStateResponse> {
@@ -332,9 +344,10 @@ export function useMcpBridge(
               type: 'set-reference',
               image: { path: command.referencePath, label: getReferenceLabel(command.referencePath) },
             });
+            current.dispatchReferenceView({ type: 'toggle-wipe' });
             await invoke('ui_response', {
               requestId: command.requestId,
-              response: { imagePath: command.path, referencePath: command.referencePath, mode: 'side-by-side' },
+              response: { imagePath: command.path, referencePath: command.referencePath, mode: 'wipe' },
               error: null,
             });
           } else {
@@ -360,7 +373,36 @@ export function useMcpBridge(
           await invoke('ui_response', { requestId: command.requestId, response, error: null });
           return;
         }
-        if (command.kind === 'apply-preset') {
+        if (command.kind === 'list-applied-styles') {
+          await loadAppliedPreset(command.path);
+          const editor = useEditorStore.getState();
+          if (!editor.selectedImage?.isReady || editor.selectedImage.path !== command.path)
+            throw new Error('Open the active image before reading its Styles');
+          const entries = activeStyleStack()?.entries ?? [];
+          const styles = await Promise.all(
+            entries.map(async (entry, index) => ({
+              presetId: await presetCatalogSelector('preset', entry.presetId),
+              name: entry.name,
+              amount: entry.amount,
+              position: index + 1,
+              bakedIn: !!entry.bakedIn,
+              amountAdjustable: !entry.bakedIn,
+            })),
+          );
+          if (
+            useEditorStore.getState().adjustments !== editor.adjustments ||
+            useEditorStore.getState().selectedImage !== editor.selectedImage
+          )
+            throw new Error('Image changed during Style read; retry');
+          const state = await syncState(command.path);
+          await invoke('ui_response', {
+            requestId: command.requestId,
+            response: { imagePath: command.path, editRevision: state.editRevision, styles, limit: 3 },
+            error: null,
+          });
+          return;
+        }
+        if (command.kind === 'apply-preset' || command.kind === 'remove-style') {
           debouncedSetHistory.flush();
           const before = useEditorStore.getState();
           if (
@@ -369,22 +411,39 @@ export function useMcpBridge(
             !sameAdjustmentValue(command.baseAdjustments, before.adjustments)
           )
             throw new Error('Active image or edit changed before preset lookup; read the current revision and retry');
-          const selected = await resolveMcpPreset(command.options ?? {});
+          await loadAppliedPreset(command.path);
+          let selected: Awaited<ReturnType<typeof resolveMcpPreset>> | null = null;
+          let removalId: string | null = null;
+          if (command.kind === 'remove-style') {
+            const entries = activeStyleStack()?.entries ?? [];
+            for (const entry of entries)
+              if ((await presetCatalogSelector('preset', entry.presetId)) === command.options?.presetId)
+                removalId = entry.presetId;
+            if (!removalId) throw new Error('Style is not applied; read list_applied_styles first');
+          } else selected = await resolveMcpPreset(command.options ?? {});
           if (
             useEditorStore.getState().adjustments !== before.adjustments ||
             useEditorStore.getState().selectedImage !== before.selectedImage
           )
             throw new Error('Active image or edit changed during preset lookup; retry');
-          const plan = preparePresetApplication(selected.preset, command.options?.amount ?? 100);
+          const plan = removalId
+            ? prepareStyleRemoval(removalId)
+            : preparePresetApplication(selected!.preset, command.options?.amount ?? 100);
           await invoke('validate_mcp_adjustments', { adjustments: plan.application.result });
-          if (!plan.isCurrent() || usePresetCatalog.getState().presets !== selected.snapshot)
+          if (!plan.isCurrent() || (selected && usePresetCatalog.getState().presets !== selected.snapshot))
             throw new Error(
               'Active image, edit, or preset catalog changed during validation; read the current revision and retry',
             );
           clearPresetHoverPreview();
           let rendered = Promise.resolve(true);
           commitPresetApplication(plan, (next) => {
-            rendered = applyEdit(command.path, next, before.adjustments);
+            rendered = applyEdit(
+              command.path,
+              next,
+              before.adjustments,
+              command.label ?? `AI: ${plan.application.label}`,
+              !!plan.application.stackChanged,
+            );
           });
           renderPending = !(await rendered);
           const response = await syncState(command.path);
@@ -398,10 +457,12 @@ export function useMcpBridge(
               editRevision: response.editRevision,
               changedKeys,
               renderPending,
-              appliedPreset: {
-                id: selected.id,
-                name: selected.preset.name,
-                groupId: selected.groupId,
+              removed: command.kind === 'remove-style',
+              styleCount: activeStyleStack()?.entries.length ?? 0,
+              [command.kind === 'remove-style' ? 'removedStyle' : 'appliedPreset']: {
+                id: selected?.id ?? command.options?.presetId,
+                name: plan.application.preset.name,
+                groupId: selected?.groupId ?? null,
                 amount: plan.application.amount,
               },
             },
@@ -457,16 +518,36 @@ export function useMcpBridge(
           }
           const current = useEditorStore.getState();
           let appliedPreset = null;
+          let appliedStyles: Array<{
+            presetId: string;
+            name: string;
+            amount: number;
+            position: number;
+            bakedIn: boolean;
+          }> = [];
           if (command.kind === 'editor-context' && current.selectedImage?.isReady) {
             const path = current.selectedImage.path;
             await loadAppliedPreset(path);
             const record = useAppliedPresetStore.getState().records[path];
-            if (record && (await hashPresetAdjustments(current.adjustments)) === record.adjustmentsHash)
+            if (
+              record &&
+              (!record.stack || record.stack.entries.length > 0) &&
+              (await hashPresetAdjustments(current.adjustments)) === record.adjustmentsHash
+            )
               appliedPreset = {
                 id: await presetCatalogSelector('preset', record.id),
                 name: record.name,
                 amount: record.amount,
               };
+            appliedStyles = await Promise.all(
+              (record?.stack?.entries ?? []).map(async (entry, index) => ({
+                presetId: await presetCatalogSelector('preset', entry.presetId),
+                name: entry.name,
+                amount: entry.amount,
+                position: index + 1,
+                bakedIn: !!entry.bakedIn,
+              })),
+            );
             if (
               useEditorStore.getState().adjustments !== current.adjustments ||
               useEditorStore.getState().selectedImage !== current.selectedImage
@@ -527,6 +608,7 @@ export function useMcpBridge(
                     }),
                   ),
                   appliedPreset,
+                  appliedStyles,
                   activePanel: useUIStore.getState().activePanel,
                   activePanels: useUIStore.getState().activePanels,
                   activeMaskContainerId: current.activeMaskContainerId,
@@ -586,7 +668,14 @@ export function useMcpBridge(
           } else {
             throw new Error('MCP adjustment command did not include adjustments');
           }
-          renderPending = !(await applyEdit(command.path, nextAdjustments, command.baseAdjustments, command.label));
+          if (command.kind === 'reset-adjustments') rememberStyleSnapshot(command.path, nextAdjustments, null);
+          renderPending = !(await applyEdit(
+            command.path,
+            nextAdjustments,
+            command.baseAdjustments,
+            command.label,
+            command.kind === 'reset-adjustments' && !!activeStyleStack()?.entries.length,
+          ));
         }
 
         const response = await syncState(command.path);

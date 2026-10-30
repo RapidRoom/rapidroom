@@ -311,7 +311,16 @@ async fn generate(
     // Initialize before rechecking the session, since first use can download.
     tokio::time::timeout(
         std::time::Duration::from_secs(480),
-        crate::ai_processing::get_or_init_ai_models(app, &state.ai_state, &state.ai_init_lock),
+        crate::ai_processing::get_or_init_ai_models(
+            app,
+            &state.ai_state,
+            &state.ai_init_lock,
+            if kind == "sky" {
+                crate::ai_processing::AiMaskModel::Sky
+            } else {
+                crate::ai_processing::AiMaskModel::Subject
+            },
+        ),
     )
     .await
     .map_err(|_| "Model initialization timed out; no edit was applied")?
@@ -362,6 +371,7 @@ async fn generate(
         "sky" => serde_json::to_value(
             crate::ai_commands::generate_ai_sky_mask(
                 edit,
+                path.into(),
                 rot,
                 fh,
                 fv,

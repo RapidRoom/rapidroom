@@ -277,6 +277,31 @@ pub(super) fn adjustments_schema() -> Value {
         ("flareAmount", "Flare amount."),
         ("lutIntensity", "LUT intensity."),
         ("transformScale", "Transform scale percentage."),
+        (
+            "aiDenoiseAmount",
+            "Blend of the non-destructive AI denoise; needs aiDenoiseEnabled.",
+        ),
+        (
+            "aiDenoiseDetail",
+            "Luminance texture kept by AI denoise; needs aiDenoiseEnabled.",
+        ),
+        (
+            "negativeRedWeight",
+            "Negative conversion red balance; 1 is neutral.",
+        ),
+        (
+            "negativeGreenWeight",
+            "Negative conversion green balance; 1 is neutral.",
+        ),
+        (
+            "negativeBlueWeight",
+            "Negative conversion blue balance; 1 is neutral.",
+        ),
+        ("negativeExposure", "Negative conversion exposure."),
+        (
+            "negativeContrast",
+            "Negative conversion contrast; 1 is neutral.",
+        ),
     ] {
         properties.insert(key.to_string(), numeric_schema(key, description));
     }
@@ -317,6 +342,16 @@ pub(super) fn adjustments_schema() -> Value {
         curves_schema("Saved point-curve channels restored when curveMode is point."),
     );
     properties.insert("parametricCurve".to_string(), parametric_curve_schema());
+    for key in ["vignetteCenterX", "vignetteCenterY", "centréX", "centréY"] {
+        properties.insert(
+            key.to_string(),
+            ranged_number_schema(
+                0.0,
+                1.0,
+                "Normalized centre in the rendered image, from 0 to 1; 0.5 is centered.",
+            ),
+        );
+    }
     properties.insert("hsl".to_string(), hsl_schema());
     properties.insert("colorGrading".to_string(), color_grading_schema());
     properties.insert("colorCalibration".to_string(), color_calibration_schema());
@@ -345,7 +380,7 @@ pub(super) fn adjustments_schema() -> Value {
     );
     properties.insert(
         "aspectRatio".to_string(),
-        json!({ "type": ["number", "null"], "exclusiveMinimum": 0 }),
+        json!({ "type": ["number", "null"], "minimum": 0, "description": "0 locks to the oriented image ratio (Original), null is Free, and positive numbers are fixed width/height ratios." }),
     );
     properties.insert(
         "activeTools".to_string(),
@@ -394,6 +429,8 @@ pub(super) fn adjustments_schema() -> Value {
     for key in [
         "baselineExposure",
         "cameraExposureCompensation",
+        "aiDenoiseEnabled",
+        "negativeConversionEnabled",
         "lensBlurEnabled",
         "lensDistortionEnabled",
         "lensTcaEnabled",
@@ -673,6 +710,9 @@ fn adjustment_keys() -> Vec<String> {
                 "baselineExposure",
                 "cameraLensCorrectionVersion",
                 "cameraExposureCompensation",
+                "aiDenoiseEnabled",
+                "aiDenoiseAmount",
+                "aiDenoiseDetail",
                 "aiPatches",
                 "sectionVisibility",
                 "activeTools",
@@ -757,6 +797,15 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                         .is_some_and(|map| map.values().all(Value::is_boolean))
                     {
                         return Err(format!("adjustment {key} must be a boolean map"));
+                    }
+                }
+                "aspectRatio" => {
+                    if !value.is_null()
+                        && !value
+                            .as_f64()
+                            .is_some_and(|ratio| ratio.is_finite() && ratio >= 0.0)
+                    {
+                        return Err("aspectRatio must be null, 0 (Original), or a positive width/height ratio".into());
                     }
                 }
                 "crop" => super::masks::validate_crop(value)?,
@@ -1163,6 +1212,7 @@ fn validate_color_calibration(value: &Value) -> Result<(), String> {
 
 fn numeric_adjustment_range(key: &str) -> Option<(f64, f64)> {
     match key {
+        "vignetteCenterX" | "vignetteCenterY" | "centréX" | "centréY" => Some((0.0, 1.0)),
         "exposure" | "brightness" => Some((-5.0, 5.0)),
         "contrast"
         | "highlights"
@@ -1211,7 +1261,10 @@ fn numeric_adjustment_range(key: &str) -> Option<(f64, f64)> {
         | "flareAmount" => Some((0.0, 100.0)),
         "orientationSteps" => Some((0.0, 3.0)),
         "transformScale" => Some((0.0, 500.0)),
-        "lutIntensity" => Some((0.0, 100.0)),
+        "lutIntensity" | "aiDenoiseAmount" | "aiDenoiseDetail" => Some((0.0, 100.0)),
+        "negativeRedWeight" | "negativeGreenWeight" | "negativeBlueWeight" => Some((0.5, 2.0)),
+        "negativeExposure" => Some((-2.0, 2.0)),
+        "negativeContrast" => Some((0.5, 2.5)),
         _ => SPATIAL_EFFECT_RANGES
             .iter()
             .find(|(name, _, _)| *name == key)
@@ -1244,6 +1297,46 @@ pub(super) fn merge_adjustments(current: Value, changes: Value) -> Result<Value,
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn original_ratio_and_instagram_crop_survive_typed_updates() {
+        let schema = adjustments_schema();
+        assert_eq!(schema["properties"]["aspectRatio"]["minimum"], 0);
+        assert!(
+            schema["properties"]["aspectRatio"]
+                .get("exclusiveMinimum")
+                .is_none()
+        );
+        for ratio in [json!(null), json!(0), json!(0.75), json!(1.5)] {
+            assert!(validate_adjustments(&json!({"aspectRatio": ratio})).is_ok());
+        }
+        for ratio in [json!(-1), json!(false), json!("Original")] {
+            assert!(validate_adjustments(&json!({"aspectRatio": ratio})).is_err());
+        }
+        let original = super::super::tools::original_adjustments().unwrap();
+        assert_eq!(original["aspectRatio"], 0);
+        let crop = json!({"unit":"px", "x":1000, "y":100, "width":2700, "height":3600});
+        let instagram =
+            merge_adjustments(original, json!({"aspectRatio":0.75, "crop":crop})).unwrap();
+        let edited = merge_adjustments(instagram, json!({"exposure":0.5})).unwrap();
+        assert_eq!(edited["aspectRatio"], 0.75);
+        assert_eq!(edited["crop"], crop);
+    }
+
+    #[test]
+    fn centre_positions_have_bounded_typed_discovery_and_updates() {
+        let schema = adjustments_schema();
+        for key in ["vignetteCenterX", "vignetteCenterY", "centréX", "centréY"] {
+            assert_eq!(schema["properties"][key]["minimum"], 0.0);
+            assert_eq!(schema["properties"][key]["maximum"], 1.0);
+            for value in [json!(0), json!(0.5), json!(1)] {
+                assert!(validate_adjustments(&json!({(key):value})).is_ok());
+            }
+            for value in [json!(-0.1), json!(1.1), json!(null), json!("0.5")] {
+                assert!(validate_adjustments(&json!({(key):value})).is_err());
+            }
+        }
+    }
 
     #[test]
     fn sparse_native_mask_snapshot_keeps_geometry_and_nondefault_nested_edits() {
