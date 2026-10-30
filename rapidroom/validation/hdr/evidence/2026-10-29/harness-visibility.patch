@@ -1,0 +1,72 @@
+diff --git i/src-tauri/src/hdr_deghosting.rs w/src-tauri/src/hdr_deghosting.rs
+index a778513c..8670edee 100644
+--- i/src-tauri/src/hdr_deghosting.rs
++++ w/src-tauri/src/hdr_deghosting.rs
+@@ -27,10 +27,10 @@ enum AlignmentOutcome {
+     Failed,
+ }
+ 
+-struct FrameDetection {
+-    keypoints: Vec<KeyPoint>,
+-    features: Vec<Feature>,
+-    scale_factor: f64,
++pub(crate) struct FrameDetection {
++    pub(crate) keypoints: Vec<KeyPoint>,
++    pub(crate) features: Vec<Feature>,
++    pub(crate) scale_factor: f64,
+ }
+ 
+ pub fn load_hdr_frames(
+@@ -142,7 +142,7 @@ pub fn align_hdr_frames(frames: &mut [HdrFrame], app_handle: &AppHandle) {
+     }
+ }
+ 
+-fn detect_frame_features(
++pub(crate) fn detect_frame_features(
+     image: &DynamicImage,
+     brief_pairs: &[(Point2<i32>, Point2<i32>)],
+     source_is_raw: bool,
+@@ -216,7 +216,7 @@ fn align_frame_to_reference(
+     ))
+ }
+ 
+-fn estimate_rigid_transform(
++pub(crate) fn estimate_rigid_transform(
+     inliers: &[Match],
+     reference: &FrameDetection,
+     frame: &FrameDetection,
+@@ -285,7 +285,7 @@ fn centroid(points: impl Iterator<Item = (f64, f64)>, count: f64) -> (f64, f64)
+     (sum.0 / count, sum.1 / count)
+ }
+ 
+-fn max_corner_displacement(transform: &Matrix3<f64>, width: u32, height: u32) -> f64 {
++pub(crate) fn max_corner_displacement(transform: &Matrix3<f64>, width: u32, height: u32) -> f64 {
+     let corners = [
+         (0.0, 0.0),
+         (width as f64, 0.0),
+diff --git i/src-tauri/src/image_loader.rs w/src-tauri/src/image_loader.rs
+index 2f4b86d9..8ffb7627 100644
+--- i/src-tauri/src/image_loader.rs
++++ w/src-tauri/src/image_loader.rs
+@@ -178,7 +178,7 @@ pub fn load_base_image_from_bytes(
+     )
+ }
+ 
+-fn load_base_image_from_bytes_with_exif_persistence(
++pub(crate) fn load_base_image_from_bytes_with_exif_persistence(
+     bytes: &[u8],
+     path_for_ext_check: &str,
+     use_fast_raw_dev: bool,
+diff --git i/src-tauri/src/lib.rs w/src-tauri/src/lib.rs
+index 54013c60..0219216d 100644
+--- i/src-tauri/src/lib.rs
++++ w/src-tauri/src/lib.rs
+@@ -68,6 +68,8 @@ mod gpu_processing;
+ mod guided_perspective;
+ mod hdr_deghosting;
+ #[cfg(test)]
++mod hdr_measure_harness;
++#[cfg(test)]
+ mod hdr_fixtures;
+ mod highlight_reconstruction;
+ mod image_loader;
