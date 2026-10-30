@@ -269,7 +269,7 @@ export default function MetadataPanel() {
     return expandGroupedPaths(imageList, targetPaths, groupingMode);
   };
 
-  const { cameraGridSettings, lensSetting, gpsData, otherExifEntries } = useMemo(() => {
+  const { cameraGridSettings, lensSetting, focusDistance, gpsData, otherExifEntries } = useMemo(() => {
     const exif = selectedImage?.exif || {};
 
     const cameraGridKeys = ['ExposureTime', 'FNumber', 'PhotographicSensitivity', 'FocalLengthIn35mmFilm'];
@@ -328,12 +328,16 @@ export default function MetadataPanel() {
       }
     }
 
-    const handledKeys = [...cameraGridKeys, 'LensModel', ...EDITABLE_FIELDS.map((f) => f.key)];
+    const focusValue = exif.FocusDistance;
+    const focusDistance =
+      focusValue !== undefined && focusValue !== null && focusValue !== '' ? String(focusValue) : null;
+
+    const handledKeys = [...cameraGridKeys, 'LensModel', 'FocusDistance', ...EDITABLE_FIELDS.map((f) => f.key)];
     const otherExifEntries = Object.entries(exif)
       .filter(([key]) => !handledKeys.includes(key))
       .sort(([keyA], [keyB]) => keyA.localeCompare(keyB));
 
-    return { cameraGridSettings, lensSetting, gpsData, otherExifEntries };
+    return { cameraGridSettings, lensSetting, focusDistance, gpsData, otherExifEntries };
   }, [selectedImage?.exif, t]);
 
   const currentColor = useMemo(() => {
@@ -514,6 +518,32 @@ export default function MetadataPanel() {
                     {lensSetting.value}
                   </Text>
                 </div>
+
+                {focusDistance && (
+                  <div
+                    className="flex items-center justify-between gap-2 bg-surface border border-surface px-3 py-2 rounded-xl cursor-default"
+                    data-tooltip={t('editor.metadata.camera.focusDistance')}
+                  >
+                    <Text
+                      as="span"
+                      variant={TextVariants.small}
+                      color={TextColors.secondary}
+                      weight={TextWeights.medium}
+                      className="shrink-0"
+                    >
+                      {t('editor.metadata.camera.focusDistance')}
+                    </Text>
+                    <Text
+                      as="span"
+                      variant={TextVariants.small}
+                      weight={TextWeights.medium}
+                      color={TextColors.primary}
+                      className="truncate"
+                    >
+                      {focusDistance}
+                    </Text>
+                  </div>
+                )}
               </div>
             </div>
 
