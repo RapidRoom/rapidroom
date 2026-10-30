@@ -274,6 +274,8 @@ export interface CustomAspectRatio {
 
 export type GroupPreference = 'jpeg' | 'raw';
 export type GroupingMode = 'off' | GroupPreference;
+export type CompareView = 'off' | 'vertical' | 'horizontal' | 'sideBySide';
+export type CompareMode = 'toggle' | Exclude<CompareView, 'off'>;
 
 export interface AppSettings {
   terminalSettings?: TerminalSettings;
@@ -335,6 +337,7 @@ export interface AppSettings {
   /** Editor surround; `undefined` retains the old theme or neutral-grey behaviour. */
   editorCanvasBackground?: 'theme' | 'black' | 'dark-grey' | 'mid-grey' | 'white';
   canvasInputMode?: 'mouse' | 'trackpad';
+  compareMode?: CompareMode;
   whiteBalanceMode?: WhiteBalanceMode;
   zoomSpeedMultiplier?: number;
   zoomPhotoToPixelClick?: boolean;

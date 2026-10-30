@@ -8,7 +8,7 @@ import {
   CropGeometry,
   pickCropGeometry,
 } from '../utils/adjustments';
-import { SelectedImage, WaveformData, BrushSettings, HistogramData } from '../components/ui/AppProperties';
+import { SelectedImage, WaveformData, BrushSettings, HistogramData, CompareView } from '../components/ui/AppProperties';
 import { ImageDimensions } from '../hooks/useImageRenderSize';
 import { ToolType } from '../components/panel/right/Masks';
 import { OverlayMode } from '../components/panel/right/CropPanel';
@@ -60,6 +60,9 @@ interface EditorState {
   interactivePatch: InteractivePatch | null;
   showOriginal: boolean;
   referenceView: ReferenceViewState;
+  compareView: CompareView;
+  splitPosition: number;
+  originalPreview: { path: string; sourcePath?: string; error?: boolean; url: string | null } | null;
 
   // Analytics
   histogram: HistogramData | null;
@@ -163,6 +166,9 @@ export const useEditorStore = create<EditorState>((set) => ({
   lastRenderedAdjustments: null,
   showOriginal: false,
   referenceView: DEFAULT_REFERENCE_VIEW_STATE,
+  compareView: 'off',
+  splitPosition: 0.5,
+  originalPreview: null,
   histogram: null,
   waveform: null,
   isWaveformVisible: false,
@@ -331,5 +337,17 @@ export const useEditorStore = create<EditorState>((set) => ({
     }),
 
   dispatchReferenceView: (command) =>
-    set((state) => ({ referenceView: reduceReferenceView(state.referenceView, command) })),
+    set((state) => {
+      const referenceView = reduceReferenceView(state.referenceView, command);
+      if (command.type === 'close-chooser') return { referenceView };
+      if (command.type === 'set-wipe-position')
+        return { referenceView, splitPosition: referenceView.wipePosition / 100 };
+      if (command.type === 'swap-wipe-sides') return { referenceView };
+      return {
+        referenceView,
+        compareView: referenceView.mode === 'off' ? 'off' : referenceView.mode === 'wipe' ? 'vertical' : 'sideBySide',
+        showOriginal: false,
+        previewOverride: null,
+      };
+    }),
 }));
