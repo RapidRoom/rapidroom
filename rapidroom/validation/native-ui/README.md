@@ -425,3 +425,12 @@ the resolved lens payload in `culling-precision.json`, then restores the normal
 UI selection and completes the standard smoke. Sources and sidecars are owned
 fixture copies. On the shared machine, wrap native runs with
 `flock ~/code/.cache/rapidroom-gpu.lock`; keep compiles outside that GPU lock.
+
+## Upstream comparison modes (#492)
+
+Run the standard smoke with `--compare-modes --compare-read-only` to open the
+real toolbar context menu, capture toggle/vertical/horizontal/side-by-side views,
+check persisted mode and zoom/focal-point preservation, and verify that pinned
+reference/virtual-copy rendering does not modify sidecars or legacy EXIF. The
+reference source uses the upstream canvas and shared zoom/pan; it no longer has
+an independent wipe/zoom renderer. Run under the shared GPU flock.

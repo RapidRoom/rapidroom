@@ -36,7 +36,7 @@ import {
   normalizeCropChange,
   resolveAspectRatio,
 } from '../utils/cropUtils';
-import { Invokes, type Option, type SelectedImage } from '../components/ui/AppProperties';
+import { Invokes, type CompareMode, type Option, type SelectedImage } from '../components/ui/AppProperties';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { isPathInCardRoot } from '../utils/cardMode';
 import i18n from 'i18next';
@@ -298,6 +298,11 @@ export const buildAutoAdjustModeOptions = (t: TFunction, onSelect: (mode: AutoAd
     onClick: () => onSelect(mode),
   }));
 
+const getCompareState = (mode: CompareMode, adjustments: Adjustments) =>
+  mode === 'toggle'
+    ? { showOriginal: true, previewOverride: originalComparisonAdjustments(adjustments), compareView: 'off' as const }
+    : { showOriginal: false, previewOverride: null, compareView: mode };
+
 export function useEditorActions() {
   const { t } = useTranslation();
   const setEditor = useEditorStore((s) => s.setEditor);
@@ -401,17 +406,23 @@ export function useEditorActions() {
     }
   }, [setAdjustments, setEditor, t]);
 
-  const toggleShowOriginal = useCallback(() => {
-    setEditor((state) => {
-      const isShowing = !state.showOriginal;
-
-      if (isShowing) {
-        return { showOriginal: true, previewOverride: originalComparisonAdjustments(state.adjustments) };
-      } else {
-        return { showOriginal: false, previewOverride: null };
-      }
-    });
+  const toggleCompare = useCallback(() => {
+    const mode = useSettingsStore.getState().appSettings?.compareMode ?? 'toggle';
+    setEditor((state) =>
+      state.showOriginal || state.compareView !== 'off'
+        ? { showOriginal: false, previewOverride: null, compareView: 'off' }
+        : getCompareState(mode, state.adjustments),
+    );
   }, [setEditor]);
+
+  const selectCompareMode = useCallback(
+    (mode: CompareMode) => {
+      const { appSettings, handleSettingsChange } = useSettingsStore.getState();
+      if (appSettings) handleSettingsChange({ ...appSettings, compareMode: mode });
+      setEditor((state) => getCompareState(mode, state.adjustments));
+    },
+    [setEditor],
+  );
 
   const handleLutSelect = useCallback(
     async (path: string, isBuiltIn: boolean = false) => {
@@ -843,6 +854,7 @@ export function useEditorActions() {
     handlePasteAdjustments,
     handleZoomChange,
     handleCropOrientationToggle,
-    toggleShowOriginal,
+    toggleCompare,
+    selectCompareMode,
   };
 }

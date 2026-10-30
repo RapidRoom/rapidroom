@@ -10,6 +10,8 @@ import { useLibraryStore } from '../store/useLibraryStore';
 import { Adjustments, COPYABLE_ADJUSTMENT_KEYS } from '../utils/adjustments';
 import { Invokes, Panel } from '../components/ui/AppProperties';
 import { debouncedSave } from './useEditorActions';
+import { originalComparisonAdjustments } from '../utils/originalAdjustments';
+import { comparisonReferencePath } from '../utils/referenceView';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { copyLensPolicyVersion } from '../utils/lensPolicyVersion';
 
@@ -53,6 +55,9 @@ export function useImageProcessing(
   const baseRenderSize = useEditorStore((state) => state.baseRenderSize);
   const originalSize = useEditorStore((state) => state.originalSize);
   const isSliderDragging = useEditorStore((state) => state.isSliderDragging);
+  const compareView = useEditorStore((state) => state.compareView);
+  const showOriginal = useEditorStore((state) => state.showOriginal);
+  const referencePath = useEditorStore((state) => comparisonReferencePath(state.referenceView));
   const setEditor = useEditorStore((state) => state.setEditor);
 
   const activeView = useUIStore((state) => state.activeView);
@@ -64,6 +69,7 @@ export function useImageProcessing(
   const uncroppedJobIdRef = useRef(0);
   const latestUncroppedJobIdRef = useRef(0);
 
+  const originalRequestKeyRef = useRef<string | null>(null);
   const inFlightCountRef = useRef(0);
   const pendingApplyRef = useRef<{ adjustments: Adjustments; targetRes?: number } | null>(null);
   const dragIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -126,6 +132,82 @@ export function useImageProcessing(
     return [clampedX, clampedY, clampedW, clampedH] as [number, number, number, number];
   }, [baseRenderSize, transformWrapperRef]);
 
+  const renderOriginal = useCallback(
+    async (targetRes?: number) => {
+      const { selectedImage: image, adjustments: currentAdjustments, compareView: view } = useEditorStore.getState();
+      const ui = useUIStore.getState();
+      if (
+        (view === 'off' && !(useEditorStore.getState().showOriginal && referencePath)) ||
+        !image?.isReady ||
+        ui.activeView !== 'editor' ||
+        ui.activePanel === Panel.Crop
+      )
+        return;
+
+      const originalAdjustments = originalComparisonAdjustments(currentAdjustments);
+      const { useWgpuRenderer } = useSettingsStore.getState().appSettings ?? {};
+      const key = JSON.stringify([
+        image.path,
+        image.loadGeneration,
+        targetRes,
+        referencePath,
+        useWgpuRenderer,
+        originalAdjustments,
+      ]);
+      if (key === originalRequestKeyRef.current) return;
+      originalRequestKeyRef.current = key;
+
+      const { payload, markSent } = prepareAdjustmentsPayload(originalAdjustments);
+      try {
+        const buffer: ArrayBuffer = referencePath
+          ? await invoke<Adjustments>(Invokes.ReadCompareAdjustments, { path: referencePath }).then(
+              (referenceAdjustments) =>
+                invoke<ArrayBuffer>(Invokes.GeneratePreviewForPath, {
+                  path: referencePath,
+                  jsAdjustments: referenceAdjustments,
+                  readOnly: true,
+                }),
+            )
+          : await invoke(Invokes.ApplyAdjustments, {
+              jsAdjustments: payload,
+              imagePath: image.path,
+              loadGeneration: image.loadGeneration,
+              original: true,
+              isInteractive: false,
+              targetResolution: targetRes || null,
+              roi: null,
+              requestAnalytics: false,
+              computeWaveform: false,
+              activeWaveformChannel: null,
+            });
+        if (!referencePath) markSent();
+
+        const current = useEditorStore.getState().selectedImage;
+        if (
+          current?.path !== image.path ||
+          current?.loadGeneration !== image.loadGeneration ||
+          key !== originalRequestKeyRef.current ||
+          !buffer ||
+          buffer.byteLength === 0
+        )
+          return;
+
+        const url = isWgpuRender(buffer) ? null : URL.createObjectURL(new Blob([buffer], { type: 'image/jpeg' }));
+        setEditor((state) => {
+          releasePreviewUrl(state.originalPreview?.url);
+          return { originalPreview: { path: image.path, sourcePath: referencePath ?? image.path, url } };
+        });
+      } catch {
+        if (key === originalRequestKeyRef.current) {
+          originalRequestKeyRef.current = null;
+          if (referencePath)
+            setEditor({ originalPreview: { path: image.path, sourcePath: referencePath, url: null, error: true } });
+        }
+      }
+    },
+    [setEditor, referencePath],
+  );
+
   const executeApplyAdjustments = useCallback(
     async (currentAdjustments: Adjustments, dragging: boolean = false, targetRes?: number) => {
       const currentPath = selectedImage?.path;
@@ -142,7 +224,7 @@ export function useImageProcessing(
       const roi = calculateROI();
 
       try {
-        const buffer = await invoke<ArrayBuffer>(Invokes.ApplyAdjustments, {
+        const request = invoke<ArrayBuffer>(Invokes.ApplyAdjustments, {
           imagePath: currentPath,
           loadGeneration,
           jsAdjustments: payload,
@@ -154,6 +236,8 @@ export function useImageProcessing(
           computeWaveform: !!isWaveformVisible,
           activeWaveformChannel: activeWaveformChannelRef.current || null,
         });
+        if (!dragging) renderOriginal(targetRes);
+        const buffer = await request;
 
         if (!isCurrentSource() || !buffer?.byteLength) return;
         markSent();
@@ -247,6 +331,7 @@ export function useImageProcessing(
       setEditor,
       previewJobIdRef,
       latestRenderedJobIdRef,
+      renderOriginal,
     ],
   );
 
@@ -409,6 +494,33 @@ export function useImageProcessing(
     requestHiFiZoom,
     originalSize,
   ]);
+
+  const isComparing = compareView !== 'off' || (showOriginal && !!referencePath);
+
+  useEffect(() => {
+    if (isComparing && currentResRef.current > 0) renderOriginal(currentResRef.current);
+  }, [
+    isComparing,
+    activeView,
+    activePanel,
+    selectedImage?.path,
+    selectedImage?.isReady,
+    selectedImage?.loadGeneration,
+    renderOriginal,
+    currentResRef,
+  ]);
+
+  useEffect(() => {
+    if (!isComparing) return;
+    return () => {
+      originalRequestKeyRef.current = null;
+      setEditor((state) => {
+        releasePreviewUrl(state.originalPreview?.url);
+        return { originalPreview: null };
+      });
+      invoke(Invokes.ReleaseOriginalPreview).catch(console.error);
+    };
+  }, [isComparing, setEditor]);
 
   useEffect(() => {
     if (!selectedImage?.isReady) return;
