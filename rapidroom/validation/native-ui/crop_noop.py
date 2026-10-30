@@ -40,6 +40,10 @@ def run_crop_checks(case, smoke, baseline):
     initial = state()
     if initial["adjustments"]["crop"] is not None:
         raise RuntimeError("Expected an uncropped native fixture")
+    if initial["adjustments"].get("aspectRatio") != 0:
+        raise RuntimeError("Original crop ratio did not survive the first-edit Undo")
+    save(case / "crop-original-ratio.json", {"aspectRatio": initial["adjustments"]["aspectRatio"], "crop": initial["adjustments"]["crop"], "state": initial})
+    smoke.step("Original crop ratio survives the first-edit Undo", {"aspectRatio": 0, "crop": None})
     initial_history = history()
     time.sleep(0.8)
     initial_sidecars = sidecars()
