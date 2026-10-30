@@ -449,5 +449,10 @@
     "written_many": "Wrote JPEG metadata to {{count}} files.",
     "restored_few": "Restored metadata for {{count}} files.",
     "restored_many": "Restored metadata for {{count}} files."
+  },
+  "toneMigration": {
+    "action": "Convert tone sliders to the new response (approximate)",
+    "result": "Tone sliders converted. Largest ramp residual: {{rms}} luma. Undo to restore the previous edit.",
+    "failed": "Could not convert tone sliders: {{error}}"
   }
 }

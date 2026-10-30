@@ -655,7 +655,7 @@ pub(super) fn original_adjustments() -> Result<Value, String> {
     Ok(Value::Object(
         parameters
             .iter()
-            .filter(|(key, _)| !key.contains('.'))
+            .filter(|(key, value)| !key.contains('.') && value.get("default").is_some())
             .map(|(key, value)| (key.clone(), value["default"].clone()))
             .collect(),
     ))
@@ -664,6 +664,7 @@ pub(super) fn original_adjustments() -> Result<Value, String> {
 pub(super) fn original_adjustments_for(current: &Value) -> Result<Value, String> {
     let mut original = original_adjustments()?;
     crate::image_processing::copy_exposure_policy(current, &mut original);
+    crate::image_processing::copy_tone_slider_version(current, &mut original);
     Ok(original)
 }
 

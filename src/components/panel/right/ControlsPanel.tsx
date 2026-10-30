@@ -1,3 +1,5 @@
+import { invoke } from '@tauri-apps/api/core';
+import { toast } from 'react-toastify';
 import React, { useCallback, useMemo } from 'react';
 import { RotateCcw, Copy, ClipboardPaste, PencilSparkles, ChartArea, LayoutList } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -187,6 +189,9 @@ export default function Controls() {
           adjustmentsToCopy[key] = JSON.parse(JSON.stringify(adjustments[key as keyof Adjustments]));
         }
       }
+      if (sectionName === 'basic' && Object.prototype.hasOwnProperty.call(adjustments, 'toneSliderVersion')) {
+        adjustmentsToCopy.toneSliderVersion = adjustments.toneSliderVersion;
+      }
       setCopiedSectionAdjustments({ section: sectionName, values: adjustmentsToCopy });
     };
 
@@ -241,6 +246,28 @@ export default function Controls() {
       },
     ];
 
+    if (sectionName === 'basic') {
+      options.push({
+        label: t('toneMigration.action'),
+        icon: RotateCcw,
+        disabled: !selectedImage || (useEditorStore.getState().adjustments.toneSliderVersion ?? 0) >= 1,
+        onClick: async () => {
+          const source = useEditorStore.getState().adjustments;
+          try {
+            const result = await invoke<{ adjustments: Adjustments; residuals: Record<string, { rampRms: number }> }>(
+              'migrate_tone_sliders',
+              { adjustments: source },
+            );
+            if (useEditorStore.getState().adjustments !== source) return;
+            setAdjustments(result.adjustments, t('toneMigration.action'));
+            const residual = Math.max(0, ...Object.values(result.residuals).map((value) => value.rampRms));
+            toast.info(t('toneMigration.result', { rms: residual.toFixed(2) }));
+          } catch (error) {
+            toast.error(t('toneMigration.failed', { error: String(error) }));
+          }
+        },
+      });
+    }
     showContextMenu(event.clientX, event.clientY, options);
   };
 

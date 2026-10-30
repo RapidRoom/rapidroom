@@ -145,7 +145,18 @@ pub fn default_adjustments() -> Value {
     let mut adjustments = json!({});
     mark_baseline_exposure(&mut adjustments);
     adjustments[CAMERA_EXPOSURE_COMPENSATION_KEY] = Value::Bool(true);
+    adjustments["toneSliderVersion"] = json!(1);
     adjustments
+}
+
+pub fn copy_tone_slider_version(source: &Value, target: &mut Value) {
+    if let Some(object) = target.as_object_mut() {
+        if let Some(version) = source.get("toneSliderVersion") {
+            object.insert("toneSliderVersion".into(), version.clone());
+        } else {
+            object.remove("toneSliderVersion");
+        }
+    }
 }
 
 pub fn copy_exposure_policy(source: &Value, target: &mut Value) {
@@ -2072,7 +2083,7 @@ pub struct GlobalAdjustments {
     pub chromatic_aberration_blue_yellow: f32,
     pub show_clipping: u32,
     pub is_raw_image: u32,
-    _pad_ca1: f32,
+    pub tone_slider_version: u32,
 
     pub has_lut: u32,
     pub lut_intensity: f32,
@@ -3130,7 +3141,9 @@ fn get_global_adjustments_from_json(
             0
         },
         is_raw_image: if is_raw { 1 } else { 0 },
-        _pad_ca1: 0.0,
+        tone_slider_version: u32::from(
+            js_adjustments["toneSliderVersion"].as_i64().unwrap_or(0) >= 1,
+        ),
 
         has_lut,
         lut_intensity,

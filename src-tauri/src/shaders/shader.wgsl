@@ -82,7 +82,7 @@ struct GlobalAdjustments {
     chromatic_aberration_blue_yellow: f32,
     show_clipping: u32,
     is_raw_image: u32,
-    _pad_ca1: f32,
+    tone_slider_version: u32,
 
     has_lut: u32,
     lut_intensity: f32,
@@ -494,6 +494,31 @@ fn apply_curve(val: f32, src: u32, ch: u32, count: u32) -> f32 {
     return last.y / 255.0;
 }
 
+// UI amounts retain the legacy GPU scales; the fitted law uses value / 100.
+fn fitted_tone(linear: f32, amount: f32, kind: u32) -> f32 {
+    if (amount == 0.0) { return linear; }
+    var a = vec4<f32>(5.3936, 6.0134, 0.9184, 1.0243);
+    var w = vec3<f32>(-0.1437, 5.2500, 4.5634);
+    if (kind == 1u) {
+        a = vec4<f32>(5.5057, 3.8280, 1.2969, 1.0059);
+        w = vec3<f32>(0.0437, 0.8285, 10.9305);
+    } else if (kind == 2u) {
+        a = vec4<f32>(3.9336, 1.8512, 1.9202, 0.6126);
+        w = vec3<f32>(0.0024, 2.8656, 4.0217);
+    } else if (kind == 3u) {
+        a = vec4<f32>(2.6903, 6.8315, 1.0891, 1.6427);
+        w = vec3<f32>(0.0448, 0.9347, 9.9743);
+    }
+    let base = clamp(linear, 0.0, 0.36);
+    let t = pow(base, 0.4545);
+    let amplitude = select(-a.y, a.x, amount >= 0.0);
+    let exponent = select(a.w, a.z, amount >= 0.0);
+    let delta = amplitude * pow(abs(amount), exponent)
+        * pow(max(t - w.x, 0.0), w.y) / pow(1.0 + t, w.z);
+    let result = pow(max(t + delta, 0.0), 1.0 / 0.4545);
+    return result * max(linear / 0.36, 1.0);
+}
+
 fn apply_tonal_adjustments(
     color: vec3<f32>,
     local_log_detail: f32,
@@ -502,7 +527,8 @@ fn apply_tonal_adjustments(
     con: f32,
     sh: f32,
     wh: f32,
-    bl: f32
+    bl: f32,
+    tone_version: u32
 ) -> vec3<f32> {
     var rgb = color;
 
@@ -523,7 +549,11 @@ fn apply_tonal_adjustments(
         t_new = mix(t_w, t_new, w_ramp);
 
         let w_amount = abs(t_new - t_w) * w_ramp;
-        rgb *= pow(t_new, 2.2) / w_base;
+        if (tone_version >= 1u) {
+            rgb *= fitted_tone(w_base, wh * 0.4, 2u) / w_base;
+        } else {
+            rgb *= pow(t_new, 2.2) / w_base;
+        }
 
         let w_log_d = local_log_detail * 0.4545;
         let w_safe_detail = exp2(w_log_d / (1.0 + abs(w_log_d) * 0.4));
@@ -554,7 +584,14 @@ fn apply_tonal_adjustments(
         let contrasted_t = shadow_pivot + (t_pixel_curved - shadow_pivot) * stretch_factor;
 
         let final_t = max(contrasted_t, 0.0);
-        let curved_luma = pow(final_t, 2.2);
+        var curved_luma = pow(final_t, 2.2);
+        if (tone_version >= 1u) {
+            let t = pow(min(safe_pixel_luma, 0.36), 0.4545);
+            let shadow_t = pow(fitted_tone(min(safe_pixel_luma, 0.36), sh * 1.2, 1u), 0.4545);
+            let black_t = pow(fitted_tone(min(safe_pixel_luma, 0.36), bl * 0.4, 3u), 0.4545);
+            curved_luma = pow(max(shadow_t + black_t - t, 0.0), 1.0 / 0.4545)
+                * max(safe_pixel_luma / 0.36, 1.0);
+        }
 
         let luma_ratio = curved_luma / safe_pixel_luma;
         rgb *= luma_ratio;
@@ -604,9 +641,10 @@ fn apply_highlights_adjustment(
     local_log_detail: f32,
     mid_log_detail: f32,
     is_raw: u32,
-    highlights_adj: f32
+    highlights_adj: f32,
+    tone_version: u32
 ) -> vec3<f32> {
-    if (abs(highlights_adj) < 0.001) {
+    if (highlights_adj == 0.0 || (tone_version == 0u && abs(highlights_adj) < 0.001)) {
         return color_in;
     }
 
@@ -616,7 +654,7 @@ fn apply_highlights_adjustment(
     }
 
     const l_pivot: f32 = 0.06;
-    if (pixel_luma <= l_pivot) {
+    if (tone_version == 0u && pixel_luma <= l_pivot) {
         return color_in;
     }
 
@@ -667,6 +705,19 @@ fn apply_highlights_adjustment(
         target_luma = mix(pixel_luma, boosted_target, blend);
     }
 
+    if (tone_version >= 1u) {
+        // Preserve the legacy detail coefficients, replacing only the flat mapping.
+        var detail_gain = 1.0;
+        if (highlights_adj < 0.0) {
+            let k = -highlights_adj;
+            let neg_soft = local_log_detail / (1.0 + abs(local_log_detail) * 0.80);
+            let recovered = mix(orig_log_detail, neg_soft * (1.0 + k * 0.3), detail_ramp);
+            detail_gain = exp2(recovered + shape_detail(mid_log_detail, GF_REINJECT_SIGMA) * k * 0.6) / detail_ratio;
+        } else {
+            detail_gain = exp2(mix(orig_log_detail, soft_log_detail * (1.0 + highlights_adj * 0.20), detail_ramp)) / detail_ratio;
+        }
+        target_luma = fitted_tone(max(luma_base, 0.0), highlights_adj * 1.2, 0u) * detail_ratio * detail_gain;
+    }
     let luma_ratio = target_luma / pixel_luma;
     var final_color = color_in * luma_ratio;
 
@@ -1744,7 +1795,7 @@ fn apply_glow_bloom(
 
     blurred_linear = apply_linear_exposure(blurred_linear, exp);
     blurred_linear = apply_filmic_exposure(blurred_linear, bright);
-    blurred_linear = apply_tonal_adjustments(blurred_linear, 0.0, 0.0, is_raw, 0.0, 0.0, wh, 0.0);
+    blurred_linear = apply_tonal_adjustments(blurred_linear, 0.0, 0.0, is_raw, 0.0, 0.0, wh, 0.0, 0u);
 
     let linear_luma = get_luma(max(blurred_linear, vec3<f32>(0.0)));
 
@@ -1812,7 +1863,7 @@ fn apply_halation(
 
     blurred_linear = apply_linear_exposure(blurred_linear, exp);
     blurred_linear = apply_filmic_exposure(blurred_linear, bright);
-    blurred_linear = apply_tonal_adjustments(blurred_linear, 0.0, 0.0, is_raw, 0.0, 0.0, wh, 0.0);
+    blurred_linear = apply_tonal_adjustments(blurred_linear, 0.0, 0.0, is_raw, 0.0, 0.0, wh, 0.0, 0u);
 
     let linear_luma = get_luma(max(blurred_linear, vec3<f32>(0.0)));
 
@@ -2069,8 +2120,8 @@ fn main(
         let gf_broad = sample_gf_tex(gf_structure_texture, absolute_coord).xy;
         tonal_mid_detail = (gf.z * gf_i + gf.w) - (gf_broad.x * gf_i + gf_broad.y);
     }
-    composite_rgb_linear = apply_tonal_adjustments(composite_rgb_linear, tonal_log_detail, tonal_mid_detail, is_raw, t_contrast, t_shadows, t_whites, t_blacks);
-    composite_rgb_linear = apply_highlights_adjustment(composite_rgb_linear, tonal_log_detail, tonal_mid_detail, is_raw, t_highlights);
+    composite_rgb_linear = apply_tonal_adjustments(composite_rgb_linear, tonal_log_detail, tonal_mid_detail, is_raw, t_contrast, t_shadows, t_whites, t_blacks, adjustments.global.tone_slider_version);
+    composite_rgb_linear = apply_highlights_adjustment(composite_rgb_linear, tonal_log_detail, tonal_mid_detail, is_raw, t_highlights, adjustments.global.tone_slider_version);
     let is_monochrome = has_feature(F_MONOCHROME) && adjustments.global.monochrome.enabled == 1u;
     if (is_monochrome) {
         composite_rgb_linear = apply_monochrome_mix(composite_rgb_linear, adjustments.global.monochrome, final_hsl);

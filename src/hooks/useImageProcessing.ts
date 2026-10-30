@@ -463,6 +463,13 @@ export function useImageProcessing(
             ) {
               delta.lensCorrectionMode = adjustments.lensCorrectionMode;
             }
+            if (
+              Object.prototype.hasOwnProperty.call(adjustments, 'toneSliderVersion') &&
+              includedKeys.some((key) => ['highlights', 'shadows', 'whites', 'blacks', 'masks'].includes(key)) &&
+              (['highlights', 'shadows', 'whites', 'blacks', 'masks'].some((key) => key in delta) ||
+                adjustments.toneSliderVersion !== prev.adjustments.toneSliderVersion)
+            )
+              delta.toneSliderVersion = adjustments.toneSliderVersion;
             if (Object.keys(delta).length > 0) {
               otherPaths.forEach((p) => globalImageCache.delete(p));
               invoke(Invokes.ApplyAdjustmentsToPaths, {
