@@ -87,7 +87,7 @@ describe('pinned sources on upstream comparison', () => {
     expect(useEditorStore.getState().history).toBe(before.history);
     expect(
       invoke.mock.calls.some(([cmd]) =>
-        [Invokes.LoadImage, Invokes.LoadMetadata, Invokes.SaveMetadata].includes(cmd as Invokes),
+        [Invokes.LoadImage, Invokes.LoadMetadata, Invokes.SaveMetadataAndUpdateThumbnail].includes(cmd as Invokes),
       ),
     ).toBe(false);
   });
