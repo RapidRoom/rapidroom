@@ -22,6 +22,7 @@ import {
   INITIAL_ADJUSTMENTS,
   COPYABLE_ADJUSTMENT_KEYS,
   PasteMode,
+  CROP_GEOMETRY_KEYS,
   LensAdjustment,
   getActiveTools,
   mergeActiveTools,
@@ -36,7 +37,7 @@ import {
   normalizeCropChange,
   resolveAspectRatio,
 } from '../utils/cropUtils';
-import { Invokes, type Option, type SelectedImage } from '../components/ui/AppProperties';
+import { Invokes, type CompareMode, Panel, type Option, type SelectedImage } from '../components/ui/AppProperties';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { isPathInCardRoot } from '../utils/cardMode';
 import i18n from 'i18next';
@@ -298,12 +299,44 @@ export const buildAutoAdjustModeOptions = (t: TFunction, onSelect: (mode: AutoAd
     onClick: () => onSelect(mode),
   }));
 
+const getCompareState = (mode: CompareMode, adjustments: Adjustments) =>
+  mode === 'toggle'
+    ? { showOriginal: true, previewOverride: originalComparisonAdjustments(adjustments), compareView: 'off' as const }
+    : { showOriginal: false, previewOverride: null, compareView: mode };
+export const applyCrop = () => {
+  useEditorStore.getState().setEditor({ isStraightenActive: false, liveRotation: null });
+  useUIStore.getState().setPanel(Panel.Adjustments);
+};
+
+export const cancelCrop = () => {
+  const { cropSessionSnapshot, selectedImage, adjustments, setEditor } = useEditorStore.getState();
+  applyCrop();
+  if (cropSessionSnapshot && cropSessionSnapshot.path === (selectedImage?.path ?? null)) {
+    const { geometry } = cropSessionSnapshot;
+    const hasChanged = CROP_GEOMETRY_KEYS.some(
+      (key) => JSON.stringify(adjustments[key]) !== JSON.stringify(geometry[key]),
+    );
+    if (hasChanged) {
+      setEditor((state) => {
+        const newAdjustments = { ...state.adjustments, ...geometry };
+        debouncedSetHistory(newAdjustments);
+        return {
+          adjustments: newAdjustments,
+          ...(state.showOriginal ? { showOriginal: false, previewOverride: null } : {}),
+        };
+      });
+    }
+  }
+};
+
 export function useEditorActions() {
   const { t } = useTranslation();
   const setEditor = useEditorStore((s) => s.setEditor);
 
   const setAdjustments = useCallback(
     (value: Partial<Adjustments> | ((prev: Adjustments) => Adjustments), label?: string) => {
+      // A labelled action gets its own history step instead of merging with pending slider edits.
+      if (label) debouncedSetHistory.flush();
       setEditor((state) => {
         const prev = state.adjustments;
         const newAdjustments = typeof value === 'function' ? value(prev) : { ...prev, ...value };
@@ -320,6 +353,7 @@ export function useEditorActions() {
           ...(state.showOriginal ? { showOriginal: false, previewOverride: null } : {}),
         };
       });
+      if (label) debouncedSetHistory.flush();
     },
     [setEditor],
   );
@@ -401,17 +435,23 @@ export function useEditorActions() {
     }
   }, [setAdjustments, setEditor, t]);
 
-  const toggleShowOriginal = useCallback(() => {
-    setEditor((state) => {
-      const isShowing = !state.showOriginal;
-
-      if (isShowing) {
-        return { showOriginal: true, previewOverride: originalComparisonAdjustments(state.adjustments) };
-      } else {
-        return { showOriginal: false, previewOverride: null };
-      }
-    });
+  const toggleCompare = useCallback(() => {
+    const mode = useSettingsStore.getState().appSettings?.compareMode ?? 'toggle';
+    setEditor((state) =>
+      state.showOriginal || state.compareView !== 'off'
+        ? { showOriginal: false, previewOverride: null, compareView: 'off' }
+        : getCompareState(mode, state.adjustments),
+    );
   }, [setEditor]);
+
+  const selectCompareMode = useCallback(
+    (mode: CompareMode) => {
+      const { appSettings, handleSettingsChange } = useSettingsStore.getState();
+      if (appSettings) handleSettingsChange({ ...appSettings, compareMode: mode });
+      setEditor((state) => getCompareState(mode, state.adjustments));
+    },
+    [setEditor],
+  );
 
   const handleLutSelect = useCallback(
     async (path: string, isBuiltIn: boolean = false) => {
@@ -843,6 +883,7 @@ export function useEditorActions() {
     handlePasteAdjustments,
     handleZoomChange,
     handleCropOrientationToggle,
-    toggleShowOriginal,
+    toggleCompare,
+    selectCompareMode,
   };
 }

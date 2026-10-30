@@ -459,12 +459,14 @@ mod tests {
     #[test]
     fn virtual_copy_canvas_requires_the_exact_loaded_session() {
         let image = crate::LoadedImage {
+            generation: 0,
             path: "/photo.ARW?vc=abcdef".into(),
             image: std::sync::Arc::new(image::DynamicImage::ImageRgb8(image::RgbImage::new(
                 64, 32,
             ))),
             is_raw: true,
             as_shot: crate::as_shot::AsShot::reference(),
+            source_epoch: 0,
         };
         let edit = json!({"orientationSteps":1,"crop":{"x":4,"y":8,"width":16,"height":32}});
         assert_eq!(

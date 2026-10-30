@@ -9,7 +9,7 @@ import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { getReopenedPanelWidth, useUIStore } from '../store/useUIStore';
 import { useProcessStore } from '../store/useProcessStore';
-import { debouncedSetHistory, useEditorActions } from './useEditorActions';
+import { applyCrop, cancelCrop, debouncedSetHistory, useEditorActions } from './useEditorActions';
 import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
 import { rememberAppliedStyleStack } from '../utils/appliedPreset';
 import { editStack } from '../utils/photoStacks';
@@ -56,7 +56,7 @@ export const useKeyboardShortcuts = ({
     handleAutoStraighten,
     handleCopyAdjustments,
     handlePasteAdjustments,
-    toggleShowOriginal,
+    toggleCompare,
     handleAutoAdjustments,
     setAdjustments,
     handleCropOrientationToggle,
@@ -414,7 +414,7 @@ export const useKeyboardShortcuts = ({
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent) => {
           e.preventDefault();
-          toggleShowOriginal();
+          toggleCompare();
         },
       },
       toggle_reference_view: {
@@ -829,7 +829,7 @@ export const useKeyboardShortcuts = ({
           else if (s.editor.activeAiPatchContainerId) s.editor.setEditor({ activeAiPatchContainerId: null });
           else if (s.editor.activeMaskId) s.editor.setEditor({ activeMaskId: null });
           else if (s.editor.activeMaskContainerId) s.editor.setEditor({ activeMaskContainerId: null });
-          else if (s.ui.activePanel === Panel.Crop) s.ui.setPanel(Panel.Adjustments);
+          else if (s.ui.activePanel === Panel.Crop) cancelCrop();
           else if (s.ui.isFullScreen) s.ui.toggleFullScreen();
           else if (s.ui.activeView === 'editor') handleBackToLibrary();
           else if (s.ui.activeView === 'library' && s.library.rootPaths?.length > 0) handleGoHome();
@@ -861,6 +861,19 @@ export const useKeyboardShortcuts = ({
               activeAiSubMaskId: null,
             }));
           }
+        },
+      },
+      {
+        match: (e: KeyboardEvent, s: StoreState) =>
+          (e.code === 'Enter' || e.code === 'NumpadEnter') &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          !e.altKey &&
+          s.ui.activeView === 'editor' &&
+          s.ui.activePanel === Panel.Crop,
+        execute: (e: KeyboardEvent) => {
+          e.preventDefault();
+          applyCrop();
         },
       },
       {
@@ -990,6 +1003,6 @@ export const useKeyboardShortcuts = ({
     handleSetFlag,
     handleToggleFlag,
     handleSetColorLabel,
-    toggleShowOriginal,
+    toggleCompare,
   ]);
 };

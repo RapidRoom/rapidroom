@@ -1,6 +1,6 @@
 use crate::as_shot::AsShot;
 use crate::baseline_exposure::BaselineOptions;
-use crate::gpu_processing::WgpuDisplay;
+use crate::gpu_processing::{GpuPipelines, WgpuDisplay};
 use crate::guided_perspective::{GuideLine, compute_guided_homography, count_valid_lines};
 use crate::white_balance::{self, WhiteBalance};
 use bytemuck::{Pod, Zeroable};
@@ -3455,6 +3455,7 @@ pub struct GpuContext {
     /// record it without blocking on an in-flight render.
     pub pending_surface_size: Arc<std::sync::Mutex<Option<(u32, u32)>>>,
     pub viewer_display: Arc<std::sync::Mutex<Option<WgpuDisplay>>>,
+    pub pipelines: Arc<OnceLock<Arc<GpuPipelines>>>,
 }
 
 impl GpuContext {
@@ -4298,6 +4299,7 @@ pub struct WaveformData {
 
 pub fn encode_analytics_packet(
     path: &str,
+    generation: usize,
     histogram: Option<&HistogramData>,
     waveform: Option<&WaveformData>,
 ) -> Vec<u8> {
@@ -4309,6 +4311,7 @@ pub fn encode_analytics_packet(
 
     put_u32(&mut out, path.len());
     out.extend_from_slice(path.as_bytes());
+    out.extend_from_slice(&(generation as u64).to_le_bytes());
 
     match histogram {
         Some(h) => {

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import debounce from 'lodash.debounce';
 import throttle from 'lodash.throttle';
 import { useEditorStore } from '../store/useEditorStore';
@@ -9,6 +10,8 @@ import { useLibraryStore } from '../store/useLibraryStore';
 import { Adjustments, COPYABLE_ADJUSTMENT_KEYS } from '../utils/adjustments';
 import { Invokes, Panel } from '../components/ui/AppProperties';
 import { debouncedSave } from './useEditorActions';
+import { originalComparisonAdjustments } from '../utils/originalAdjustments';
+import { comparisonReferencePath } from '../utils/referenceView';
 import { globalImageCache } from '../utils/ImageLRUCache';
 import { copyLensPolicyVersion } from '../utils/lensPolicyVersion';
 
@@ -52,6 +55,9 @@ export function useImageProcessing(
   const baseRenderSize = useEditorStore((state) => state.baseRenderSize);
   const originalSize = useEditorStore((state) => state.originalSize);
   const isSliderDragging = useEditorStore((state) => state.isSliderDragging);
+  const compareView = useEditorStore((state) => state.compareView);
+  const showOriginal = useEditorStore((state) => state.showOriginal);
+  const referencePath = useEditorStore((state) => comparisonReferencePath(state.referenceView));
   const setEditor = useEditorStore((state) => state.setEditor);
 
   const activeView = useUIStore((state) => state.activeView);
@@ -63,16 +69,12 @@ export function useImageProcessing(
   const uncroppedJobIdRef = useRef(0);
   const latestUncroppedJobIdRef = useRef(0);
 
+  const originalRequestKeyRef = useRef<string | null>(null);
   const inFlightCountRef = useRef(0);
   const pendingApplyRef = useRef<{ adjustments: Adjustments; targetRes?: number } | null>(null);
   const dragIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeWaveformChannelRef = useRef(activeWaveformChannel);
   activeWaveformChannelRef.current = activeWaveformChannel;
-
-  const selectedImagePathRef = useRef<string | null>(null);
-  useEffect(() => {
-    selectedImagePathRef.current = selectedImage?.path ?? null;
-  }, [selectedImage?.path]);
 
   const calculateROI = useCallback(() => {
     if (!transformWrapperRef.current) return null;
@@ -130,10 +132,96 @@ export function useImageProcessing(
     return [clampedX, clampedY, clampedW, clampedH] as [number, number, number, number];
   }, [baseRenderSize, transformWrapperRef]);
 
+  const renderOriginal = useCallback(
+    async (targetRes?: number) => {
+      const { selectedImage: image, adjustments: currentAdjustments, compareView: view } = useEditorStore.getState();
+      const ui = useUIStore.getState();
+      if (
+        (view === 'off' && !(useEditorStore.getState().showOriginal && referencePath)) ||
+        !image?.isReady ||
+        ui.activeView !== 'editor' ||
+        ui.activePanel === Panel.Crop
+      )
+        return;
+
+      const originalAdjustments = originalComparisonAdjustments(currentAdjustments);
+      const { useWgpuRenderer } = useSettingsStore.getState().appSettings ?? {};
+      const key = JSON.stringify([
+        image.path,
+        image.loadGeneration,
+        targetRes,
+        referencePath,
+        useWgpuRenderer,
+        originalAdjustments,
+      ]);
+      if (key === originalRequestKeyRef.current) return;
+      originalRequestKeyRef.current = key;
+
+      const { payload, markSent } = prepareAdjustmentsPayload(originalAdjustments);
+      try {
+        const buffer: ArrayBuffer = referencePath
+          ? await invoke<Adjustments>(Invokes.ReadCompareAdjustments, { path: referencePath }).then(
+              (referenceAdjustments) =>
+                invoke<ArrayBuffer>(Invokes.GeneratePreviewForPath, {
+                  path: referencePath,
+                  jsAdjustments: referenceAdjustments,
+                  readOnly: true,
+                }),
+            )
+          : await invoke(Invokes.ApplyAdjustments, {
+              jsAdjustments: payload,
+              imagePath: image.path,
+              loadGeneration: image.loadGeneration,
+              original: true,
+              isInteractive: false,
+              targetResolution: targetRes || null,
+              roi: null,
+              requestAnalytics: false,
+              computeWaveform: false,
+              activeWaveformChannel: null,
+            });
+        if (!referencePath) markSent();
+
+        const current = useEditorStore.getState().selectedImage;
+        if (
+          current?.path !== image.path ||
+          current?.loadGeneration !== image.loadGeneration ||
+          key !== originalRequestKeyRef.current ||
+          !buffer ||
+          buffer.byteLength === 0
+        )
+          return;
+
+        const url = isWgpuRender(buffer) ? null : URL.createObjectURL(new Blob([buffer], { type: 'image/jpeg' }));
+        setEditor((state) => {
+          releasePreviewUrl(state.originalPreview?.url);
+          return { originalPreview: { path: image.path, sourcePath: referencePath ?? image.path, url } };
+        });
+      } catch {
+        const current = useEditorStore.getState().selectedImage;
+        if (
+          key === originalRequestKeyRef.current &&
+          current?.path === image.path &&
+          current?.loadGeneration === image.loadGeneration
+        ) {
+          originalRequestKeyRef.current = null;
+          if (referencePath)
+            setEditor({ originalPreview: { path: image.path, sourcePath: referencePath, url: null, error: true } });
+        }
+      }
+    },
+    [setEditor, referencePath],
+  );
+
   const executeApplyAdjustments = useCallback(
     async (currentAdjustments: Adjustments, dragging: boolean = false, targetRes?: number) => {
       const currentPath = selectedImage?.path;
-      if (!currentPath) return;
+      const loadGeneration = selectedImage?.loadGeneration;
+      if (!currentPath || loadGeneration === undefined) return;
+      const isCurrentSource = () => {
+        const selected = useEditorStore.getState().selectedImage;
+        return selected?.path === currentPath && selected.loadGeneration === loadGeneration;
+      };
 
       const { payload, markSent } = prepareAdjustmentsPayload(currentAdjustments);
 
@@ -141,7 +229,9 @@ export function useImageProcessing(
       const roi = calculateROI();
 
       try {
-        const buffer = await invoke<ArrayBuffer>(Invokes.ApplyAdjustments, {
+        const request = invoke<ArrayBuffer>(Invokes.ApplyAdjustments, {
+          imagePath: currentPath,
+          loadGeneration,
           jsAdjustments: payload,
           original: false,
           isInteractive: dragging,
@@ -151,10 +241,11 @@ export function useImageProcessing(
           computeWaveform: !!isWaveformVisible,
           activeWaveformChannel: activeWaveformChannelRef.current || null,
         });
+        if (!dragging) renderOriginal(targetRes);
+        const buffer = await request;
 
+        if (!isCurrentSource() || !buffer?.byteLength) return;
         markSent();
-
-        if (currentPath !== selectedImagePathRef.current) return;
 
         if (buffer && buffer.byteLength > 0 && jobId >= latestRenderedJobIdRef.current) {
           latestRenderedJobIdRef.current = jobId;
@@ -201,7 +292,7 @@ export function useImageProcessing(
             const blob = new Blob([buffer], { type: 'image/jpeg' });
             const url = URL.createObjectURL(blob);
 
-            if (currentPath !== selectedImagePathRef.current || jobId < latestRenderedJobIdRef.current) {
+            if (!isCurrentSource() || jobId < latestRenderedJobIdRef.current) {
               URL.revokeObjectURL(url);
               return;
             }
@@ -225,6 +316,7 @@ export function useImageProcessing(
           }
         }
       } catch (err) {
+        if (!isCurrentSource()) return;
         if (err !== 'Superseded or worker failed') {
           console.error('Failed to apply adjustments:', err);
         }
@@ -236,7 +328,16 @@ export function useImageProcessing(
         }
       }
     },
-    [selectedImage?.path, calculateROI, isWaveformVisible, setEditor, previewJobIdRef, latestRenderedJobIdRef],
+    [
+      selectedImage?.path,
+      selectedImage?.loadGeneration,
+      calculateROI,
+      isWaveformVisible,
+      setEditor,
+      previewJobIdRef,
+      latestRenderedJobIdRef,
+      renderOriginal,
+    ],
   );
 
   const flushPipeline = useCallback(() => {
@@ -326,10 +427,36 @@ export function useImageProcessing(
     return calculateTargetResolution(appSettings, displayMax, appSettings?.useFullDpiRendering ? dpr : 1, originalMax);
   }, [appSettings, displaySize.width, displaySize.height, originalSize]);
 
+  useEffect(() => {
+    let active = true;
+    let unlisten: (() => void) | undefined;
+    listen<{ path: string }>('decoded-source-ready', (event) => {
+      if (!active) return;
+      const path = event.payload?.path;
+      const editor = useEditorStore.getState();
+      if (!path || editor.selectedImage?.path !== path || !editor.selectedImage.isReady) return;
+      const targetRes = calculateTargetRes();
+      currentResRef.current = targetRes;
+      const renderAdjustments = editor.previewOverride ?? editor.adjustments;
+      applyAdjustments(renderAdjustments, false, targetRes);
+      const ui = useUIStore.getState();
+      if (ui.activeView === 'editor' && ui.activePanel === Panel.Crop) {
+        generateUncroppedPreview(renderAdjustments);
+      }
+    }).then((stop) => {
+      if (active) unlisten = stop;
+      else stop();
+    });
+    return () => {
+      active = false;
+      unlisten?.();
+    };
+  }, [applyAdjustments, calculateTargetRes, currentResRef, generateUncroppedPreview]);
+
   const requestHiFiZoom = useMemo(
     () =>
       debounce((targetRes: number) => {
-        if (targetRes > currentResRef.current) {
+        if (Number.isFinite(currentResRef.current) && targetRes !== currentResRef.current) {
           currentResRef.current = targetRes;
           const { adjustments, previewOverride } = useEditorStore.getState();
           const renderAdjustments = previewOverride ?? adjustments;
@@ -355,7 +482,7 @@ export function useImageProcessing(
       }
       const finalRes = Math.round(baseRes);
 
-      if (finalRes > currentResRef.current) {
+      if (Number.isFinite(currentResRef.current) && finalRes !== currentResRef.current) {
         requestHiFiZoom(finalRes);
       }
     }
@@ -372,6 +499,33 @@ export function useImageProcessing(
     requestHiFiZoom,
     originalSize,
   ]);
+
+  const isComparing = compareView !== 'off' || (showOriginal && !!referencePath);
+
+  useEffect(() => {
+    if (isComparing && currentResRef.current > 0) renderOriginal(currentResRef.current);
+  }, [
+    isComparing,
+    activeView,
+    activePanel,
+    selectedImage?.path,
+    selectedImage?.isReady,
+    selectedImage?.loadGeneration,
+    renderOriginal,
+    currentResRef,
+  ]);
+
+  useEffect(() => {
+    if (!isComparing) return;
+    return () => {
+      originalRequestKeyRef.current = null;
+      setEditor((state) => {
+        releasePreviewUrl(state.originalPreview?.url);
+        return { originalPreview: null };
+      });
+      invoke(Invokes.ReleaseOriginalPreview).catch(console.error);
+    };
+  }, [isComparing, setEditor]);
 
   useEffect(() => {
     if (!selectedImage?.isReady) return;
@@ -451,6 +605,7 @@ export function useImageProcessing(
     previewOverride,
     selectedImage?.path,
     selectedImage?.isReady,
+    selectedImage?.loadGeneration,
     isSliderDragging,
     multiSelectedPaths,
     appSettings?.enableLivePreviews,

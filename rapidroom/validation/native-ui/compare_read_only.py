@@ -54,7 +54,7 @@ def _press_c(smoke):
 
 def _ready(smoke, wait_for, name):
     wait_for(lambda: smoke.execute("""const editor=document.querySelector('[data-testid=editor-current-photo]');
-      return !!document.querySelector('[data-testid=editor-compare-wipe-toggle]') &&
+      return !!document.querySelector('[data-testid=editor-compare-toggle]') &&
         editor?.dataset.currentPath.endsWith('/'+arguments[0]) && editor.dataset.fullRenderComplete==='true';""", [name]), "decoded editor " + name, 90)
 
 
@@ -63,9 +63,10 @@ def _original(smoke, wait_for, photo, kind):
     _ready(smoke, wait_for, photo.name)
     _seed(photo, kind)  # discard ordinary-open side effects before the guard
     before = _snapshot(_paths(photo))
-    _press_c(smoke)
-    wait_for(lambda: smoke.execute("""const pane=document.querySelector('[data-testid=editor-reference-pane]');
-      if(!pane)return false;const images=[...pane.querySelectorAll('img')];return pane.dataset.referenceMode==='wipe' && images.length>=2 && images.every(e=>e.complete&&e.naturalWidth>100);"""), "Original comparison " + photo.name, 90)
+    from compare_modes import select_mode
+    select_mode(smoke, wait_for, "vertical")
+    wait_for(lambda: smoke.execute("""const pane=document.querySelector('[data-compare-view=vertical]');
+      const image=pane?.querySelector('img');return image?.complete&&image.naturalWidth>100;"""), "Original comparison " + photo.name, 90)
     _press_c(smoke)
     after = _snapshot(_paths(photo))
     if after != before: raise RuntimeError("Original comparison changed " + photo.name)
@@ -76,15 +77,15 @@ def _pinned(smoke, wait_for, photo, kind):
     _seed(photo, kind)  # anchor is already open; establish preconditions immediately before compare
     before = _snapshot(_paths(photo))
     smoke.execute("document.querySelector('[data-testid=editor-reference-view-toggle]').click();return true;")
-    wait_for(lambda: smoke.execute("return !!document.querySelector('[data-testid=editor-reference-pane]');"), "reference chooser")
-    smoke.execute("""const pane=document.querySelector('[data-testid=editor-reference-pane]');
+    wait_for(lambda: smoke.execute("return !!document.querySelector('[data-testid=editor-reference-source]');"), "reference chooser")
+    smoke.execute("""const pane=document.querySelector('[data-testid=editor-reference-source]');
       pane.querySelector('button[aria-label=\"Clear reference\"]')?.click();return true;""")
-    wait_for(lambda: smoke.execute("return document.querySelector('[data-testid=editor-reference-pane]')?.dataset.referenceState==='choose-reference';"), "explicit reference chooser")
     _click(smoke, photo.name, "click")
-    wait_for(lambda: smoke.execute("""const pane=document.querySelector('[data-testid=editor-reference-pane]'),image=pane?.querySelector('img');
+    wait_for(lambda: smoke.execute("""const pane=document.querySelector('[data-testid=editor-reference-source]');
+      const image=document.querySelector('[data-compare-view=sideBySide] img');
       const anchor=document.querySelector('[data-testid=editor-current-photo]');
-      return pane?.dataset.referenceState==='ready'&&pane.textContent.includes(arguments[0])&&image?.complete&&image.naturalWidth>100&&anchor?.dataset.currentPath.endsWith('/smoke.ARW')&&anchor.dataset.fullRenderComplete==='true';""", [photo.name]), "pinned comparison " + photo.name, 90)
-    smoke.execute("document.querySelector('[data-testid=editor-reference-pane] button[aria-label=\"Close reference view\"]').click();return true;")
+      return pane?.textContent.includes(arguments[0])&&image?.complete&&image.naturalWidth>100&&anchor?.dataset.currentPath.endsWith('/smoke.ARW')&&anchor.dataset.fullRenderComplete==='true';""", [photo.name]), "pinned comparison " + photo.name, 90)
+    smoke.execute("document.querySelector('[data-testid=editor-reference-source] button[aria-label=\"Close reference view\"]').click();return true;")
     after = _snapshot(_paths(photo))
     if after != before: raise RuntimeError("Pinned comparison changed " + photo.name)
     return {"before": before, "after": after}
