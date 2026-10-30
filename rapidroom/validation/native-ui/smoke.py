@@ -449,6 +449,10 @@ class Smoke:
             from culling_precision import run_culling_precision
             run_culling_precision(self)
             baseline = self.stable_preview("post-culling-precision")
+        if (self.case / "compare-modes-test.json").exists():
+            from compare_modes import run_compare_modes
+            run_compare_modes(self, wait_for)
+            baseline = self.stable_preview("post-compare-modes")
         edits = [self.drag("Exposure", 1), self.drag("Contrast", 20)]
         edited = self.stable_preview("edited")
         difference = ImageStat.Stat(ImageChops.difference(self.crop(baseline), self.crop(edited)))
@@ -627,6 +631,8 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.compare_modes:
+        save(case / "compare-modes-test.json", {"issue": 492, "upstream_modes": True})
     if args.culling_precision:
         from culling_precision import prepare
         prepare(case)
@@ -849,6 +855,7 @@ def main():
     parser.add_argument("--viewport", type=int, nargs=2, metavar=("WIDTH", "HEIGHT"), help="Zoom-test native viewport")
     parser.add_argument("--style-stack", action="store_true", help="Check ordered Style stack, manual edits, shared MCP, Undo and reload")
     parser.add_argument("--presets", action="store_true", help="Check grouped preset search, hover, Amount and creation")
+    parser.add_argument("--compare-modes", action="store_true", help="Check upstream compare modes, persisted selection and zoom preservation")
     parser.add_argument("--culling-precision", action="store_true", help="Compare automatic-lens ordinary/Culling IPC renders beyond the three-photo f32 window")
     parser.add_argument("--jpeg-metadata", action="store_true", help="Check opt-in JPEG culling writes and Undo with independent ExifTool/pixel checks")
     parser.add_argument("--lightroom-ai-masks", type=Path, help="Import an authored synthetic ACR fixture and verify named refusals without model requests")

@@ -1,0 +1,19 @@
+{
+  "id": "restore-upstream-compare-modes",
+  "title": "Restore upstream split and side-by-side comparison modes",
+  "category": "fix",
+  "landed": "2026-10-30",
+  "authors": [
+    "CyberTimon",
+    "yojen7"
+  ],
+  "source": "CyberTimon/RapidRAW, restored and adapted for RapidRoom",
+  "commits": [
+    "https://github.com/CyberTimon/RapidRAW/commit/029cf3ed1b6e8fdc8c112f6fbb3289f6b4c745f0",
+    "https://github.com/CyberTimon/RapidRAW/commit/8913b91c8e49ab12b5ad21d8105aa94744187fab"
+  ],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Restores the upstream Compare button, right-click mode menu, persisted toggle/vertical/horizontal/side-by-side modes, and zoom/focal-point preservation. Pinned reference photos and virtual copies use the same canvas through read-only commands, including the existing MCP workflow. B remains the upstream compare shortcut; C is an alias, while A and navigation arrows keep their existing functions. Independent reference zoom/pan and side-swap from the removed wipe are not retained. Preview lens snapshots use the read-only resolver so entering original/split comparison cannot heal sidecars or migrate EXIF; normal photo opening retains its repair path. Settles preview resolution when zooming back out so mode/zoom checks followed by editing and Undo use the same fitted preview pixels, rather than retaining a full-resolution baseline until the next edit."
+}

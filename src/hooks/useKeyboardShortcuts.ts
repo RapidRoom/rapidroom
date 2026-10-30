@@ -56,7 +56,7 @@ export const useKeyboardShortcuts = ({
     handleAutoStraighten,
     handleCopyAdjustments,
     handlePasteAdjustments,
-    toggleShowOriginal,
+    toggleCompare,
     handleAutoAdjustments,
     setAdjustments,
     handleCropOrientationToggle,
@@ -414,7 +414,7 @@ export const useKeyboardShortcuts = ({
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent) => {
           e.preventDefault();
-          toggleShowOriginal();
+          toggleCompare();
         },
       },
       toggle_reference_view: {
@@ -1003,6 +1003,6 @@ export const useKeyboardShortcuts = ({
     handleSetFlag,
     handleToggleFlag,
     handleSetColorLabel,
-    toggleShowOriginal,
+    toggleCompare,
   ]);
 };
