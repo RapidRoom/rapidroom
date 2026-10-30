@@ -70,11 +70,6 @@ export function useImageProcessing(
   const activeWaveformChannelRef = useRef(activeWaveformChannel);
   activeWaveformChannelRef.current = activeWaveformChannel;
 
-  const selectedImagePathRef = useRef<string | null>(null);
-  useEffect(() => {
-    selectedImagePathRef.current = selectedImage?.path ?? null;
-  }, [selectedImage?.path]);
-
   const calculateROI = useCallback(() => {
     if (!transformWrapperRef.current) return null;
     const state = transformWrapperRef.current.instance.transformState;
@@ -134,7 +129,12 @@ export function useImageProcessing(
   const executeApplyAdjustments = useCallback(
     async (currentAdjustments: Adjustments, dragging: boolean = false, targetRes?: number) => {
       const currentPath = selectedImage?.path;
-      if (!currentPath) return;
+      const loadGeneration = selectedImage?.loadGeneration;
+      if (!currentPath || loadGeneration === undefined) return;
+      const isCurrentSource = () => {
+        const selected = useEditorStore.getState().selectedImage;
+        return selected?.path === currentPath && selected.loadGeneration === loadGeneration;
+      };
 
       const { payload, markSent } = prepareAdjustmentsPayload(currentAdjustments);
 
@@ -143,6 +143,8 @@ export function useImageProcessing(
 
       try {
         const buffer = await invoke<ArrayBuffer>(Invokes.ApplyAdjustments, {
+          imagePath: currentPath,
+          loadGeneration,
           jsAdjustments: payload,
           original: false,
           isInteractive: dragging,
@@ -153,9 +155,8 @@ export function useImageProcessing(
           activeWaveformChannel: activeWaveformChannelRef.current || null,
         });
 
+        if (!isCurrentSource() || !buffer?.byteLength) return;
         markSent();
-
-        if (currentPath !== selectedImagePathRef.current) return;
 
         if (buffer && buffer.byteLength > 0 && jobId >= latestRenderedJobIdRef.current) {
           latestRenderedJobIdRef.current = jobId;
@@ -202,7 +203,7 @@ export function useImageProcessing(
             const blob = new Blob([buffer], { type: 'image/jpeg' });
             const url = URL.createObjectURL(blob);
 
-            if (currentPath !== selectedImagePathRef.current || jobId < latestRenderedJobIdRef.current) {
+            if (!isCurrentSource() || jobId < latestRenderedJobIdRef.current) {
               URL.revokeObjectURL(url);
               return;
             }
@@ -226,6 +227,7 @@ export function useImageProcessing(
           }
         }
       } catch (err) {
+        if (!isCurrentSource()) return;
         if (err !== 'Superseded or worker failed') {
           console.error('Failed to apply adjustments:', err);
         }
@@ -237,7 +239,15 @@ export function useImageProcessing(
         }
       }
     },
-    [selectedImage?.path, calculateROI, isWaveformVisible, setEditor, previewJobIdRef, latestRenderedJobIdRef],
+    [
+      selectedImage?.path,
+      selectedImage?.loadGeneration,
+      calculateROI,
+      isWaveformVisible,
+      setEditor,
+      previewJobIdRef,
+      latestRenderedJobIdRef,
+    ],
   );
 
   const flushPipeline = useCallback(() => {
@@ -478,6 +488,7 @@ export function useImageProcessing(
     previewOverride,
     selectedImage?.path,
     selectedImage?.isReady,
+    selectedImage?.loadGeneration,
     isSliderDragging,
     multiSelectedPaths,
     appSettings?.enableLivePreviews,

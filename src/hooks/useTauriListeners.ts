@@ -95,7 +95,7 @@ interface TauriEventPayloads {
   'thumbnail-generation-complete': boolean;
   'thumbnail-progress': Progress;
   'viewer-closed': null;
-  'wgpu-frame-ready': { path: string };
+  'wgpu-frame-ready': { path: string; loadGeneration: number };
 }
 
 function listen<T extends keyof TauriEventPayloads>(
@@ -117,6 +117,8 @@ const parseAnalyticsPacket = async (buffer: ArrayBuffer) => {
   const pathLength = readU32();
   const path = new TextDecoder().decode(new Uint8Array(buffer, offset, pathLength));
   offset += pathLength;
+  const loadGeneration = Number(view.getBigUint64(offset, true));
+  offset += 8;
 
   const bins = readU32();
   let histogram: { red: number[]; green: number[]; blue: number[]; luma: number[] } | null = null;
@@ -146,7 +148,7 @@ const parseAnalyticsPacket = async (buffer: ArrayBuffer) => {
     waveform = { width, height, rgb, luma, parade, vectorscope };
   }
 
-  return { path, histogram, waveform };
+  return { path, loadGeneration, histogram, waveform };
 };
 
 interface TauriListenerProps {
@@ -569,14 +571,14 @@ export function useTauriListeners({
           useUIStore.getState().setUI({ isViewerOpen: false });
         }
       }),
-      listen('wgpu-frame-ready', (event: any) => {
-        const editorState = useEditorStore.getState();
+      listen('wgpu-frame-ready', (event) => {
+        const selected = useEditorStore.getState().selectedImage;
         if (
           isEffectActive &&
-          !editorState.hasRenderedFirstFrame &&
-          event.payload?.path === editorState.selectedImage?.path
+          event.payload?.path === selected?.path &&
+          event.payload.loadGeneration === selected?.loadGeneration
         ) {
-          editorState.setEditor({ hasRenderedFirstFrame: true });
+          useEditorStore.getState().setEditor({ hasRenderedFirstFrame: true });
         }
       }),
       listen('panorama-progress', (event) => {
@@ -734,9 +736,10 @@ export function useTauriListeners({
     const analyticsChannel = new Channel<ArrayBuffer>();
     analyticsChannel.onmessage = async (buffer) => {
       const sequence = ++analyticsSequence;
-      const { path, histogram, waveform } = await parseAnalyticsPacket(buffer);
+      const { path, loadGeneration, histogram, waveform } = await parseAnalyticsPacket(buffer);
       if (!isEffectActive || sequence < latestAppliedAnalytics) return;
-      if (path !== useEditorStore.getState().selectedImage?.path) return;
+      const selected = useEditorStore.getState().selectedImage;
+      if (path !== selected?.path || loadGeneration !== selected.loadGeneration) return;
       latestAppliedAnalytics = sequence;
       const update: { histogram?: HistogramData; waveform?: WaveformData } = {};
       if (histogram) update.histogram = histogram;

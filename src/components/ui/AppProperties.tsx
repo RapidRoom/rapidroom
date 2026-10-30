@@ -522,6 +522,7 @@ export interface Progress {
 }
 
 export interface SelectedImage {
+  loadGeneration?: number;
   asShotWhiteBalance?: WhiteBalance;
   exif: any;
   group_id?: string | null;

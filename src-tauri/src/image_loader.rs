@@ -36,6 +36,7 @@ use tauri::{Emitter, Manager};
 
 #[derive(serde::Serialize)]
 pub struct LoadImageResult {
+    pub load_generation: usize,
     pub width: u32,
     pub height: u32,
     pub metadata: ImageMetadata,
@@ -1152,6 +1153,7 @@ pub fn get_or_decode_pristine(
                     true,
                 )
                 .map_err(|e| e.to_string())?;
+                crate::as_shot::as_shot_from_bytes(&path_str, bytes);
                 Ok((
                     loaded.image,
                     exif_processing::read_exif_data(&path_str, bytes),
@@ -1271,14 +1273,18 @@ pub async fn load_image(
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<LoadImageResult, String> {
-    let my_generation = state.load_image_generation.fetch_add(1, Ordering::SeqCst) + 1;
+    let my_generation = {
+        let mut image = state
+            .original_image
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let generation = state.load_image_generation.fetch_add(1, Ordering::SeqCst) + 1;
+        *image = None;
+        generation
+    };
     let cancel_token = Some((state.load_image_generation.clone(), my_generation));
 
     {
-        *state
-            .original_image
-            .lock()
-            .unwrap_or_else(|e| e.into_inner()) = None;
         state
             .decoded_image_cache
             .lock()
@@ -1398,7 +1404,15 @@ pub async fn load_image(
         );
     }
 
-    *state.original_image.lock().unwrap() = Some(LoadedImage {
+    let mut image = state
+        .original_image
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if state.load_image_generation.load(Ordering::SeqCst) != my_generation {
+        return Err("Load cancelled".to_string());
+    }
+    *image = Some(LoadedImage {
+        generation: my_generation,
         path: path.clone(),
         image: pristine_arc,
         is_raw,
@@ -1424,9 +1438,11 @@ pub async fn load_image(
         );
     }
 
+    drop(image);
     crate::ai_jobs::prioritize(&app_handle, &path);
 
     Ok(LoadImageResult {
+        load_generation: my_generation,
         width: orig_width,
         height: orig_height,
         metadata,
