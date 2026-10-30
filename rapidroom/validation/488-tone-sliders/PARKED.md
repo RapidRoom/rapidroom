@@ -6,7 +6,9 @@ The implementation is commit `4d034da1`; the parking commit adds evidence only.
 
 Completed:
 
-- Native all-feature check, Clippy and executable build succeeded before parking.
+- Native all-feature check and Clippy passed earlier in implementation; they were
+  not rerun after the final import/table edits. The executable build succeeded
+  with those edits included.
 - Library tests: **740 passed, 4 failed, 23 ignored**. See `library-test-failures.txt`.
 - Existing frontend tests: 108 passed, plus three throwaway version/preset probes.
   TypeScript, Prettier, schema generation, runtime i18n and change records passed.
