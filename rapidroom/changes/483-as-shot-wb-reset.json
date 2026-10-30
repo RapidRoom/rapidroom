@@ -1,0 +1,13 @@
+{
+  "id": "483-as-shot-wb-reset",
+  "title": "Reset stale white balance on As Shot Lightroom imports",
+  "category": "fix",
+  "landed": "2026-10-29",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "RAW Lightroom sidecars with As Shot white balance now reset relative temperature and tint to zero and clear any absolute white-balance target, preventing stale edits from surviving re-import. Reusable presets and rendered-source imports are unchanged."
+}
