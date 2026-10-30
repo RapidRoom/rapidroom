@@ -10,5 +10,5 @@
   "upstream_prs": [],
   "rendering_change": false,
   "highlight": "Sony raws show the focus distance, in metres, in the metadata panel.",
-  "notes": "Read from enciphered maker-note FocusPosition2 (tag 0x9402, offset 0x2d) and FocalLengthIn35mmFilm, printed like exiftool 13.50 FocusDistance2, including the string inf at infinity. SubjectDistance is unchanged and is still what lens correction reads. Nikon is omitted: on the corpus the Z f value exiftool prints is 26002 m, and the Z fc distance lives in an encrypted lens-data block. DSC, Stellar, SLT and ILCA bodies are not decoded."
+  "notes": "Read from enciphered maker-note FocusPosition2 (tag 0x9402, offset 0x2d) and FocalLengthIn35mmFilm, printed like exiftool 13.50 FocusDistance2. At infinity the metadata value is the string inf and the panel shows ∞. SubjectDistance is unchanged and is still what lens correction reads. Nikon is omitted: on the corpus the Z f value exiftool prints is 26002 m, and the Z fc distance lives in an encrypted lens-data block. DSC, Stellar, SLT and ILCA bodies are not decoded."
 }

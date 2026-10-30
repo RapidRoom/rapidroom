@@ -3,8 +3,6 @@
 //! The metres are shown in the metadata panel. They are not written to
 //! `SubjectDistance`, which lens correction already reads.
 
-use std::ffi::CStr;
-
 /// Exiftool `Decipher` for tags 0x2010 and 0x94xx: byte `b` becomes `(b³ mod 249)`,
 /// and bytes 249–255 stay put. Built the same way as `Sony.pm`'s translation table.
 const DECIPHER: [u8; 256] = decipher_table();
@@ -100,27 +98,113 @@ pub(crate) fn focus_distance(file_bytes: &[u8]) -> Option<String> {
     Some(format!("{} m", format_sig4(metres)))
 }
 
-/// exiftool prints finite distances with Perl `sprintf("%.4g")`, which follows
-/// libc on this platform. Infinity is the string `inf`, with no unit.
+/// Four significant digits, trimmed like printf `%.4g`: no trailing zeros, a
+/// decimal point only when a fraction remains, and scientific form when the
+/// exponent is below -4 or at least 4. Ties round to even. Infinity is not
+/// formatted here; the caller returns the exiftool string `inf`.
 fn format_sig4(value: f64) -> String {
-    let mut buf = [0u8; 32];
-    // Safety: `buf` is a 32-byte writable buffer, the format is a fixed
-    // NUL-terminated literal, and snprintf stops within `buf.len()` bytes.
-    let written = unsafe {
-        libc::snprintf(
-            buf.as_mut_ptr().cast::<libc::c_char>(),
-            buf.len(),
-            c"%.4g".as_ptr(),
-            value,
-        )
-    };
-    if written <= 0 {
+    let abs = value.abs();
+    if abs == 0.0 {
         return "0".to_string();
     }
-    let end = usize::try_from(written).unwrap_or(0).min(buf.len() - 1);
-    CStr::from_bytes_until_nul(&buf[..=end])
-        .map(|text| text.to_string_lossy().into_owned())
-        .unwrap_or_else(|_| "0".to_string())
+    // Enough extra digits that a value just above a 4-digit midpoint is not
+    // collapsed into a tie before we round. Checked against printf `%.4g`.
+    let rendered = format!("{abs:.32e}");
+    let Some((mantissa, exponent)) = rendered.split_once('e') else {
+        return "0".to_string();
+    };
+    let Ok(mut exp) = exponent.parse::<i32>() else {
+        return "0".to_string();
+    };
+    let mut digits = [0u8; 40];
+    let mut count = 0usize;
+    for byte in mantissa.bytes() {
+        if byte != b'.' && count < digits.len() {
+            digits[count] = byte;
+            count += 1;
+        }
+    }
+    if count < 5 {
+        return "0".to_string();
+    }
+    let tie_digit_is_odd = (digits[3] - b'0') % 2 == 1;
+    let further_digits = digits[5..count].iter().any(|byte| *byte != b'0');
+    let round_up = digits[4] > b'5' || (digits[4] == b'5' && (further_digits || tie_digit_is_odd));
+    if round_up {
+        let mut index = 4usize;
+        loop {
+            if index == 0 {
+                digits[0] = b'1';
+                digits[1] = b'0';
+                digits[2] = b'0';
+                digits[3] = b'0';
+                exp += 1;
+                break;
+            }
+            index -= 1;
+            if digits[index] < b'9' {
+                digits[index] += 1;
+                break;
+            }
+            digits[index] = b'0';
+        }
+    }
+    let body = if !(-4..4).contains(&exp) {
+        scientific(&digits[..4], exp)
+    } else {
+        fixed(&digits[..4], exp)
+    };
+    if value.is_sign_negative() {
+        format!("-{body}")
+    } else {
+        body
+    }
+}
+
+fn fixed(digits: &[u8], exp: i32) -> String {
+    if exp >= 0 {
+        let int_len = (exp as usize) + 1;
+        let mut out = String::from_utf8_lossy(&digits[..int_len]).into_owned();
+        let end = digits[int_len..]
+            .iter()
+            .rposition(|byte| *byte != b'0')
+            .map(|index| index + 1)
+            .unwrap_or(0);
+        if end > 0 {
+            out.push('.');
+            out.push_str(&String::from_utf8_lossy(&digits[int_len..int_len + end]));
+        }
+        out
+    } else {
+        let zeros = (-exp - 1) as usize;
+        let end = digits
+            .iter()
+            .rposition(|byte| *byte != b'0')
+            .map(|index| index + 1)
+            .unwrap_or(0);
+        let mut out = String::from("0.");
+        out.extend(std::iter::repeat_n('0', zeros));
+        out.push_str(&String::from_utf8_lossy(&digits[..end]));
+        out
+    }
+}
+
+fn scientific(digits: &[u8], exp: i32) -> String {
+    let end = digits
+        .iter()
+        .rposition(|byte| *byte != b'0')
+        .map(|index| index + 1)
+        .unwrap_or(1);
+    let mut out = String::new();
+    out.push(digits[0] as char);
+    if end > 1 {
+        out.push('.');
+        out.push_str(&String::from_utf8_lossy(&digits[1..end]));
+    }
+    out.push('e');
+    out.push(if exp >= 0 { '+' } else { '-' });
+    out.push_str(&format!("{:02}", exp.abs()));
+    out
 }
 
 fn maker_note_has_header(bytes: &[u8], offset: usize) -> bool {
@@ -378,6 +462,36 @@ mod tests {
                 "{model} focal {focal} byte {byte:#x}"
             );
         }
+    }
+
+    #[test]
+    fn formats_borderline_distances_like_printf_percent_4g() {
+        // printf "%.4g" of the focus formula, including values that sit just
+        // above a 4-digit midpoint. A round-half-away or short decimal pass
+        // prints the even neighbour instead.
+        let cases = [
+            (1u32, 24u32, "0.02478"),
+            (16, 1, "0.001063"),
+            (16, 74, "0.07863"),
+            (32, 49, "0.05513"),
+            (32, 85, "0.09563"),
+            (224, 135, "69.25"),
+            (240, 49, "50.23"),
+            (254, 24, "45.1"),
+        ];
+        for (position, focal, expected) in cases {
+            let metres =
+                (f64::exp2(f64::from(position) / 16.0 - 5.0) + 1.0) * f64::from(focal) / 1000.0;
+            assert_eq!(
+                format_sig4(metres),
+                expected,
+                "position {position} focal {focal}"
+            );
+        }
+        assert_eq!(format_sig4(10_000.0), "1e+04");
+        assert_eq!(format_sig4(12_345.0), "1.234e+04");
+        assert_eq!(format_sig4(0.0001), "0.0001");
+        assert_eq!(format_sig4(0.00001), "1e-05");
     }
 
     #[test]

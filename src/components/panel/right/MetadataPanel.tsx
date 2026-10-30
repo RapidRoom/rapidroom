@@ -329,8 +329,9 @@ export default function MetadataPanel() {
     }
 
     const focusValue = exif.FocusDistance;
-    const focusDistance =
-      focusValue !== undefined && focusValue !== null && focusValue !== '' ? String(focusValue) : null;
+    const focusText = focusValue !== undefined && focusValue !== null && focusValue !== '' ? String(focusValue) : null;
+    // The metadata value stays exiftool's `inf`. The panel shows the infinity glyph.
+    const focusDistance = focusText === 'inf' ? '∞' : focusText;
 
     const handledKeys = [...cameraGridKeys, 'LensModel', 'FocusDistance', ...EDITABLE_FIELDS.map((f) => f.key)];
     const otherExifEntries = Object.entries(exif)
