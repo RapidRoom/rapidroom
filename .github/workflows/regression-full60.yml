@@ -1,0 +1,305 @@
+name: Nightly full60 regression
+run-name: Full60 ${{ inputs.record && 'record' || 'check' }} (${{ github.event_name }})
+
+on:
+  schedule:
+    - cron: '37 11 * * *'
+  workflow_dispatch:
+    inputs:
+      record:
+        description: 'Upload a candidate full reference only; never commit or update a reference automatically'
+        type: boolean
+        default: false
+      source_sha:
+        description: 'Record mode only: required full main commit SHA'
+        type: string
+        default: ''
+  # This inexpensive job also registers the new workflow before its first manual recording.
+  pull_request:
+    paths:
+      - '.github/workflows/regression-full60.yml'
+      - 'rapidroom/regression/full60.py'
+      - 'rapidroom/regression/test_full60.py'
+      - 'rapidroom/regression/ci-reference-full60.json'
+      - 'rapidroom/regression/full60-reference-provenance.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full60-${{ github.ref }}-${{ inputs.record && github.run_id || 'check' }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  RAPIDROOM_CORPUS: ${{ github.workspace }}/.corpus
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test full60 coverage and failure guards
+        working-directory: rapidroom/regression
+        run: python3 -m unittest -v test_full60.py
+
+  plan:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      source_sha: ${{ steps.plan.outputs.source_sha }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: harness
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          path: source
+          persist-credentials: false
+      - name: Select main and require complete reference coverage
+        id: plan
+        env:
+          RECORD: ${{ inputs.record || false }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          args=()
+          if [[ "$RECORD" == true ]]; then args+=(--record); fi
+          python3 harness/rapidroom/regression/full60.py plan \
+            --source source --source-sha "$SOURCE_SHA" \
+            --reference harness/rapidroom/regression/ci-reference-full60.json \
+            --out plan.json --github-output "$GITHUB_OUTPUT" --summary "$GITHUB_STEP_SUMMARY" "${args[@]}"
+          cat plan.json >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    outputs:
+      archive_sha256: ${{ steps.stage.outputs.archive_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          path: source
+          persist-credentials: false
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl file libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev patchelf pkg-config
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ''
+          cache: false
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: source/src-tauri
+          shared-key: regression-ubuntu-24.04
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - name: Build pinned main once
+        working-directory: source
+        run: |
+          git diff --exit-code
+          npm ci
+          npm run tauri build -- --no-bundle
+          git diff --exit-code
+      - name: Stage portable runtime for every shard
+        id: stage
+        env:
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+        run: |
+          mkdir -p bundle/engine/bin bundle/engine/lib/RapidRoom
+          cp source/src-tauri/target/release/rapidroom bundle/engine/bin/rapidroom
+          cp -a source/src-tauri/resources bundle/engine/lib/RapidRoom/resources
+          cp -a source/src-tauri/lensfun_db bundle/engine/lib/RapidRoom/lensfun_db
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          engine = Path('bundle/engine/bin/rapidroom')
+          data = {'source_sha': os.environ['SOURCE_SHA'],
+                  'engine_sha256': hashlib.file_digest(engine.open('rb'), 'sha256').hexdigest(),
+                  'workflow_sha': os.environ['GITHUB_SHA'], 'run_id': os.environ['GITHUB_RUN_ID']}
+          Path('bundle/engine/engine.json').write_text(json.dumps(data, indent=2) + '\n')
+          PY
+          tar -C bundle -czf full60-engine.tar.gz engine
+          echo "archive_sha256=$(sha256sum full60-engine.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: full60-engine-${{ github.run_id }}-${{ github.run_attempt }}
+          path: full60-engine.tar.gz
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
+
+  render:
+    needs: [plan, build]
+    if: needs.plan.result == 'success' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      WORK: /mnt/full60-${{ matrix.shard }}
+      ONLY: ${{ matrix.only }}
+      SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+      ARCHIVE_SHA: ${{ needs.build.outputs.archive_sha256 }}
+      SHARD: ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: harness
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          path: source
+          persist-credentials: false
+      - name: Install renderer dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl file libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev patchelf pkg-config \
+            mesa-vulkan-drivers vulkan-tools xvfb python3-numpy python3-pil
+          sudo mkdir -p "$WORK"
+          sudo chown "$(id -u):$(id -g)" "$WORK"
+      - name: Require software Vulkan
+        run: |
+          lavapipe=$(find /usr/share/vulkan/icd.d -maxdepth 1 -name '*lvp*.json' -print -quit)
+          test -n "$lavapipe"
+          export VK_ICD_FILENAMES="$lavapipe"
+          echo "VK_ICD_FILENAMES=$lavapipe" >> "$GITHUB_ENV"
+          vulkaninfo --summary
+          vulkaninfo --summary | grep -q 'driverName *= *llvmpipe'
+          dpkg-query -W mesa-vulkan-drivers libvulkan1
+      - uses: actions/download-artifact@v4
+        with:
+          name: full60-engine-${{ github.run_id }}-${{ github.run_attempt }}
+          path: bundle
+      - name: Verify shared engine
+        run: |
+          echo "$ARCHIVE_SHA  bundle/full60-engine.tar.gz" | sha256sum --check
+          tar -C "$WORK" -xzf bundle/full60-engine.tar.gz
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ['WORK']) / 'engine'
+          data = json.loads((root / 'engine.json').read_text())
+          assert data['source_sha'] == os.environ['SOURCE_SHA']
+          assert hashlib.file_digest((root / 'bin/rapidroom').open('rb'), 'sha256').hexdigest() == data['engine_sha256']
+          PY
+      - uses: actions/cache@v4
+        with:
+          path: .corpus
+          key: full60-corpus-${{ hashFiles('source/rapidroom/regression/corpus.json') }}-${{ matrix.shard }}
+      - name: Fetch five hash-pinned CC0 RAWs
+        run: python3 source/rapidroom/regression/baseline.py fetch --only "$ONLY"
+      - name: Render first pass (15 cases)
+        run: xvfb-run -a python3 source/rapidroom/regression/baseline.py render --engine "$WORK/engine/bin/rapidroom" --out "$WORK/run1" --only "$ONLY" --no-warmup
+      - name: Render second pass (15 cases)
+        run: xvfb-run -a python3 source/rapidroom/regression/baseline.py render --engine "$WORK/engine/bin/rapidroom" --out "$WORK/run2" --only "$ONLY" --no-warmup --skip-hash
+      - name: Require exact shard coverage and determinism
+        if: always()
+        run: |
+          python3 harness/rapidroom/regression/full60.py shard \
+            --source source --source-sha "$SOURCE_SHA" --shard "$SHARD" \
+            --first "$WORK/run1/manifest.json" --second "$WORK/run2/manifest.json" \
+            --engine "$WORK/engine/engine.json" --out "$WORK/report"
+      - name: Retain logs without successful TIFF outputs
+        if: always()
+        run: |
+          mkdir -p "$WORK/report/logs"
+          for pass in run1 run2; do
+            if [[ -d "$WORK/$pass" ]]; then
+              find "$WORK/$pass" -name '*.log' -exec cp --parents '{}' "$WORK/report/logs" \;
+            fi
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full60-shard-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.WORK }}/report
+          retention-days: 14
+          if-no-files-found: error
+      - name: Remove transient TIFF outputs
+        if: always()
+        run: rm -rf "$WORK/run1" "$WORK/run2"
+
+  collect:
+    needs: [plan, build, render]
+    if: always() && needs.plan.result == 'success' && needs.build.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: harness
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          path: source
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: full60-shard-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports
+      - name: Check all 60 or upload a recording candidate
+        env:
+          RECORD: ${{ inputs.record || false }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+        run: |
+          args=()
+          if [[ "$RECORD" == true ]]; then args+=(--record); fi
+          python3 harness/rapidroom/regression/full60.py collect \
+            --source source --source-sha "$SOURCE_SHA" --reports reports \
+            --reference harness/rapidroom/regression/ci-reference-full60.json \
+            --out result --summary "$GITHUB_STEP_SUMMARY" "${args[@]}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full60-result-${{ github.run_id }}-${{ github.run_attempt }}
+          path: result
+          retention-days: 14
+          if-no-files-found: error
+
+  verdict:
+    needs: [plan, build, render, collect]
+    if: always() && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Fail loudly on any missing job, difference or nondeterminism
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          results = json.loads(os.environ['RESULTS'])
+          passed = all(job['result'] == 'success' for job in results.values())
+          title = 'Full60 regression PASS' if passed else 'Full60 regression FAILED'
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('## ' + title + '\n\n')
+              for name, job in results.items():
+                  summary.write('- ' + name + ': **' + job['result'] + '**\n')
+              summary.write('\nAll 60 cases must be present, deterministic, and match the separate full reference. Missing references fail; references are never updated automatically.\n')
+          if not passed:
+              print('::error::Full60 regression failed. Inspect plan/shard/collection reports; a missing full reference, render failure, difference or nondeterminism cannot pass.')
+              sys.exit(1)
+          PY

@@ -31,3 +31,40 @@ The maintainers run this locally on a real GPU. Issue #6 tracks running it in CI
 python3 rapidroom/regression/baseline.py hashes <renders> --out ci-reference.json --by "<who>"   # record hashes
 python3 rapidroom/regression/baseline.py check ci-reference.json <renders>                       # or two render dirs
 ```
+
+## Nightly full60 check (#473)
+
+`regression-full60.yml` runs nightly at 11:37 UTC and on demand. It selects a main
+commit, builds that commit once, and sends the same binary/runtime artifact to
+four jobs. Each job renders five CC0 RAWs with all three canonical adjustment sets
+(15 cases), twice. Every job has a timeout of at most 180 minutes. Successful TIFF
+outputs are transient; manifests, logs and provenance are retained for 14 days.
+
+The collector requires exactly 60 unique cases, all four shards, matching source,
+engine and recipe provenance, and byte-exact pixel hashes/dimensions between both
+passes. Check mode compares every case with `ci-reference-full60.json`. A missing
+full reference is an error (`full reference missing`), never an automatic recording.
+Any missing job, render failure, nondeterminism or reference difference fails the
+workflow and writes an explicit step summary. The existing 18-case PR workflow and
+`ci-reference.json` are unchanged.
+
+To propose the initial full reference, manually dispatch the full60 workflow with
+`record=true` and `source_sha=<full main commit SHA>`. Recording accepts only a
+commit in main's history, requires complete deterministic results, and uploads a
+candidate artifact; it never commits anything. Run it **twice from the same pinned
+SHA** and compare the two `ci-reference-full60.json` files byte-for-byte before
+committing either. Include both run IDs and the source SHA in the reference commit
+message and PR body. The workflow's small PR validation job lets a new workflow run
+once before its first CLI/API dispatch; scheduled runs start only after it lands.
+
+The canonical file contains the source, recipe and all 60 pixel hashes/dimensions.
+Volatile timestamps, host/kernel details, binary hashes and workflow run IDs remain
+in separate provenance artifacts, so reference bytes can agree across independent
+runs without dropping any pixel or recipe check. Commit the two-run provenance
+receipt beside the initial reference. Later baseline updates still need explicit
+maintainer review; scheduled checks never change a reference or any tolerance.
+
+Local guards: `python3 -m unittest discover -s rapidroom/regression -p test_full60.py -v`.
+They cover missing/extra/duplicate cases and shards, wrong sources or engines,
+nondeterminism, recipe changes, old 18-case references, missing full references,
+and byte-stable canonical recordings. They do not render or use a local GPU.

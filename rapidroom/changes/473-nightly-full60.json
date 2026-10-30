@@ -1,0 +1,14 @@
+{
+  "id": "nightly-full60-regression",
+  "title": "Check all 60 canonical renders nightly on main",
+  "category": "ci",
+  "landed": "2026-10-29",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "Nightly and manual full-corpus checks share one main build across four bounded jobs, require exact coverage and determinism, and compare all 60 cases with a separate reviewed reference. Missing references or differences fail loudly. Existing 18-case PR coverage and its reference remain unchanged."
+}
