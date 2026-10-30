@@ -27,10 +27,10 @@ enum AlignmentOutcome {
     Failed,
 }
 
-struct FrameDetection {
-    keypoints: Vec<KeyPoint>,
-    features: Vec<Feature>,
-    scale_factor: f64,
+pub(crate) struct FrameDetection {
+    pub(crate) keypoints: Vec<KeyPoint>,
+    pub(crate) features: Vec<Feature>,
+    pub(crate) scale_factor: f64,
 }
 
 pub fn load_hdr_frames(
@@ -142,7 +142,7 @@ pub fn align_hdr_frames(frames: &mut [HdrFrame], app_handle: &AppHandle) {
     }
 }
 
-fn detect_frame_features(
+pub(crate) fn detect_frame_features(
     image: &DynamicImage,
     brief_pairs: &[(Point2<i32>, Point2<i32>)],
     source_is_raw: bool,
@@ -216,7 +216,7 @@ fn align_frame_to_reference(
     ))
 }
 
-fn estimate_rigid_transform(
+pub(crate) fn estimate_rigid_transform(
     inliers: &[Match],
     reference: &FrameDetection,
     frame: &FrameDetection,
@@ -285,7 +285,7 @@ fn centroid(points: impl Iterator<Item = (f64, f64)>, count: f64) -> (f64, f64) 
     (sum.0 / count, sum.1 / count)
 }
 
-fn max_corner_displacement(transform: &Matrix3<f64>, width: u32, height: u32) -> f64 {
+pub(crate) fn max_corner_displacement(transform: &Matrix3<f64>, width: u32, height: u32) -> f64 {
     let corners = [
         (0.0, 0.0),
         (width as f64, 0.0),

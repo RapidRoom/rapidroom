@@ -178,7 +178,7 @@ pub fn load_base_image_from_bytes(
     )
 }
 
-fn load_base_image_from_bytes_with_exif_persistence(
+pub(crate) fn load_base_image_from_bytes_with_exif_persistence(
     bytes: &[u8],
     path_for_ext_check: &str,
     use_fast_raw_dev: bool,

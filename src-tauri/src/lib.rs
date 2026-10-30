@@ -68,6 +68,8 @@ mod gpu_processing;
 mod guided_perspective;
 mod hdr_deghosting;
 #[cfg(test)]
+mod hdr_measure_harness;
+#[cfg(test)]
 mod hdr_fixtures;
 mod highlight_reconstruction;
 mod image_loader;
