@@ -456,7 +456,7 @@ export function useImageProcessing(
   const requestHiFiZoom = useMemo(
     () =>
       debounce((targetRes: number) => {
-        if (targetRes > currentResRef.current) {
+        if (Number.isFinite(currentResRef.current) && targetRes !== currentResRef.current) {
           currentResRef.current = targetRes;
           const { adjustments, previewOverride } = useEditorStore.getState();
           const renderAdjustments = previewOverride ?? adjustments;
@@ -482,7 +482,7 @@ export function useImageProcessing(
       }
       const finalRes = Math.round(baseRes);
 
-      if (finalRes > currentResRef.current) {
+      if (Number.isFinite(currentResRef.current) && finalRes !== currentResRef.current) {
         requestHiFiZoom(finalRes);
       }
     }
