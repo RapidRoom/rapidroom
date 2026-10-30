@@ -1123,6 +1123,7 @@ fn complete_analytics_readback(readback: AnalyticsReadback) {
     if let Ok(Ok(())) = rx.recv() {
         let analytics = readback.analytics;
         let _ = analytics.sender.send(crate::AnalyticsJob {
+            generation: analytics.generation,
             path: analytics.path,
             frame: AnalyticsFrame {
                 data: AnalyticsPixels::Mapped(PooledReadback {
@@ -3609,6 +3610,7 @@ fn process_and_get_dynamic_image_inner(
         } else {
             if let RenderedPixels::U8(pixels) = &processed_pixels {
                 let _ = analytics.sender.send(crate::AnalyticsJob {
+                    generation: analytics.generation,
                     path: analytics.path,
                     frame: AnalyticsFrame {
                         data: AnalyticsPixels::Owned(pixels.clone()),

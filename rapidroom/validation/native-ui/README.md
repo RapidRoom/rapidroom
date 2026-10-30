@@ -413,3 +413,15 @@ fourth-Style refusal without history changes, manual Exposure/Contrast through
 middle removal, the surviving editable mask, shared Undo/Redo, a fresh frontend
 reload from the actual paired sidecar, and exact preview restoration. Captures
 and per-step receipts remain in the owned output directory.
+
+## Culling precision regression (#406/#474)
+
+Add `--culling-precision` to the standard smoke command to compare real ordinary
+and Culling IPC renders of the CC0 Sony RAW with automatic Sony lens correction.
+The run requires identical JPEG bytes, decoded RGB pixels and dimensions before
+and after loading four other photos, exceeding the three-photo f32 cache window
+while retaining the five-entry decode cache. It records all five renders and
+the resolved lens payload in `culling-precision.json`, then restores the normal
+UI selection and completes the standard smoke. Sources and sidecars are owned
+fixture copies. On the shared machine, wrap native runs with
+`flock ~/code/.cache/rapidroom-gpu.lock`; keep compiles outside that GPU lock.

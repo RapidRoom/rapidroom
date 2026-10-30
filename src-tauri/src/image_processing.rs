@@ -4299,6 +4299,7 @@ pub struct WaveformData {
 
 pub fn encode_analytics_packet(
     path: &str,
+    generation: usize,
     histogram: Option<&HistogramData>,
     waveform: Option<&WaveformData>,
 ) -> Vec<u8> {
@@ -4310,6 +4311,7 @@ pub fn encode_analytics_packet(
 
     put_u32(&mut out, path.len());
     out.extend_from_slice(path.as_bytes());
+    out.extend_from_slice(&(generation as u64).to_le_bytes());
 
     match histogram {
         Some(h) => {
