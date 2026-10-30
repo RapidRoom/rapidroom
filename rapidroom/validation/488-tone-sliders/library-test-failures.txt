@@ -1,0 +1,38 @@
+
+failures:
+
+---- denoising::queue::tests::rendered_raw_refuses_agx_wb_offsets_and_crops_while_sensor_dng_retains_them stdout ----
+
+thread 'denoising::queue::tests::rendered_raw_refuses_agx_wb_offsets_and_crops_while_sensor_dng_retains_them' (2151655) panicked at src/denoise_queue.rs:1741:9:
+assertion failed: ensure_rendered_eligible(&metadata, source, &ident()).is_ok()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- denoising::queue::tests::unedited_raw_projects_only_neutral_nonraw_defaults_onto_tiff stdout ----
+
+thread 'denoising::queue::tests::unedited_raw_projects_only_neutral_nonraw_defaults_onto_tiff' (2151659) panicked at src/denoise_queue.rs:1766:68:
+called `Result::unwrap()` on an `Err` value: "Edited photo: use Fast or Best, or reset edits first. A frozen source recipe is required for rendered RAW denoise."
+
+---- file_management::lightroom_xmp_import_tests::j40_rendered_xmp_keeps_law_zero_when_the_target_was_version_one stdout ----
+
+thread 'file_management::lightroom_xmp_import_tests::j40_rendered_xmp_keeps_law_zero_when_the_target_was_version_one' (2151841) panicked at src/file_management.rs:8578:9:
+assertion `left == right` failed
+  left: Number(100.0)
+ right: 100
+
+---- file_management::lightroom_xmp_import_tests::partial_photo_import_merges_live_controls_and_reports_unsupported_fields_read_only stdout ----
+
+thread 'file_management::lightroom_xmp_import_tests::partial_photo_import_merges_live_controls_and_reports_unsupported_fields_read_only' (2151844) panicked at src/file_management.rs:8754:9:
+assertion `left == right` failed
+  left: Object {"aiPatches": Array [Object {"id": String("live-repair")}], "contrast": Number(12), "exposure": Number(1.25), "hsl": Object {"reds": Object {"hue": Number(4)}}, "toneSliderVersion": Number(1)}
+ right: Object {"aiPatches": Array [Object {"id": String("live-repair")}], "contrast": Number(12), "exposure": Number(1.25), "hsl": Object {"reds": Object {"hue": Number(4)}}}
+
+
+failures:
+    denoising::queue::tests::rendered_raw_refuses_agx_wb_offsets_and_crops_while_sensor_dng_retains_them
+    denoising::queue::tests::unedited_raw_projects_only_neutral_nonraw_defaults_onto_tiff
+    file_management::lightroom_xmp_import_tests::j40_rendered_xmp_keeps_law_zero_when_the_target_was_version_one
+    file_management::lightroom_xmp_import_tests::partial_photo_import_merges_live_controls_and_reports_unsupported_fields_read_only
+
+test result: FAILED. 740 passed; 4 failed; 23 ignored; 0 measured; 0 filtered out; finished in 3.20s
+
+error: test failed, to rerun pass `--lib`
