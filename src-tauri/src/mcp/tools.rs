@@ -388,6 +388,38 @@ pub(super) async fn call_tool(
     }
 }
 
+fn allowed_xmp_destination(image_path: &str, file_path: &str) -> bool {
+    let (source, _) = crate::file_management::parse_virtual_path(image_path);
+    let requested = Path::new(file_path);
+    let requested = requested
+        .canonicalize()
+        .unwrap_or_else(|_| requested.to_path_buf());
+    let mut candidates = if let Some((_, copy)) = image_path.split_once("?vc=") {
+        let copy: String = copy
+            .chars()
+            .map(|character| {
+                if character.is_ascii_alphanumeric() || character == '-' {
+                    character
+                } else {
+                    '_'
+                }
+            })
+            .take(100)
+            .collect();
+        vec![source.with_file_name(format!(
+            "{}-copy-{copy}.xmp",
+            source.file_stem().unwrap_or_default().to_string_lossy()
+        ))]
+    } else {
+        let mut candidates = vec![source.with_extension("xmp"), source.with_extension("XMP")];
+        candidates.extend(crate::file_management::resolve_xmp_path(&source));
+        candidates
+    };
+    candidates
+        .into_iter()
+        .any(|candidate| candidate.canonicalize().unwrap_or(candidate) == requested)
+}
+
 async fn export_xmp_sidecar(app_handle: &AppHandle, arguments: &Value) -> Result<Value, String> {
     let image_path = required_image_path(arguments)?;
     let file_path = required_string(arguments, "filePath")?;
@@ -412,6 +444,9 @@ async fn export_xmp_sidecar(app_handle: &AppHandle, arguments: &Value) -> Result
     check_expected_revision(app_handle, &image_path, arguments.get("expectedRevision")).await?;
     ensure_read_state(app_handle, arguments, &initial).await?;
     let state = ui::require_active_session(app_handle, Some(&image_path))?;
+    if !allowed_xmp_destination(&image_path, &file_path) {
+        return Err("Choose only the active image's own XMP sidecar name".into());
+    }
     let report = crate::xmp_roundtrip::export(&image_path, &file_path, &state.adjustments, write)?;
     Ok(json!({ "imagePath":image_path, "editRevision":state.revision, "report":report }))
 }
@@ -1503,6 +1538,30 @@ mod tests {
             tool_error("invalid exposure")["structuredContent"][crate::assistant_text::ENVELOPE]["error"],
             "invalid exposure"
         );
+    }
+
+    #[test]
+    fn xmp_export_destination_is_limited_to_the_active_photo() {
+        assert!(allowed_xmp_destination(
+            "/owned/test.ARW",
+            "/owned/test.xmp"
+        ));
+        assert!(allowed_xmp_destination(
+            "/owned/test.ARW",
+            "/owned/test.XMP"
+        ));
+        assert!(!allowed_xmp_destination(
+            "/owned/test.ARW",
+            "/owned/other.xmp"
+        ));
+        assert!(allowed_xmp_destination(
+            "/owned/test.ARW?vc=copy-id",
+            "/owned/test-copy-copy-id.xmp"
+        ));
+        assert!(!allowed_xmp_destination(
+            "/owned/test.ARW?vc=copy-id",
+            "/owned/test.xmp"
+        ));
     }
 
     #[test]

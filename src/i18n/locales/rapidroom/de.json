@@ -160,7 +160,7 @@
     },
     "xmp": {
       "title": "Lightroom XMP sidecar",
-      "description": "Keep the full RapidRoom edit beside settings Lightroom can read. Review settings stored only for RapidRoom before writing.",
+      "description": "Keep the full RapidRoom edit beside settings Lightroom can read. AI prompts and patch/mask pixels are included (12 MiB JSON, 6 MiB rasters). LUTs use basenames; projected curves may be rounded.",
       "preview": "Review sidecar next to photo",
       "chooseDestination": "Choose another destination",
       "working": "Preparing XMP sidecar…",

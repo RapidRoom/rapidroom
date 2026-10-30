@@ -1,6 +1,10 @@
-use crate::{file_management::Preset, xmp_payload::Payload};
+use crate::{
+    file_management::Preset,
+    xmp_payload::{Payload, ProjectedValue, Projection},
+};
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{Map, Value, json};
+use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -147,6 +151,44 @@ fn scalar_keys() -> Vec<String> {
     keys
 }
 
+const TIFF: &str = "http://ns.adobe.com/tiff/1.0/";
+const TIFF_FRAME: &[&str] = &["ImageWidth", "ImageLength", "Orientation"];
+
+fn record_projection(content: &str) -> Result<Projection, String> {
+    let mut recorded = Projection::new();
+    for key in scalar_keys()
+        .into_iter()
+        .chain(CROP_FIELDS.iter().map(|key| key.to_string()))
+    {
+        if let Some(value) =
+            crate::xmp::image_property(content, CRS, &key).map_err(|e| e.to_string())?
+        {
+            recorded.insert(
+                format!("crs:{key}"),
+                ProjectedValue::Scalar(value.trim().to_string()),
+            );
+        }
+    }
+    for key in CURVES {
+        if let Some(points) =
+            crate::xmp::image_sequence(content, CRS, key).map_err(|e| e.to_string())?
+        {
+            recorded.insert(format!("crs:{key}"), ProjectedValue::Sequence(points));
+        }
+    }
+    for key in TIFF_FRAME {
+        if let Some(value) =
+            crate::xmp::image_property(content, TIFF, key).map_err(|e| e.to_string())?
+        {
+            recorded.insert(
+                format!("tiff:{key}"),
+                ProjectedValue::Scalar(value.trim().to_string()),
+            );
+        }
+    }
+    Ok(recorded)
+}
+
 fn projection(content: &str, image: &Path) -> Result<Value, String> {
     let canonical = crate::xmp::camera_raw_view(content).map_err(|e| e.to_string())?;
     Ok(
@@ -189,29 +231,31 @@ const CROP_FIELDS: &[&str] = &[
     "CropConstrainAspectRatio",
 ];
 
+fn clear_crop(content: &str) -> Result<String, String> {
+    crate::xmp::replace_image_properties(
+        content,
+        CRS,
+        "crs",
+        CROP_FIELDS,
+        &[("HasCrop", "False".into())],
+    )
+    .map_err(|e| e.to_string())
+}
+
 fn project_crop(
     content: &str,
     adjustments: &Value,
     image: &Path,
 ) -> Result<(String, bool), String> {
     let Some(crop) = adjustments.get("crop").filter(|value| !value.is_null()) else {
-        return crate::xmp::replace_image_properties(
-            content,
-            CRS,
-            "crs",
-            CROP_FIELDS,
-            &[("HasCrop", "False".into())],
-        )
-        .map(|xml| (xml, true))
-        .map_err(|e| e.to_string());
+        return clear_crop(content).map(|xml| (xml, true));
     };
     if adjustments["orientationSteps"].as_u64().unwrap_or(0) != 0
         || adjustments["flipHorizontal"].as_bool().unwrap_or(false)
         || adjustments["flipVertical"].as_bool().unwrap_or(false)
     {
-        return Ok((content.to_owned(), false));
+        return clear_crop(content).map(|xml| (xml, false));
     }
-    const TIFF: &str = "http://ns.adobe.com/tiff/1.0/";
     let property = |key: &str| {
         crate::xmp::image_property(content, TIFF, key)
             .ok()
@@ -227,7 +271,7 @@ fn project_crop(
         _ => crate::preset_converter::photo_xmp_export_frame(image),
     };
     let Some((width, height, orientation)) = frame else {
-        return Ok((content.to_owned(), false));
+        return clear_crop(content).map(|xml| (xml, false));
     };
     if !width.is_finite()
         || !height.is_finite()
@@ -296,7 +340,7 @@ fn project_crop(
         || right > 1.0
         || bottom > 1.0
     {
-        return Ok((content.to_owned(), false));
+        return clear_crop(content).map(|xml| (xml, false));
     }
     let xml = crate::xmp::replace_image_properties(
         content,
@@ -329,12 +373,26 @@ fn project_crop(
     .map_err(|e| e.to_string())
 }
 
+fn sanitize_adjustments(adjustments: &Value) -> Result<Value, String> {
+    let mut sanitized = adjustments.clone();
+    if let Some(path) = sanitized.get("lutPath").and_then(Value::as_str) {
+        let basename = path
+            .rsplit(['/', '\\'])
+            .next()
+            .filter(|name| !name.is_empty() && *name != "." && *name != "..")
+            .ok_or("The LUT path must name a file")?;
+        sanitized["lutPath"] = Value::String(basename.into());
+    }
+    Ok(sanitized)
+}
+
 pub(crate) fn serialize(
     content: &str,
     adjustments: &Value,
     image: &Path,
 ) -> Result<Document, String> {
-    crate::xmp_payload::validate_edit(adjustments)?;
+    let adjustments = sanitize_adjustments(adjustments)?;
+    crate::xmp_payload::validate_edit(&adjustments)?;
     let source_sha256 = crate::xmp_payload::source_sha256(image)?;
     let preset = Preset {
         id: String::new(),
@@ -410,12 +468,14 @@ pub(crate) fn serialize(
     }
     let xml = crate::xmp::replace_image_sequences(&xml, CRS, "crs", CURVES, &sequences)
         .map_err(|e| e.to_string())?;
-    let (xml, crop_projected) = project_crop(&xml, adjustments, image)?;
+    let (xml, crop_projected) = project_crop(&xml, &adjustments, image)?;
+    let projection = record_projection(&xml)?;
     let xml = crate::xmp_payload::embed(
         &xml,
         &Payload {
             adjustments: adjustments.clone(),
             source_sha256,
+            projection,
         },
     )?;
     let defaults = defaults()?;
@@ -465,7 +525,7 @@ pub(crate) fn serialize(
             losses.push(NamedLoss {
                 name: "LUT file".into(),
                 field,
-                reason: "The LUT path is preserved, but its external file is not embedded. Keep that LUT available when reopening the edit.",
+                reason: "Only the LUT basename is preserved; its external file is not embedded. Keep that LUT available when reopening the edit.",
                 preserved_in_payload: true,
             });
         } else {
@@ -480,14 +540,159 @@ pub(crate) fn serialize(
     Ok(Document { xml, losses })
 }
 
-pub(crate) fn restore(content: &str, image: &Path) -> Result<Option<Value>, String> {
-    let Some(payload) = crate::xmp_payload::read(content)? else {
-        return Ok(None);
+#[derive(Debug, PartialEq)]
+pub(crate) enum Restore {
+    Absent,
+    Restored(Value),
+    Ignored(String),
+}
+
+fn scalar_equal(left: &str, right: &str) -> bool {
+    let left = left.trim();
+    let right = right.trim();
+    if left == right {
+        return true;
+    }
+    match (left.parse::<f64>(), right.parse::<f64>()) {
+        (Ok(left), Ok(right)) => (left - right).abs() <= 1e-9,
+        _ => left.eq_ignore_ascii_case(right),
+    }
+}
+
+fn projected_equal(left: Option<&ProjectedValue>, right: Option<&ProjectedValue>) -> bool {
+    match (left, right) {
+        (None, None) => true,
+        (Some(ProjectedValue::Scalar(left)), Some(ProjectedValue::Scalar(right))) => {
+            scalar_equal(left, right)
+        }
+        (Some(ProjectedValue::Sequence(left)), Some(ProjectedValue::Sequence(right))) => {
+            left.len() == right.len()
+                && left.iter().zip(right).all(|(left, right)| {
+                    let left: Vec<_> = left.split(',').collect();
+                    let right: Vec<_> = right.split(',').collect();
+                    left.len() == right.len()
+                        && left
+                            .iter()
+                            .zip(right)
+                            .all(|(left, right)| scalar_equal(left, right))
+                })
+        }
+        _ => false,
+    }
+}
+
+fn adjustment_paths(key: &str) -> Vec<String> {
+    if CROP_FIELDS.contains(&key) || TIFF_FRAME.contains(&key) {
+        return vec!["crop".into(), "rotation".into()];
+    }
+    if let Some(curve) = CURVES.iter().position(|curve| *curve == key) {
+        return vec![format!(
+            "curves.{}",
+            ["luma", "red", "green", "blue"][curve]
+        )];
+    }
+    if key == "SplitToningBalance" {
+        return vec!["colorGrading.balance".into()];
+    }
+    if let Some((_, native)) = crate::preset_converter::BASIC_MAPPINGS
+        .iter()
+        .find(|(crs, _)| *crs == key)
+    {
+        return vec![if *native == "blending" {
+            "colorGrading.blending".into()
+        } else {
+            (*native).into()
+        }];
+    }
+    if let Some((_, wheel, channel)) = crate::preset_converter::COLOR_GRADING_MAPPINGS
+        .iter()
+        .find(|(crs, _, _)| *crs == key)
+    {
+        return vec![format!("colorGrading.{wheel}.{channel}")];
+    }
+    for (prefix, channel) in [
+        ("HueAdjustment", "hue"),
+        ("SaturationAdjustment", "saturation"),
+        ("LuminanceAdjustment", "luminance"),
+    ] {
+        if let Some(band) = key.strip_prefix(prefix) {
+            let native = [
+                "Red", "Orange", "Yellow", "Green", "Aqua", "Blue", "Purple", "Magenta",
+            ]
+            .into_iter()
+            .position(|expected| expected == band)
+            .map(|index| {
+                [
+                    "reds", "oranges", "yellows", "greens", "aquas", "blues", "purples", "magentas",
+                ][index]
+            });
+            if let Some(native) = native {
+                return vec![format!("hsl.{native}.{channel}")];
+            }
+        }
+    }
+    Vec::new()
+}
+
+fn assign_adjustment(value: &mut Value, path: &str, replacement: Option<&Value>) {
+    let (key, rest) = path.split_once('.').unwrap_or((path, ""));
+    if !value.is_object() {
+        *value = Value::Object(Map::new());
+    }
+    let object = value.as_object_mut().expect("adjustment object");
+    if rest.is_empty() {
+        if let Some(replacement) = replacement {
+            object.insert(key.into(), replacement.clone());
+        } else {
+            object.remove(key);
+        }
+    } else {
+        assign_adjustment(
+            object.entry(key).or_insert_with(|| json!({})),
+            rest,
+            replacement,
+        );
+    }
+}
+
+fn reconcile(payload: &Payload, current: &Projection, converted: &Value) -> Result<Value, String> {
+    let mut restored = payload.adjustments.clone();
+    let keys: BTreeSet<_> = payload.projection.keys().chain(current.keys()).collect();
+    for key in keys {
+        if projected_equal(payload.projection.get(key), current.get(key)) {
+            continue;
+        }
+        let Some(native_key) = key
+            .strip_prefix("crs:")
+            .or_else(|| key.strip_prefix("tiff:"))
+        else {
+            continue;
+        };
+        for path in adjustment_paths(native_key) {
+            assign_adjustment(&mut restored, &path, converted.get(&path));
+        }
+    }
+    crate::assistant::adjustments::validate_adjustments(&restored)
+        .map_err(|error| format!("RapidRoom full edit rejected after reconciliation: {error}"))?;
+    Ok(restored)
+}
+
+pub(crate) fn restore(content: &str, image: &Path) -> Result<Restore, String> {
+    let payload = match crate::xmp_payload::read(content) {
+        Ok(Some(payload)) => payload,
+        Ok(None) => return Ok(Restore::Absent),
+        Err(error) => return Ok(Restore::Ignored(error)),
     };
     if payload.source_sha256 != crate::xmp_payload::source_sha256(image)? {
-        return Ok(None);
+        return Ok(Restore::Ignored(
+            "the source image SHA-256 does not match".into(),
+        ));
     }
-    Ok(Some(payload.adjustments))
+    crate::assistant::adjustments::validate_adjustments(&payload.adjustments)
+        .map_err(|error| format!("RapidRoom full edit rejected: {error}"))?;
+    let current = record_projection(content)?;
+    let converted = projection(content, image)?;
+    reconcile(&payload, &current, &converted).map(Restore::Restored)
 }
 
 #[cfg(test)]
@@ -503,9 +708,22 @@ mod tests {
             "hsl": {"reds": {"hue": 17.123456, "saturation": 30}},
             "colorGrading": {"shadows": {"hue": 220, "saturation": 18, "luminance": -4}},
             "curves": {"luma": [{"x":0,"y":0},{"x":127.4,"y":139.6},{"x":255,"y":250}]},
-            "masks": [{"name":"Painted sky","subMasks":[]}],
+            "masks": [{"id":"painted-sky","name":"Painted sky","subMasks":[]}],
             "lutPath": "/owned/look.cube"
         })
+    }
+
+    fn restored(content: &str, image: &Path) -> Value {
+        match restore(content, image).unwrap() {
+            Restore::Restored(adjustments) => adjustments,
+            other => panic!("expected native restore, got {other:?}"),
+        }
+    }
+
+    fn expected_native(adjustments: &Value) -> Value {
+        let mut expected = adjustments.clone();
+        expected["lutPath"] = json!("look.cube");
+        expected
     }
 
     #[test]
@@ -516,11 +734,14 @@ mod tests {
         let adjustments = synthetic_edit();
         let document = serialize(crate::xmp::SKELETON, &adjustments, &image).unwrap();
         assert_eq!(
-            restore(&document.xml, &image).unwrap().unwrap(),
-            adjustments
+            restored(&document.xml, &image),
+            expected_native(&adjustments)
         );
         std::fs::write(&image, b"different image bytes").unwrap();
-        assert_eq!(restore(&document.xml, &image).unwrap(), None);
+        assert!(matches!(
+            restore(&document.xml, &image).unwrap(),
+            Restore::Ignored(reason) if reason.contains("SHA-256")
+        ));
     }
 
     #[test]
@@ -555,8 +776,109 @@ mod tests {
             document
                 .losses
                 .iter()
-                .any(|loss| loss.name == "LUT file" && loss.reason.contains("not embedded"))
+                .any(|loss| loss.name == "LUT file" && loss.reason.contains("basename"))
         );
+    }
+
+    #[test]
+    fn lightroom_exposure_change_wins_and_untouched_halation_is_restored() {
+        let directory = tempfile::tempdir().unwrap();
+        let image = directory.path().join("photo.ARW");
+        std::fs::write(&image, b"synthetic raw bytes").unwrap();
+        let document = serialize(
+            crate::xmp::SKELETON,
+            &json!({"exposure":0.1234567,"halationAmount":42}),
+            &image,
+        )
+        .unwrap();
+        let changed = crate::xmp::replace_image_properties(
+            &document.xml,
+            CRS,
+            "crs",
+            &["Exposure2012"],
+            &[("Exposure2012", "1.5".into())],
+        )
+        .unwrap();
+        let restored = restored(&changed, &image);
+        assert_eq!(restored["exposure"], json!(1.5));
+        assert_eq!(restored["halationAmount"], json!(42));
+    }
+
+    #[test]
+    fn lightroom_crop_change_wins() {
+        let directory = tempfile::tempdir().unwrap();
+        let image = directory.path().join("photo.ARW");
+        std::fs::write(&image, b"synthetic raw bytes").unwrap();
+        let source = format!(
+            r#"<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:tiff="{TIFF}" tiff:ImageWidth="6000" tiff:ImageLength="4000" tiff:Orientation="1"/></rdf:RDF>"#
+        );
+        let document = serialize(
+            &source,
+            &json!({"crop":{"unit":"px","x":100,"y":100,"width":1000,"height":500},"rotation":0,"halationAmount":42}),
+            &image,
+        )
+        .unwrap();
+        let changed = crate::xmp::replace_image_properties(
+            &document.xml,
+            CRS,
+            "crs",
+            &["CropLeft", "CropRight"],
+            &[("CropLeft", "0.2".into()), ("CropRight", "0.8".into())],
+        )
+        .unwrap();
+        let restored = restored(&changed, &image);
+        assert_eq!(restored["crop"]["x"], json!(1200.0));
+        assert_eq!(restored["crop"]["width"], json!(3600.0));
+        assert_eq!(restored["crop"]["y"], json!(100.0));
+        assert_eq!(restored["crop"]["height"], json!(500.0));
+        assert_eq!(restored["halationAmount"], json!(42));
+    }
+
+    #[test]
+    fn unprojectable_crop_clears_stale_lightroom_crop_fields() {
+        let directory = tempfile::tempdir().unwrap();
+        let image = directory.path().join("photo.ARW");
+        std::fs::write(&image, b"synthetic raw bytes").unwrap();
+        let source = format!(
+            r#"<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:crs="{CRS}" crs:HasCrop="True" crs:CropLeft="0.1" crs:CropRight="0.9"/></rdf:RDF>"#
+        );
+        let document = serialize(
+            &source,
+            &json!({"orientationSteps":1,"crop":{"unit":"px","x":100,"y":100,"width":1000,"height":500}}),
+            &image,
+        )
+        .unwrap();
+        assert_eq!(
+            crate::xmp::image_property(&document.xml, CRS, "HasCrop")
+                .unwrap()
+                .as_deref(),
+            Some("False")
+        );
+        assert_eq!(
+            crate::xmp::image_property(&document.xml, CRS, "CropLeft").unwrap(),
+            None
+        );
+        assert!(document.losses.iter().any(|loss| loss.field == "crop"));
+    }
+
+    #[test]
+    fn lut_is_a_basename_while_prompts_and_patch_pixels_round_trip() {
+        let directory = tempfile::tempdir().unwrap();
+        let image = directory.path().join("photo.ARW");
+        std::fs::write(&image, b"synthetic raw bytes").unwrap();
+        let adjustments = json!({
+            "lutPath":"/private/user/look.cube",
+            "aiPatches":[{"id":"patch","prompt":"remove the sign","patchData":{"color":"YWJj","mask":"YWJj"}}]
+        });
+        let document = serialize(crate::xmp::SKELETON, &adjustments, &image).unwrap();
+        let restored = restored(&document.xml, &image);
+        assert_eq!(restored["lutPath"], json!("look.cube"));
+        assert_eq!(restored["aiPatches"][0]["prompt"], json!("remove the sign"));
+        assert_eq!(
+            restored["aiPatches"][0]["patchData"]["color"],
+            json!("YWJj")
+        );
+        assert_eq!(restored["aiPatches"][0]["patchData"]["mask"], json!("YWJj"));
     }
 
     #[test]
@@ -573,10 +895,7 @@ mod tests {
         assert!(first.xml.ends_with("<?xpacket end=\"w\"?>"));
         let second = serialize(&first.xml, &json!({"exposure":0.5}), &image).unwrap();
         assert!(second.xml.contains(foreign));
-        assert_eq!(
-            restore(&second.xml, &image).unwrap(),
-            Some(json!({"exposure":0.5}))
-        );
+        assert_eq!(restored(&second.xml, &image), json!({"exposure":0.5}));
     }
 
     #[test]
@@ -586,7 +905,10 @@ mod tests {
         let image = Path::new(&image);
         let adjustments = synthetic_edit();
         let document = serialize(crate::xmp::SKELETON, &adjustments, image).unwrap();
-        assert_eq!(restore(&document.xml, image).unwrap().unwrap(), adjustments);
+        assert_eq!(
+            restored(&document.xml, image),
+            expected_native(&adjustments)
+        );
         let projected = projection(&document.xml, image).unwrap();
         assert_eq!(projected["exposure"], adjustments["exposure"]);
         assert!(

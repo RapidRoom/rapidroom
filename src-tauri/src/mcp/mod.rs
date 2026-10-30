@@ -1,7 +1,7 @@
-mod adjustments;
+use crate::assistant::{adjustments, masks};
+
 mod http;
 mod mask_tools;
-mod masks;
 mod measure;
 mod preview;
 mod server;

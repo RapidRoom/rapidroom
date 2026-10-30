@@ -3,6 +3,7 @@ use flate2::{Compression, read::ZlibDecoder, write::ZlibEncoder};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::path::Path;
 
@@ -11,16 +12,42 @@ const OWNED: &[&str] = &["Format", "Recipe", "RecipeSha256"];
 const MAX_JSON: usize = 12 * 1024 * 1024;
 const MAX_RASTERS: usize = 6 * 1024 * 1024;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "camelCase")]
+pub(crate) enum ProjectedValue {
+    Scalar(String),
+    Sequence(Vec<String>),
+}
+
+pub(crate) type Projection = BTreeMap<String, ProjectedValue>;
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Payload {
     pub adjustments: Value,
     pub source_sha256: String,
+    pub projection: Projection,
 }
 
 fn check(value: &Value) -> Result<(), String> {
     if !value.is_object() {
         return Err("The RapidRoom edit must be an object".into());
+    }
+    fn count(data: &str, bytes: &mut usize) -> Result<(), String> {
+        let encoded = data.split_once(',').map_or(data, |(_, body)| body);
+        if encoded.len() > MAX_RASTERS * 4 / 3 {
+            return Err("Embedded rasters exceed the 6 MiB round-trip limit".into());
+        }
+        let raster = STANDARD
+            .decode(encoded)
+            .map_err(|_| "Invalid embedded raster data")?;
+        *bytes = bytes
+            .checked_add(raster.len())
+            .ok_or("Embedded rasters are too large")?;
+        if *bytes > MAX_RASTERS {
+            return Err("Embedded rasters exceed the 6 MiB round-trip limit".into());
+        }
+        Ok(())
     }
     fn visit(value: &Value, bytes: &mut usize) -> Result<(), String> {
         match value {
@@ -29,18 +56,18 @@ fn check(value: &Value) -> Result<(), String> {
                     if key == "maskDataBase64"
                         && let Some(data) = value.as_str()
                     {
-                        let encoded = data.split_once(',').map_or(data, |(_, body)| body);
-                        if encoded.len() > MAX_RASTERS * 4 / 3 {
-                            return Err("Embedded masks exceed the 6 MiB round-trip limit".into());
-                        }
-                        let raster = STANDARD
-                            .decode(encoded)
-                            .map_err(|_| "Invalid embedded mask data")?;
-                        *bytes = bytes
-                            .checked_add(raster.len())
-                            .ok_or("Embedded masks are too large")?;
-                        if *bytes > MAX_RASTERS {
-                            return Err("Embedded masks exceed the 6 MiB round-trip limit".into());
+                        count(data, bytes)?;
+                    }
+                    if key == "patchData"
+                        && let Some(data) = value.as_object()
+                    {
+                        for raster in ["color", "mask"]
+                            .into_iter()
+                            .filter_map(|key| data.get(key))
+                        {
+                            if let Some(data) = raster.as_str() {
+                                count(data, bytes)?;
+                            }
                         }
                     }
                     visit(value, bytes)?;
@@ -173,6 +200,7 @@ mod tests {
         let payload = Payload {
             adjustments: json!({"exposure":0.1234567,"halationAmount":42,"masks":[{"name":"Sky & land","subMasks":[]}]}),
             source_sha256: "ab".repeat(32),
+            projection: Projection::new(),
         };
         let xml = embed(crate::xmp::SKELETON, &payload).unwrap();
         let read_back = read(&xml).unwrap().unwrap();
@@ -189,6 +217,7 @@ mod tests {
         let payload = Payload {
             adjustments: json!([]),
             source_sha256: "ab".repeat(32),
+            projection: Projection::new(),
         };
         assert!(embed(crate::xmp::SKELETON, &payload).is_err());
     }
@@ -202,6 +231,12 @@ mod tests {
         assert!(validate_edit(&data).is_err());
         let invalid = json!({"masks":[{"maskDataBase64":"not base64!"}]});
         assert!(validate_edit(&invalid).is_err());
+        let patches = json!({"aiPatches":[{"patchData":{"color":raster,"mask":raster}}]});
+        assert!(validate_edit(&patches).is_err());
+        assert!(
+            validate_edit(&json!({"aiPatches":[{"patchData":{"color":"YWJj","mask":"YWJj"}}]}))
+                .is_ok()
+        );
     }
 
     #[test]
@@ -225,6 +260,7 @@ mod tests {
         let payload = Payload {
             adjustments: json!({"exposure":1}),
             source_sha256: "ab".repeat(32),
+            projection: Projection::new(),
         };
         let valid = embed(crate::xmp::SKELETON, &payload).unwrap();
         let recipe = crate::xmp::image_property(&valid, URI, "Recipe")

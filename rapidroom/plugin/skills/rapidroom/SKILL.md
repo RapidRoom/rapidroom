@@ -34,7 +34,7 @@ The terminal supplies `RAPIDROOM_UNTRUSTED_CONTEXT`, a labelled data-only JSON o
 
 ## Photo XMP export
 
-Call `export_xmp_sidecar` with `imagePath`, `filePath` and `write: false` to review the current edit without making a file. Explain the returned named losses, including native-only masks and external LUT files. Obtain the user's approval for the destination and losses before calling it with `write: true` and the latest `expectedRevision`. If the edit changed, review again. The full RapidRoom payload restores only for the identical source image; matching Lightroom fields do not guarantee matching rendered pixels. Real Lightroom payload survival must be tested separately.
+Call `export_xmp_sidecar` with `imagePath`, `filePath` and `write: false` to review the current edit without making a file. Explain the returned named losses, including native-only masks and external LUT files stored by basename. The payload includes AI prompts and patch/mask pixels, capped at 12 MiB of JSON and 6 MiB of decoded rasters. Obtain the user's approval for the active image's own sidecar destination and losses before calling it with `write: true` and the latest `expectedRevision`. If the edit changed, review again. The full RapidRoom payload restores only for the identical source image; changed Lightroom fields win on reimport and the payload restores the rest. Matching Lightroom fields do not guarantee matching rendered pixels. Real Lightroom payload survival must be tested separately.
 
 ## Gotchas
 

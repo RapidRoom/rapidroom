@@ -2861,7 +2861,6 @@ pub fn is_tool_active(adjustments: &serde_json::Value, tool: &str) -> bool {
     }
 }
 
-#[cfg(feature = "mcp")]
 pub fn apply_section_visibility(
     active_tools: &mut serde_json::Map<String, serde_json::Value>,
     visibility: &serde_json::Map<String, serde_json::Value>,

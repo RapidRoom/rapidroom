@@ -34,7 +34,7 @@ mod app_settings;
 mod app_state;
 mod apple_raw;
 mod as_shot;
-#[cfg(any(feature = "mcp", feature = "terminal", test))]
+mod assistant;
 mod assistant_text;
 mod atomic_export;
 mod auto_straighten;

@@ -31,7 +31,8 @@ const RELIGHT_LIGHT_RANGES: &[(&str, f64, f64)] = &[
     ("tint", -100.0, 100.0),
 ];
 
-pub(super) fn changed_keys(before: &Value, after: &Value) -> Vec<String> {
+#[cfg(feature = "mcp")]
+pub(crate) fn changed_keys(before: &Value, after: &Value) -> Vec<String> {
     let keys: std::collections::BTreeSet<_> = before
         .as_object()
         .into_iter()
@@ -44,9 +45,25 @@ pub(super) fn changed_keys(before: &Value, after: &Value) -> Vec<String> {
         .collect()
 }
 
+fn original_adjustments() -> Result<Value, String> {
+    let schema: Value =
+        serde_json::from_str(include_str!("../../../rapidroom/adjustment-schema.json"))
+            .map_err(|error| error.to_string())?;
+    let parameters = schema["parameters"]
+        .as_object()
+        .ok_or("Invalid generated defaults")?;
+    Ok(Value::Object(
+        parameters
+            .iter()
+            .filter(|(key, _)| !key.contains('.'))
+            .map(|(key, value)| (key.clone(), value["default"].clone()))
+            .collect(),
+    ))
+}
+
 // A read projection only: array values (notably curves) remain atomic. Never
 // feed this back as a full replacement without restoring omitted defaults.
-pub(super) fn non_default_adjustments(value: &Value) -> Result<Value, String> {
+pub(crate) fn non_default_adjustments(value: &Value) -> Result<Value, String> {
     fn difference(value: &Value, defaults: &Value) -> Option<Value> {
         if value == defaults {
             return None;
@@ -65,7 +82,7 @@ pub(super) fn non_default_adjustments(value: &Value) -> Result<Value, String> {
         }
         Some(value.clone())
     }
-    let defaults = super::tools::original_adjustments()?;
+    let defaults = original_adjustments()?;
     let mut result = difference(value, &defaults).unwrap_or_else(|| json!({}));
     if let Some(masks) = value["masks"].as_array().filter(|masks| !masks.is_empty()) {
         let mut local = Map::new();
@@ -110,7 +127,8 @@ pub(super) fn non_default_adjustments(value: &Value) -> Result<Value, String> {
     Ok(result)
 }
 
-pub(super) fn compact_schema() -> (Value, Value) {
+#[cfg(feature = "mcp")]
+pub(crate) fn compact_schema() -> (Value, Value) {
     let mut schema = adjustments_schema();
     let controls = &mut schema["properties"];
     let mut definitions = json!({
@@ -169,7 +187,8 @@ pub(super) fn compact_schema() -> (Value, Value) {
     (schema, definitions)
 }
 
-pub(super) fn referenced_definitions(schema: &Value, definitions: &Value) -> Value {
+#[cfg(feature = "mcp")]
+pub(crate) fn referenced_definitions(schema: &Value, definitions: &Value) -> Value {
     fn references(value: &Value, names: &mut Vec<String>) {
         match value {
             Value::Object(fields) => {
@@ -205,7 +224,7 @@ pub(super) fn referenced_definitions(schema: &Value, definitions: &Value) -> Val
     Value::Object(kept)
 }
 
-pub(super) fn adjustments_schema() -> Value {
+pub(crate) fn adjustments_schema() -> Value {
     let mut properties = Map::new();
     for &(key, min, max) in SPATIAL_EFFECT_RANGES {
         properties.insert(
@@ -509,7 +528,7 @@ fn strict_object_schema_with_required(
     schema
 }
 
-pub(super) fn guide_lines_schema(min_items: usize) -> Value {
+pub(crate) fn guide_lines_schema(min_items: usize) -> Value {
     let point = json!({
         "type": "object",
         "additionalProperties": false,
@@ -737,13 +756,13 @@ fn adjustment_keys() -> Vec<String> {
     keys
 }
 
-pub(super) fn revision_for(path: &str, adjustments: &Value) -> String {
+pub(crate) fn revision_for(path: &str, adjustments: &Value) -> String {
     let input = serde_json::to_vec(&json!({ "path": path, "adjustments": adjustments }))
         .unwrap_or_default();
     blake3::hash(&input).to_hex().to_string()
 }
 
-pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
+pub(crate) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
     let Some(object) = adjustments.as_object() else {
         return Err("adjustments must be a JSON object".to_string());
     };
@@ -978,7 +997,7 @@ fn validate_guided_perspective(value: &Value) -> Result<(), String> {
     Ok(())
 }
 
-pub(super) fn validate_guided_lines(
+pub(crate) fn validate_guided_lines(
     value: &Value,
     min_items: usize,
 ) -> Result<Vec<GuideLine>, String> {
@@ -1272,7 +1291,7 @@ fn numeric_adjustment_range(key: &str) -> Option<(f64, f64)> {
     }
 }
 
-pub(super) fn merge_adjustments(current: Value, changes: Value) -> Result<Value, String> {
+pub(crate) fn merge_adjustments(current: Value, changes: Value) -> Result<Value, String> {
     let mut current = current.as_object().cloned().unwrap_or_else(Map::new);
     let changes = changes
         .as_object()
@@ -1313,7 +1332,7 @@ mod tests {
         for ratio in [json!(-1), json!(false), json!("Original")] {
             assert!(validate_adjustments(&json!({"aspectRatio": ratio})).is_err());
         }
-        let original = super::super::tools::original_adjustments().unwrap();
+        let original = original_adjustments().unwrap();
         assert_eq!(original["aspectRatio"], 0);
         let crop = json!({"unit":"px", "x":1000, "y":100, "width":2700, "height":3600});
         let instagram =
@@ -1344,7 +1363,7 @@ mod tests {
             "../../../rapidroom/validation/mcp-session-359/gui-radial-before.json"
         ))
         .unwrap();
-        let mut current = super::super::tools::original_adjustments().unwrap();
+        let mut current = original_adjustments().unwrap();
         let mut mask = fixture["mask"].clone();
         mask["adjustments"]["exposure"] = json!(0.5);
         mask["adjustments"]["colorGrading"]["midtones"]["saturation"] = json!(17);

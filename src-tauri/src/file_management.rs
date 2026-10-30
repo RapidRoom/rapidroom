@@ -624,7 +624,7 @@ pub struct ImportSettings {
 struct ImportedXmpSidecar {
     sidecar_path: PathBuf,
     metadata: ImageMetadata,
-    not_transferred: Vec<&'static str>,
+    not_transferred: Vec<String>,
     restored_payload: bool,
     adjustments_applied: bool,
     metadata_applied: bool,
@@ -660,7 +660,7 @@ pub struct XmpSidecarImportResult {
 #[serde(rename_all = "camelCase")]
 pub struct XmpNotTransferred {
     pub path: String,
-    pub items: Vec<&'static str>,
+    pub items: Vec<String>,
     pub settings_report: crate::lightroom_report::Report,
     pub brush_table_refusals: Vec<crate::lightroom_masks::BrushTableRefusal>,
     pub mask_failures: Vec<crate::lightroom_masks::MaskFailure>,
@@ -671,7 +671,7 @@ pub struct XmpNotTransferred {
 pub struct XmpImageImportResult {
     #[serde(flatten)]
     pub metadata: ImageMetadata,
-    pub not_transferred: Vec<&'static str>,
+    pub not_transferred: Vec<String>,
     pub adjustments_applied: bool,
     pub already_applied: bool,
     pub draft_preserved: bool,
@@ -3674,24 +3674,31 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
         )?;
     let already_applied = preset_converter::adobe_camera_raw_already_applied(&xmp_content)?;
     let settings_report = crate::lightroom_report::settings_report(&xmp_content, &converted_preset);
-    let not_transferred = preset_converter::lightroom_settings_not_transferred_with_mask_summary(
-        &xmp_content,
-        &converted_preset,
-        &mask_summary,
-    );
+    let mut not_transferred: Vec<String> =
+        preset_converter::lightroom_settings_not_transferred_with_mask_summary(
+            &xmp_content,
+            &converted_preset,
+            &mask_summary,
+        )
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
     let restored = if already_applied {
-        None
+        crate::xmp_roundtrip::Restore::Absent
     } else {
-        match crate::xmp_roundtrip::restore(&xmp_content, &source_path) {
-            Ok(restored) => restored,
-            Err(error) => {
-                log::warn!("Ignoring invalid RapidRoom XMP payload: {error}");
-                None
-            }
+        crate::xmp_roundtrip::restore(&xmp_content, &source_path)?
+    };
+    if let crate::xmp_roundtrip::Restore::Ignored(reason) = &restored {
+        log::warn!("Ignoring RapidRoom XMP payload: {reason}");
+        not_transferred.push(format!("RapidRoom full edit ignored: {reason}"));
+    }
+    let restored_payload = matches!(restored, crate::xmp_roundtrip::Restore::Restored(_));
+    let imported_adjustments = match restored {
+        crate::xmp_roundtrip::Restore::Restored(adjustments) => adjustments,
+        crate::xmp_roundtrip::Restore::Absent | crate::xmp_roundtrip::Restore::Ignored(_) => {
+            converted_preset.adjustments.clone()
         }
     };
-    let restored_payload = restored.is_some();
-    let imported_adjustments = restored.unwrap_or_else(|| converted_preset.adjustments.clone());
     let has_supported_adjustments = restored_payload
         || imported_adjustments
             .as_object()
@@ -6876,7 +6883,7 @@ mod xmp_safety_tests {
         assert_eq!(extract_xmp_label(&content).as_deref(), Some("Red"));
         assert_eq!(
             crate::xmp_roundtrip::restore(&content, &raw).unwrap(),
-            Some(adjustments)
+            crate::xmp_roundtrip::Restore::Restored(adjustments)
         );
     }
 
@@ -8487,7 +8494,7 @@ mod lightroom_xmp_import_tests {
         let adjustments = serde_json::json!({
             "exposure": 0.1234567,
             "halationAmount": 23,
-            "autoLensCorrections": true,
+            "lensCorrectionMode": "auto",
             "masks": [{"id":"native","name":"Paint","subMasks":[]}]
         });
         let document =
@@ -8531,6 +8538,41 @@ mod lightroom_xmp_import_tests {
                 .get("halationAmount")
                 .is_none()
         );
+        assert!(mismatched.not_transferred.iter().any(|item| {
+            item.starts_with("RapidRoom full edit ignored:") && item.contains("SHA-256")
+        }));
+        assert!(
+            fallback
+                .not_transferred
+                .iter()
+                .any(|item| item.starts_with("RapidRoom full edit ignored:")
+                    && item.contains("checksum"))
+        );
+    }
+
+    #[test]
+    fn invalid_native_adjustments_fail_closed_before_replacing_the_sidecar() {
+        let _mode = CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let raw = dir.path().join("photo.ARW");
+        let xmp = dir.path().join("photo.xmp");
+        fs::write(&raw, b"raw bytes").unwrap();
+        let document = crate::xmp_roundtrip::serialize(
+            crate::xmp::SKELETON,
+            &serde_json::json!({"exposure":0.5}),
+            &raw,
+        )
+        .unwrap();
+        let mut payload = crate::xmp_payload::read(&document.xml).unwrap().unwrap();
+        payload.adjustments = serde_json::json!({"unsupportedSetting":1});
+        fs::write(
+            &xmp,
+            crate::xmp_payload::embed(&document.xml, &payload).unwrap(),
+        )
+        .unwrap();
+        let error = import_xmp_adjustments_to_sidecar(&path_str(&raw), &xmp, None).unwrap_err();
+        assert!(error.contains("unsupported adjustment key"));
+        assert!(!raw.with_extension("ARW.rrdata").exists());
     }
 
     #[test]
