@@ -1,0 +1,63 @@
+{
+  "source_head": "803ce281ab871ee21edfe0735e0194944879c34e",
+  "engine_sha256": "d46f15bc7ef6ef3509b30e26c41b9dc9881068a641cde047547a1575e0d6da25",
+  "fixture": "CC0 sony-a7c2-15mp-uncompressed.ARW",
+  "fixture_sha256": "b808fb96df421cfd152d00d3897cdde5a1670f83ada1a7620aab8b80b70804c6",
+  "compositor": "private Weston headless GL; shared GPU flock",
+  "images": {
+    "toggle": {
+      "file": "toggle.png",
+      "sha256": "ff910992ea9f1f54c7db7f4e10c715d736e5cb0ad12d2c6cbd87f525dc131f5e"
+    },
+    "vertical": {
+      "file": "vertical.png",
+      "sha256": "ffb34082b7849dbe554a82054e6389703d6652b153599d54dd02ddb59aa9e20f"
+    },
+    "horizontal": {
+      "file": "horizontal.png",
+      "sha256": "96c3058eb98e9c53ed184d584fca3a91fddd64160d8a90617bb943102aa174dd"
+    },
+    "sideBySide": {
+      "file": "sideBySide.png",
+      "sha256": "3f8851dcd2886315565bbdcf5664541a139d9b6ea4d9653fb048023db1fd2d28"
+    }
+  },
+  "zoom": {
+    "before": {
+      "centre": [
+        0.5,
+        0.49999999926757815
+      ],
+      "pixelWidth": 9216,
+      "position": [
+        -4096,
+        -3000
+      ],
+      "scale": 9
+    },
+    "sideBySide": {
+      "centre": [
+        0.4999728732638889,
+        0.5000000014648438
+      ],
+      "pixelWidth": 9216,
+      "position": [
+        -4352,
+        -6375
+      ],
+      "scale": 18
+    },
+    "after": {
+      "centre": [
+        0.5,
+        0.49999999926757815
+      ],
+      "pixelWidth": 9216,
+      "position": [
+        -4096,
+        -3000
+      ],
+      "scale": 9
+    }
+  }
+}
