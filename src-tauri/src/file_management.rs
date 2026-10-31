@@ -3806,7 +3806,12 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
                     // Fresh defaults may have stored a profile before the source
                     // EXIF was the one this import should resolve against.
                     clear_lens_identity(&mut metadata.adjustments);
-                    resolve_unresolved_auto_lens(&mut metadata, &source_path, &sidecar_path, lens_db);
+                    resolve_unresolved_auto_lens(
+                        &mut metadata,
+                        &source_path,
+                        &sidecar_path,
+                        lens_db,
+                    );
                 }
             } else {
                 resolve_lens_params_in_adjustments(

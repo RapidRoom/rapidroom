@@ -634,6 +634,10 @@ fn adjustment_paths(key: &str) -> Vec<String> {
     Vec::new()
 }
 
+fn adjustment_value<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
+    path.split('.').try_fold(value, |value, key| value.get(key))
+}
+
 fn assign_adjustment(value: &mut Value, path: &str, replacement: Option<&Value>) {
     let (key, rest) = path.split_once('.').unwrap_or((path, ""));
     if !value.is_object() {
@@ -669,7 +673,7 @@ fn reconcile(payload: &Payload, current: &Projection, converted: &Value) -> Resu
             continue;
         };
         for path in adjustment_paths(native_key) {
-            assign_adjustment(&mut restored, &path, converted.get(&path));
+            assign_adjustment(&mut restored, &path, adjustment_value(converted, &path));
         }
     }
     crate::assistant::adjustments::validate_adjustments(&restored)
@@ -801,6 +805,51 @@ mod tests {
         .unwrap();
         let restored = restored(&changed, &image);
         assert_eq!(restored["exposure"], json!(1.5));
+        assert_eq!(restored["halationAmount"], json!(42));
+    }
+
+    #[test]
+    fn lightroom_nested_curve_and_hsl_changes_win() {
+        let directory = tempfile::tempdir().unwrap();
+        let image = directory.path().join("photo.ARW");
+        std::fs::write(&image, b"synthetic raw bytes").unwrap();
+        let document = serialize(
+            crate::xmp::SKELETON,
+            &json!({
+                "curves":{"luma":[{"x":0,"y":0},{"x":128,"y":140},{"x":255,"y":255}]},
+                "hsl":{"reds":{"hue":10,"saturation":20}},
+                "halationAmount":42
+            }),
+            &image,
+        )
+        .unwrap();
+        let changed = crate::xmp::replace_image_sequences(
+            &document.xml,
+            CRS,
+            "crs",
+            &["ToneCurvePV2012"],
+            &[(
+                "ToneCurvePV2012",
+                vec!["0, 0".into(), "20, 40".into(), "255, 255".into()],
+            )],
+        )
+        .unwrap();
+        let changed = crate::xmp::replace_image_properties(
+            &changed,
+            CRS,
+            "crs",
+            &["HueAdjustmentRed"],
+            &[("HueAdjustmentRed", "25".into())],
+        )
+        .unwrap();
+        let projected = projection(&changed, &image).unwrap();
+        let restored = restored(&changed, &image);
+        assert_eq!(restored["curves"]["luma"], projected["curves"]["luma"]);
+        assert_eq!(
+            restored["hsl"]["reds"]["hue"],
+            projected["hsl"]["reds"]["hue"]
+        );
+        assert_eq!(restored["hsl"]["reds"]["saturation"], json!(20));
         assert_eq!(restored["halationAmount"], json!(42));
     }
 
