@@ -1,0 +1,14 @@
+{
+  "id": "sync-sign-off-docs",
+  "title": "Document the sync sign-off request and the separate reviewer",
+  "category": "ci",
+  "landed": "2026-10-31",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original documentation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "UPSTREAM-SYNC.md now matches the merge workflow: the sync agent posts Sync sign-off requested and never posts Sync review comments. A separate read-only reviewer posts Sync review: FINAL ACCEPT or Sync review: not accepted. The workflow merges only a yojen7 FINAL ACCEPT at a 40-character sha. AGENTS.md no longer says the sync agent merges those PRs."
+}
