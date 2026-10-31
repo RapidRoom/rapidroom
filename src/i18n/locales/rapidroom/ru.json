@@ -123,6 +123,11 @@
     }
   },
   "editor": {
+    "metadata": {
+      "camera": {
+        "focusDistance": "Дистанция фокусировки"
+      }
+    },
     "presets": {
       "favorites": "Избранное",
       "tooltips": {

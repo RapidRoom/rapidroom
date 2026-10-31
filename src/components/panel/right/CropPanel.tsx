@@ -1064,6 +1064,7 @@ export default function CropPanel() {
                   suffix="°"
                   onChange={handleFineRotationChange}
                   onDragStateChange={handleDragStateChange}
+                  speedEditId="rotation"
                 />
               </div>
             </div>

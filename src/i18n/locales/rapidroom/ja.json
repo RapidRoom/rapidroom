@@ -117,6 +117,11 @@
     }
   },
   "editor": {
+    "metadata": {
+      "camera": {
+        "focusDistance": "フォーカス距離"
+      }
+    },
     "presets": {
       "favorites": "お気に入り",
       "tooltips": {

@@ -29,7 +29,7 @@ import { TextVariants } from '../../types/typography';
 import { DepthRangePicker } from '../ui/DepthRangePicker';
 import { selectAiModelDownloadStatus, useProcessStore } from '../../store/useProcessStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
-import { useEditorStore } from '../../store/useEditorStore';
+import { canvasToolState, useEditorStore } from '../../store/useEditorStore';
 import { useContextMenu } from '../../context/ContextMenuContext';
 import { areSectionPropsEqual } from '../../utils/adjustments';
 
@@ -318,10 +318,7 @@ function EffectsPanel({
     }
     setEditor({
       activeRelightLightId: id,
-      isRelightPickerActive: true,
-      isWbPickerActive: false,
-      mixerPickerProperty: null,
-      activeCenterMarker: null,
+      ...canvasToolState({ isRelightPickerActive: true }),
     });
   };
 
@@ -333,10 +330,7 @@ function EffectsPanel({
     }));
     setEditor({
       activeRelightLightId: light.id,
-      isRelightPickerActive: true,
-      isWbPickerActive: false,
-      mixerPickerProperty: null,
-      activeCenterMarker: null,
+      ...canvasToolState({ isRelightPickerActive: true }),
     });
   };
 
@@ -379,10 +373,7 @@ function EffectsPanel({
     });
     setEditor({
       activeRelightLightId: light.id,
-      isRelightPickerActive: true,
-      isWbPickerActive: false,
-      mixerPickerProperty: null,
-      activeCenterMarker: null,
+      ...canvasToolState({ isRelightPickerActive: true }),
     });
   };
 
@@ -981,20 +972,14 @@ function EffectsPanel({
             >
               <div
                 data-center-marker-controls="vignette"
-                onPointerDown={() =>
-                  setEditor({
-                    activeCenterMarker: 'vignette',
-                    isRelightPickerActive: false,
-                    isWbPickerActive: false,
-                    mixerPickerProperty: null,
-                  })
-                }
+                onPointerDown={() => setEditor(canvasToolState({ activeCenterMarker: 'vignette' }))}
               >
                 <Slider
                   label={t('adjustments.effects.amount')}
                   max={100}
                   min={-100}
                   onChange={(e: SliderChangeEvent) => handleAdjustmentChange(Effect.VignetteAmount, e.target.value)}
+                  speedEditId={Effect.VignetteAmount}
                   step={1}
                   value={adjustments.vignetteAmount}
                   onDragStateChange={onDragStateChange}

@@ -761,6 +761,7 @@ fn nind_raw_view(
             mask_cache_key: None,
             lut: None,
             roi: None,
+            hsl_probe: false,
         },
         "nind_default_raw_view",
         RenderOutputPrecision::SixteenBit,

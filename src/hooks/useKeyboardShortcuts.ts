@@ -24,6 +24,8 @@ const getCurrentZoomPercent = (editor: { baseRenderSize?: { renderScale: number 
   return renderScale && renderScale > 0 ? percentFromTransform(renderScale, editor.zoom, getDpr()) : 1;
 };
 
+const SPEED_EDIT_IMAGE_DIRECTIONS: Record<string, number> = { KeyQ: -1, KeyE: 1 };
+
 const getParentFolder = (path: string) => {
   const physicalPath = path.split('?vc=')[0];
   const separator = Math.max(physicalPath.lastIndexOf('/'), physicalPath.lastIndexOf('\\'));
@@ -56,7 +58,7 @@ export const useKeyboardShortcuts = ({
     handleAutoStraighten,
     handleCopyAdjustments,
     handlePasteAdjustments,
-    toggleShowOriginal,
+    toggleCompare,
     handleAutoAdjustments,
     setAdjustments,
     handleCropOrientationToggle,
@@ -103,6 +105,13 @@ export const useKeyboardShortcuts = ({
     }
     const { appSettings, osPlatform } = useSettingsStore.getState();
     const comboMap = resolveKeybindMap(appSettings?.keybinds, osPlatform);
+
+    const selectAdjacentImage = (s: StoreState, direction: number) => {
+      const currentIndex = getPreviewIndex(s);
+      if (currentIndex === -1) return;
+      const list = sortedListRef.current;
+      handleImageSelect(list[(currentIndex + direction + list.length) % list.length].path, true);
+    };
 
     const getImagePathsForCopy = (s: StoreState): Array<string> => {
       if (s.editor.selectedImage) {
@@ -262,20 +271,14 @@ export const useKeyboardShortcuts = ({
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          const currentIndex = getPreviewIndex(s);
-          if (currentIndex === -1) return;
-          const nextIndex = currentIndex - 1 < 0 ? sortedListRef.current.length - 1 : currentIndex - 1;
-          handleImageSelect(sortedListRef.current[nextIndex].path, true);
+          selectAdjacentImage(s, -1);
         },
       },
       preview_next: {
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          const currentIndex = getPreviewIndex(s);
-          if (currentIndex === -1) return;
-          const nextIndex = currentIndex + 1 >= sortedListRef.current.length ? 0 : currentIndex + 1;
-          handleImageSelect(sortedListRef.current[nextIndex].path, true);
+          selectAdjacentImage(s, 1);
         },
       },
       zoom_in_step: {
@@ -414,7 +417,7 @@ export const useKeyboardShortcuts = ({
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent) => {
           e.preventDefault();
-          toggleShowOriginal();
+          toggleCompare();
         },
       },
       toggle_reference_view: {
@@ -817,6 +820,16 @@ export const useKeyboardShortcuts = ({
         },
       },
       {
+        match: (e: KeyboardEvent, s: StoreState) =>
+          s.editor.isSpeedEditHeld &&
+          !!s.editor.selectedImage &&
+          (normalizeCombo(e, s.settings.osPlatform).at(-1) ?? '') in SPEED_EDIT_IMAGE_DIRECTIONS,
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          selectAdjacentImage(s, SPEED_EDIT_IMAGE_DIRECTIONS[normalizeCombo(e, s.settings.osPlatform).at(-1)!]);
+        },
+      },
+      {
         match: (e: KeyboardEvent) => e.code === 'Escape',
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
@@ -1003,6 +1016,6 @@ export const useKeyboardShortcuts = ({
     handleSetFlag,
     handleToggleFlag,
     handleSetColorLabel,
-    toggleShowOriginal,
+    toggleCompare,
   ]);
 };

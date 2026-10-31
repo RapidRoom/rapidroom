@@ -1,5 +1,10 @@
 {
   "editor": {
+    "metadata": {
+      "camera": {
+        "focusDistance": "Vzdálenost zaostření"
+      }
+    },
     "presets": {
       "appliedFolder": "Použité",
       "bakedIn": "pevně začleněno",

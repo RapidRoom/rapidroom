@@ -139,6 +139,11 @@
     }
   },
   "editor": {
+    "metadata": {
+      "camera": {
+        "focusDistance": "Focus Distance"
+      }
+    },
     "crop": {
       "presets": {
         "instagramPortrait": {
