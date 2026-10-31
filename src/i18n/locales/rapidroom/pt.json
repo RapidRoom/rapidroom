@@ -121,6 +121,11 @@
     }
   },
   "editor": {
+    "metadata": {
+      "camera": {
+        "focusDistance": "Distância de foco"
+      }
+    },
     "presets": {
       "favorites": "Favoritos",
       "tooltips": {

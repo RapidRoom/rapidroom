@@ -1660,6 +1660,55 @@ pub fn get_cached_or_generate_masks(
     crop_offset: (f32, f32),
     adjustments: &serde_json::Value,
 ) -> GeneratedMasks {
+    cached_or_generate_masks(
+        state,
+        path,
+        None,
+        definitions,
+        width,
+        height,
+        scale,
+        crop_offset,
+        adjustments,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn get_cached_or_generate_masks_for_loaded(
+    state: &tauri::State<AppState>,
+    image: &crate::app_state::LoadedImage,
+    definitions: &[MaskDefinition],
+    width: u32,
+    height: u32,
+    scale: f32,
+    crop_offset: (f32, f32),
+    adjustments: &serde_json::Value,
+) -> GeneratedMasks {
+    cached_or_generate_masks(
+        state,
+        &image.path,
+        Some(image),
+        definitions,
+        width,
+        height,
+        scale,
+        crop_offset,
+        adjustments,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn cached_or_generate_masks(
+    state: &tauri::State<AppState>,
+    path: &str,
+    image: Option<&crate::app_state::LoadedImage>,
+    definitions: &[MaskDefinition],
+    width: u32,
+    height: u32,
+    scale: f32,
+    crop_offset: (f32, f32),
+    adjustments: &serde_json::Value,
+) -> GeneratedMasks {
     let mut combined_hasher = DefaultHasher::new();
     let mut bitmaps = Vec::with_capacity(definitions.len());
 
@@ -1676,6 +1725,7 @@ pub fn get_cached_or_generate_masks(
         .unwrap_or_default();
         def_json.hash(&mut hasher);
         path.hash(&mut hasher);
+        image.map(|image| image.generation).hash(&mut hasher);
         if def.requires_warped_image() {
             crate::cache_utils::calculate_geometry_hash(adjustments).hash(&mut hasher);
         }
@@ -1696,7 +1746,14 @@ pub fn get_cached_or_generate_masks(
         let bitmap = cached.or_else(|| {
             let warped_image = def
                 .requires_warped_image()
-                .then(|| get_cached_full_warped_image_for_path(state, Some(path), adjustments).ok())
+                .then(|| {
+                    if let Some(image) = image {
+                        crate::get_cached_full_warped_image_for_loaded(state, image, adjustments)
+                            .ok()
+                    } else {
+                        get_cached_full_warped_image_for_path(state, Some(path), adjustments).ok()
+                    }
+                })
                 .flatten();
             let generated = generate_mask_bitmap(
                 def,

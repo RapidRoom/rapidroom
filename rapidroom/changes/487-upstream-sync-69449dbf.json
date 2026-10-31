@@ -1,0 +1,22 @@
+{
+  "id": "upstream-sync-69449dbf",
+  "title": "Sync upstream main: crop Enter/Escape, faster EXIF and preview reads, parallel preview JPEGs and Immich export fixes",
+  "category": "fix",
+  "landed": "2026-10-29",
+  "authors": ["lalibertemarc", "elhigu", "cl1x", "yojen7"],
+  "source": "CyberTimon/RapidRAW",
+  "commits": [
+    "https://github.com/CyberTimon/RapidRAW/commit/a09af2a0",
+    "https://github.com/CyberTimon/RapidRAW/commit/0641b671",
+    "https://github.com/CyberTimon/RapidRAW/commit/384f86f8",
+    "https://github.com/CyberTimon/RapidRAW/commit/05f720ed",
+    "https://github.com/CyberTimon/RapidRAW/commit/2c1dca20",
+    "https://github.com/CyberTimon/RapidRAW/commit/35fdc7c9",
+    "https://github.com/CyberTimon/RapidRAW/commit/7d94545a"
+  ],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": false,
+  "notes": "Upstream's readable edit-history labels duplicate RapidRoom's existing history details, so RapidRoom's implementation is kept and only the flush-before-labelled-step fix is ported. Crop Enter/Escape and the crop geometry baseline are ported onto RapidRoom's editor. Export DPI now defaults to 96. EXIF prefix reads, the parallel preview JPEG encoder and the GPU pipeline cache land as upstream wrote them; the prefix read of embedded RAW previews is not applied because RapidRoom already reads previews through its own shared preview path."
+}
