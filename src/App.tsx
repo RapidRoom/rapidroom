@@ -1,3 +1,4 @@
+import HistoryPanel from './components/panel/right/HistoryPanel';
 import DenoiseQueue from './components/panel/DenoiseQueue';
 import { createLightsOutFullscreenController } from './utils/lightsOutFullscreen';
 import {
@@ -811,6 +812,8 @@ function App() {
           );
         case Panel.Adjustments:
           return <Controls />;
+        case Panel.History:
+          return <HistoryPanel />;
         case Panel.Metadata:
           return <MetadataPanel />;
         case Panel.Crop:

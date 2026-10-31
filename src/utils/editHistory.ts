@@ -1,10 +1,13 @@
 import type { Adjustments } from './adjustments';
 
 export interface HistoryDetails {
-  actor: 'user' | 'assistant';
+  actor: 'user' | 'assistant' | 'system' | 'imported';
+  id?: string;
+  display?: { name: string; delta: string; value: string };
   label: string;
   changedKeys: string[];
-  timestamp: number;
+  timestamp: number | null;
+  source?: 'lightroom-catalog' | 'xmp';
 }
 
 export function sameAdjustmentValue(before: unknown, after: unknown): boolean {
@@ -28,6 +31,8 @@ export function sameAdjustmentValue(before: unknown, after: unknown): boolean {
 
 const title = (key: string) => key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase());
 const number = (value: number) => `${value > 0 ? '+' : ''}${Number(value.toFixed(4))}`;
+const transition = (before: unknown, after: number) =>
+  `${typeof before === 'number' ? number(before) : '—'} → ${number(after)}`;
 const channelName = (key: string) => title(key === 'luma' ? 'luma' : key.replace(/s$/, ''));
 
 function nestedChanges(before: unknown, after: unknown, prefix: string): string[] {
@@ -37,10 +42,12 @@ function nestedChanges(before: unknown, after: unknown, prefix: string): string[
     if (sameAdjustmentValue(old[key], value)) return [];
     const path = `${prefix}${prefix ? ': ' : ''}${title(key)}`;
     return typeof value === 'number'
-      ? [`${path} ${number(value)}`]
+      ? [`${path} ${transition(old[key], value)}`]
       : typeof value === 'boolean'
         ? [`${path} ${value ? 'on' : 'off'}`]
-        : [path];
+        : value && typeof value === 'object' && !Array.isArray(value)
+          ? nestedChanges(old[key], value, path)
+          : [path];
   });
 }
 
@@ -76,15 +83,35 @@ function maskChanges(before: Adjustments['masks'], after: Adjustments['masks']):
         const parameters = (sub.parameters ?? {}) as Record<string, unknown>;
         for (const key of Object.keys(parameters))
           if (!sameAdjustmentValue(oldParameters[key], parameters[key]))
-            fields.add(key === 'maskDataBase64' ? 'AI selection' : title(key));
+            fields.add(
+              key === 'maskDataBase64'
+                ? 'AI selection'
+                : typeof parameters[key] === 'number'
+                  ? `${title(key)} ${transition(oldParameters[key], parameters[key])}`
+                  : typeof parameters[key] === 'boolean'
+                    ? `${title(key)} ${parameters[key] ? 'on' : 'off'}`
+                    : title(key),
+            );
         for (const key of ['visible', 'invert', 'opacity', 'mode'] as const)
-          if (previous[key] !== sub[key]) fields.add(title(key));
+          if (previous[key] !== sub[key])
+            fields.add(
+              typeof sub[key] === 'number'
+                ? `${title(key)} ${transition(previous[key], sub[key])}`
+                : typeof sub[key] === 'boolean'
+                  ? `${title(key)} ${sub[key] ? 'on' : 'off'}`
+                  : title(key),
+            );
       }
       if (mask.subMasks.length < old.subMasks.length) fields.add('remove component');
       local.push(`${name}: ${[...fields].join(', ') || 'mask area'}`);
     }
     for (const key of ['opacity', 'visible', 'invert', 'name'] as const)
-      if (mask[key] !== old[key]) local.push(`${name}: ${title(key)} ${String(mask[key])}`);
+      if (mask[key] !== old[key]) {
+        const value = mask[key];
+        local.push(
+          `${name}: ${title(key)} ${typeof value === 'number' ? transition(old[key], value) : typeof value === 'boolean' ? (value ? 'on' : 'off') : String(value)}`,
+        );
+      }
     changes.push(...local);
   }
   return changes;
@@ -135,13 +162,25 @@ export function describeHistoryChange(
     }
     if (key === 'colorGrading' || key === 'colorCalibration') return nestedChanges(before[key], after[key], title(key));
     const value = after[key];
-    if (typeof value === 'number') return [`${title(key)} ${number(value)}`];
+    if (typeof value === 'number') return [`${title(key)} ${transition(before[key], value)}`];
     if (typeof value === 'boolean') return [`${title(key)} ${value ? 'on' : 'off'}`];
     return [title(key)];
   });
   const distinct = [...new Set(changes)];
+  const numericKey = changedKeys.length === 1 ? changedKeys[0] : undefined;
+  const numericBefore = numericKey ? before[numericKey] : undefined;
+  const numericAfter = numericKey ? after[numericKey] : undefined;
   return {
     actor,
+    ...(numericKey && typeof numericBefore === 'number' && typeof numericAfter === 'number'
+      ? {
+          display: {
+            name: title(numericKey),
+            delta: number(numericAfter - numericBefore),
+            value: number(numericAfter),
+          },
+        }
+      : {}),
     label: `${actor === 'assistant' ? 'AI: ' : ''}${distinct.slice(0, 6).join(', ') || 'Adjustment'}${distinct.length > 6 ? ` (+${distinct.length - 6} more)` : ''}`,
     changedKeys,
     timestamp: Date.now(),

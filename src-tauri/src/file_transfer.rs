@@ -92,7 +92,9 @@ fn has_remaining_sibling(source: &Path) -> bool {
             .and_then(|s| s.to_str())
             .unwrap_or("")
             .to_ascii_lowercase();
-        if !["xmp", "acr", "dop", "pp3", "rrdata", "rrexif"].contains(&extension.as_str()) {
+        if !["xmp", "acr", "dop", "pp3", "rrdata", "rrhistory", "rrexif"]
+            .contains(&extension.as_str())
+        {
             return true;
         }
     }
@@ -152,7 +154,7 @@ fn members(source: &Path) -> Result<Vec<Member>, String> {
         let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
         let lower = extension.to_ascii_lowercase();
         let image_sidecar = path.file_stem() == Some(name)
-            && ["rrdata", "rrexif", "xmp", "dop", "pp3"].contains(&lower.as_str());
+            && ["rrdata", "rrhistory", "rrexif", "xmp", "dop", "pp3"].contains(&lower.as_str());
         let stem_sidecar = !image_sidecar
             && path.file_stem() == source.file_stem()
             && ["xmp", "acr", "dop"].contains(&lower.as_str());
@@ -168,14 +170,14 @@ fn members(source: &Path) -> Result<Vec<Member>, String> {
         let filename = entry.file_name();
         let filename = filename.to_string_lossy();
         // Exact virtual copy ids only: `IMG.CR2.jpg.rrdata` belongs to IMG.CR2.jpg.
-        if let Some(id) = filename
-            .strip_prefix(&prefix)
-            .and_then(|s| s.strip_suffix(".rrdata"))
-            && crate::file_management::is_virtual_copy_id(id)
+        if let Some(id) = filename.strip_prefix(&prefix).and_then(|s| {
+            s.strip_suffix(".rrdata")
+                .or_else(|| s.strip_suffix(".rrhistory"))
+        }) && crate::file_management::is_virtual_copy_id(id)
         {
             result.push(Member {
                 source: path,
-                suffix: format!(".{id}.rrdata").into(),
+                suffix: format!(".{id}.{extension}").into(),
                 stem_sidecar: false,
             });
         }
@@ -409,6 +411,8 @@ mod tests {
             fs::write(dir.join("A7C01234.ARW"), bytes).unwrap();
             fs::write(dir.join("A7C01234.ARW.rrdata"), bytes).unwrap();
             fs::write(dir.join("A7C01234.ARW.a1b2c3.rrdata"), bytes).unwrap();
+            fs::write(dir.join("A7C01234.ARW.rrhistory"), bytes).unwrap();
+            fs::write(dir.join("A7C01234.ARW.a1b2c3.rrhistory"), bytes).unwrap();
             fs::write(dir.join("A7C01234.xmp"), bytes).unwrap();
         }
         let mut summary = TransferSummary::default();
@@ -429,7 +433,14 @@ mod tests {
             (2, 1, 2, 0)
         );
         for (stem, expected) in [("A7C01234", b"first"), ("A7C01234-2", b"other")] {
-            for suffix in [".ARW", ".ARW.rrdata", ".ARW.a1b2c3.rrdata", ".xmp"] {
+            for suffix in [
+                ".ARW",
+                ".ARW.rrdata",
+                ".ARW.a1b2c3.rrdata",
+                ".ARW.rrhistory",
+                ".ARW.a1b2c3.rrhistory",
+                ".xmp",
+            ] {
                 assert_eq!(
                     fs::read(dest.join(format!("{stem}{suffix}"))).unwrap(),
                     expected

@@ -342,9 +342,9 @@ describe('MCP editor bridge review', () => {
       response: {
         historyIndex: 2,
         entries: [
-          { label: 'Initial State' },
-          { actor: 'assistant', label: 'AI: Exposure +0.4' },
-          { actor: 'assistant', label: 'AI: Highlights -30' },
+          { label: 'Initial state' },
+          { actor: 'assistant', label: 'AI: Exposure 0 → +0.4' },
+          { actor: 'assistant', label: 'AI: Highlights 0 → -30' },
         ],
       },
     });

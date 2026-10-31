@@ -16,7 +16,7 @@ use crate::formats::{is_raw_file, is_supported_image_file};
 use crate::two_phase_rename::FileMove;
 
 /// Sidecars named after the image file: `IMG.ARW.xmp`.
-const IMAGE_SIDECAR_EXTENSIONS: &[&str] = &["rrdata", "rrexif", "xmp", "dop", "pp3"];
+const IMAGE_SIDECAR_EXTENSIONS: &[&str] = &["rrdata", "rrhistory", "rrexif", "xmp", "dop", "pp3"];
 /// Sidecars named after the stem: `IMG.xmp`.
 const STEM_SIDECAR_EXTENSIONS: &[&str] = &["xmp", "acr", "dop"];
 /// Camera files RapidRoom does not open but that are part of a pair.
@@ -411,10 +411,14 @@ fn classify(name: &str, stem: &str, path: &Path) -> Option<UnitFile> {
         // Exact virtual copy ids only: `IMG.CR2.jpg.rrdata` belongs to IMG.CR2.jpg.
         [image, id, ext]
             if is_image_ext(image)
-                && ext.eq_ignore_ascii_case("rrdata")
+                && (ext.eq_ignore_ascii_case("rrdata")
+                    || ext.eq_ignore_ascii_case("rrhistory"))
                 && crate::file_management::is_virtual_copy_id(id) =>
         {
-            (EntryKind::Sidecar, Some(id.to_string()))
+            (
+                EntryKind::Sidecar,
+                ext.eq_ignore_ascii_case("rrdata").then(|| id.to_string()),
+            )
         }
         _ => return None,
     };

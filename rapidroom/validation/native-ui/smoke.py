@@ -453,6 +453,10 @@ class Smoke:
             from compare_modes import run_compare_modes
             run_compare_modes(self, wait_for)
             baseline = self.stable_preview("post-compare-modes")
+        if (self.case / "saved-history-test.json").exists():
+            from saved_history import run_saved_history
+            run_saved_history(self, wait_for)
+            baseline = self.stable_preview("post-saved-history")
         edits = [self.drag("Exposure", 1), self.drag("Contrast", 20)]
         edited = self.stable_preview("edited")
         difference = ImageStat.Stat(ImageChops.difference(self.crop(baseline), self.crop(edited)))
@@ -631,6 +635,8 @@ def launch(args):
                SDL_VIDEODRIVER="wayland", GIO_USE_VFS="local", NO_AT_BRIDGE="1")
     (case / "input").mkdir()
     shutil.copy2(raw, case / "input/smoke.ARW")
+    if args.saved_history:
+        save(case / "saved-history-test.json", {"issue": 306})
     if args.compare_modes:
         save(case / "compare-modes-test.json", {"issue": 492, "upstream_modes": True})
     if args.culling_precision:
@@ -833,6 +839,7 @@ def main():
     parser.add_argument("--raw-dir", type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--lock", type=Path, default=Path("/tmp/rapidroom-build.lock"))
+    parser.add_argument("--saved-history", action="store_true", help="Check saved History, snapshots, branching and numeric labels")
     parser.add_argument("--atomic-exports", action="store_true", help="Check real default/overwrite exports and complete final JPEG visibility")
     parser.add_argument("--file-transfers", action="store_true", help="Check native collision-safe copies/imports, paired sidecars and visible summaries")
     parser.add_argument("--filter-chips", action="store_true", help="Native numeric/text chip editing, Escape, Backspace, arrows and independent x-delete")

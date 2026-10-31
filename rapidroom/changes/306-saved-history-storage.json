@@ -1,12 +1,14 @@
 {
   "id": "saved-history-storage",
-  "title": "Add saved edit-history storage groundwork",
+  "title": "Save portable edit History and named snapshots",
   "category": "feature",
-  "landed": "2026-10-30",
-  "authors": ["yojen7"],
+  "landed": "2026-10-31",
+  "authors": [
+    "yojen7"
+  ],
   "source": "rapidroom (original implementation)",
   "upstream_issues": [],
   "upstream_prs": [],
   "rendering_change": false,
-  "notes": "Parked, uncompiled draft for the approved separate .rrhistory design. Storage types and opt-in commands are scaffolded; companion-file handling, editor integration, the History panel, numeric start/end labels and validation remain unfinished. Not ready to merge."
+  "notes": "Adds a dockable History panel, portable per-photo and per-virtual-copy .rrhistory companions, immutable named snapshots, branching and bounded storage. History failures preserve saved edits and unreadable or newer files. Numeric labels show before and after values, including masks, HSL and grading. Library develop actions and background assistant completion record steps; metadata-only changes do not. New History strings use English pending translation in non-English overlays."
 }

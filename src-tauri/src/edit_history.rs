@@ -122,6 +122,9 @@ impl HistoryDocument {
             {
                 return Err("History contains unknown or duplicate adjustment keys".into());
             }
+            if step.timestamp.is_none() && step.actor != Actor::Imported {
+                return Err("Editable history steps require a timestamp".into());
+            }
             if !step.adjustments.is_object() {
                 return Err("History adjustments must be objects".into());
             }
@@ -294,4 +297,220 @@ pub(crate) fn read_edit_history(path: String) -> Result<HistoryRead, String> {
         crate::file_management::lock_sidecar(&sidecar).map_err(|error| error.to_string())?;
     let metadata = crate::file_management::read_sidecar_report_snapshot(&sidecar)?;
     Ok(read_history(&sidecar, &metadata.adjustments))
+}
+
+pub(crate) fn append_history_locked(
+    sidecar: &Path,
+    before: &Value,
+    after: &Value,
+    label: &str,
+    actor: Actor,
+) -> Result<(), String> {
+    if before == after || !after.is_object() {
+        return Ok(());
+    }
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|error| error.to_string())?
+        .as_millis() as u64;
+    let initial = if before.is_object() {
+        before.clone()
+    } else {
+        crate::image_processing::default_adjustments()
+    };
+    let mut history = match read_document(&history_path(sidecar))? {
+        Some(history) if history.current().adjustments == *before => history,
+        _ => {
+            let id = Uuid::new_v4();
+            HistoryDocument {
+                version: 1,
+                current_step_id: id,
+                compacted_steps: 0,
+                steps: vec![HistoryStep {
+                    id,
+                    label: "Initial state".into(),
+                    actor: Actor::System,
+                    timestamp: Some(timestamp),
+                    changed_keys: vec![],
+                    adjustments: initial,
+                    display: None,
+                    source: None,
+                }],
+                snapshots: vec![],
+            }
+        }
+    };
+    let current = history
+        .steps
+        .iter()
+        .position(|step| step.id == history.current_step_id)
+        .unwrap();
+    history.steps.truncate(current + 1);
+    let mut label = label.to_string();
+    while label.len() > 240 {
+        label.pop();
+    }
+    let defaults = crate::image_processing::default_adjustments();
+    let changed_keys = after
+        .as_object()
+        .unwrap()
+        .iter()
+        .filter(|(key, value)| defaults.get(*key).is_some() && before.get(*key) != Some(*value))
+        .map(|(key, _)| key.clone())
+        .take(64)
+        .collect();
+    let id = Uuid::new_v4();
+    history.steps.push(HistoryStep {
+        id,
+        label,
+        actor,
+        timestamp: Some(timestamp),
+        changed_keys,
+        adjustments: after.clone(),
+        display: None,
+        source: None,
+    });
+    history.current_step_id = id;
+    let bytes = history.compact()?;
+    crate::file_management::write_file_atomically(history_path(sidecar), bytes)
+        .map_err(|error| format!("Edit saved but history could not be updated: {error}"))
+}
+
+#[cfg(test)]
+mod reference_checks {
+    use super::*;
+    use crate::file_management::{update_sidecar_recorded, update_sidecar_with_history};
+    use serde_json::json;
+
+    fn fixture() -> (tempfile::TempDir, PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("photo.ARW.rrdata");
+        fs::write(
+            &path,
+            include_bytes!("../tests/fixtures/history/develop.rrdata"),
+        )
+        .unwrap();
+        (dir, path)
+    }
+
+    #[test]
+    fn real_develop_sidecar_roundtrip_branch_snapshot_and_crash_recovery() {
+        let (_dir, path) = fixture();
+        let root: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        let (saved, warning) =
+            update_sidecar_recorded(&path, "Exposure", Actor::User, |metadata| {
+                metadata.adjustments["exposure"] = json!(0.8)
+            })
+            .unwrap();
+        assert!(warning.is_none());
+        let mut history = read_history(&path, &saved.adjustments).history.unwrap();
+        assert_eq!(history.steps[0].adjustments, root["adjustments"]);
+        history.snapshots.push(HistorySnapshot {
+            id: Uuid::new_v4(),
+            name: "Before branch".into(),
+            created_at: 1,
+            adjustments: saved.adjustments.clone(),
+        });
+        history.current_step_id = history.steps[0].id;
+        let initial = history.steps[0].adjustments.clone();
+        let (_, warning) = update_sidecar_with_history(
+            &path,
+            Some((initial.clone(), serde_json::to_value(&history).unwrap())),
+            |metadata| metadata.adjustments = initial,
+        )
+        .unwrap();
+        assert!(warning.is_none());
+        let (branched, warning) =
+            update_sidecar_recorded(&path, "Contrast", Actor::Assistant, |metadata| {
+                metadata.adjustments["contrast"] = json!(12)
+            })
+            .unwrap();
+        assert!(warning.is_none());
+        let history = read_history(&path, &branched.adjustments).history.unwrap();
+        assert_eq!(history.steps.len(), 2);
+        assert_eq!(history.steps[1].actor, Actor::Assistant);
+        assert_eq!(history.snapshots[0].adjustments, saved.adjustments);
+        let disk: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert!(disk.get("history").is_none());
+        assert_eq!(disk["rating"], root["rating"]);
+        // Simulate power loss after the authoritative root write, before history publication.
+        let mut crash = disk;
+        crash["adjustments"]["exposure"] = json!(-1);
+        fs::write(&path, serde_json::to_vec(&crash).unwrap()).unwrap();
+        assert!(read_history(&path, &crash["adjustments"]).history.is_none());
+        let (recovered, warning) =
+            update_sidecar_recorded(&path, "After crash", Actor::User, |metadata| {
+                metadata.adjustments["contrast"] = json!(13)
+            })
+            .unwrap();
+        assert!(warning.is_none());
+        let history = read_history(&path, &recovered.adjustments).history.unwrap();
+        assert_eq!(history.steps.len(), 2);
+        assert_eq!(history.steps[0].adjustments, crash["adjustments"]);
+    }
+
+    #[test]
+    fn unreadable_newer_and_invalid_history_never_replace_the_saved_root_or_existing_file() {
+        for bytes in [b"{broken".as_slice(), b"{\"version\":2}".as_slice()] {
+            let (_dir, path) = fixture();
+            fs::write(history_path(&path), bytes).unwrap();
+            let (saved, warning) =
+                update_sidecar_recorded(&path, "Exposure", Actor::User, |metadata| {
+                    metadata.adjustments["exposure"] = json!(2)
+                })
+                .unwrap();
+            assert!(warning.is_some());
+            let read = read_history(&path, &saved.adjustments);
+            assert!(!read.writable);
+            assert!(read.warning.is_some());
+            assert_eq!(fs::read(history_path(&path)).unwrap(), bytes);
+            let disk: Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+            assert_eq!(disk["adjustments"]["exposure"], 2);
+        }
+    }
+
+    #[test]
+    fn real_state_compaction_retains_current_and_immutable_snapshots_and_refuses_oversized_masks() {
+        let (_dir, path) = fixture();
+        for index in 0..65 {
+            let (_, warning) =
+                update_sidecar_recorded(&path, "Exposure", Actor::User, |metadata| {
+                    metadata.adjustments["exposure"] = json!(index as f64 / 10.0)
+                })
+                .unwrap();
+            assert!(warning.is_none());
+        }
+        let root: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        let mut history = read_history(&path, &root["adjustments"]).history.unwrap();
+        assert_eq!(history.steps.len(), 50);
+        assert!(history.compacted_steps >= 15);
+        let snapshot = root["adjustments"].clone();
+        history.snapshots.push(HistorySnapshot {
+            id: Uuid::new_v4(),
+            name: "Saved".into(),
+            created_at: 1,
+            adjustments: snapshot.clone(),
+        });
+        history.steps.last_mut().unwrap().adjustments["fogDepthMap"] =
+            json!("a".repeat(TARGET_BYTES + 1));
+        let required = history.steps.last().unwrap().adjustments.clone();
+        let bytes = history.compact().unwrap();
+        assert!(bytes.len() > TARGET_BYTES && bytes.len() < MAX_BYTES);
+        assert_eq!(history.steps.len(), 1);
+        assert_eq!(history.current().adjustments, required);
+        assert_eq!(history.snapshots[0].adjustments, snapshot);
+        let previous = fs::read(history_path(&path)).unwrap();
+        history.steps[0].adjustments["fogDepthMap"] = json!("a".repeat(MAX_BYTES));
+        let requested = history.steps[0].adjustments.clone();
+        assert!(
+            write_history_locked(
+                &path,
+                &requested,
+                &requested,
+                serde_json::to_value(history).unwrap()
+            )
+            .is_err()
+        );
+        assert_eq!(fs::read(history_path(&path)).unwrap(), previous);
+    }
 }

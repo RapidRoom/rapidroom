@@ -1802,14 +1802,14 @@ pub(crate) fn write_file_atomically_unmerged(
 }
 
 pub(crate) fn update_applied_preset(path: &Path, record: Value) -> Result<(), String> {
-    update_applied_preset_with_adjustments(path, record, None)
+    update_applied_preset_with_adjustments(path, record, None).map(|_| ())
 }
 
 pub(crate) fn update_applied_preset_with_adjustments(
     path: &Path,
     record: Value,
     adjustments: Option<Value>,
-) -> Result<(), String> {
+) -> Result<Option<String>, String> {
     let _guard = lock_sidecar(path).map_err(|e| e.to_string())?;
     let mut metadata = match fs::read(path) {
         Ok(bytes) => serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string())?,
@@ -1818,6 +1818,14 @@ pub(crate) fn update_applied_preset_with_adjustments(
         }
         Err(error) => return Err(error.to_string()),
     };
+    let before = metadata.get("adjustments").cloned().unwrap_or(Value::Null);
+    let label = format!(
+        "Preset: {}",
+        record
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("Styles")
+    );
     metadata
         .as_object_mut()
         .ok_or("Invalid photo metadata")?
@@ -1829,7 +1837,17 @@ pub(crate) fn update_applied_preset_with_adjustments(
             .insert("adjustments".into(), adjustments);
     }
     let bytes = serde_json::to_vec_pretty(&metadata).map_err(|e| e.to_string())?;
-    write_file_atomically_unmerged(path, bytes).map_err(|e| e.to_string())
+    write_file_atomically_unmerged(path, bytes).map_err(|e| e.to_string())?;
+    Ok(metadata.get("adjustments").and_then(|after| {
+        crate::edit_history::append_history_locked(
+            path,
+            &before,
+            after,
+            &label,
+            crate::edit_history::Actor::User,
+        )
+        .err()
+    }))
 }
 
 pub(crate) fn update_export_framing(
@@ -3180,12 +3198,18 @@ fn duplicate_file_on_disk(path: &str) -> Result<String, String> {
             format!("{}_copy_{}", stem, counter - 1)
         };
         dest_path = parent.join(format!("{}.{}", new_stem, extension));
-        if !dest_path.exists() {
+        if !find_all_associated_files(&dest_path)?
+            .iter()
+            .any(|path| path.exists())
+        {
             break;
         }
         counter += 1;
     }
 
+    let (_, dest_sidecar) = parse_virtual_path(&dest_path.to_string_lossy());
+    let _guard =
+        lock_sidecars(&[source_sidecar_path.clone(), dest_sidecar]).map_err(|e| e.to_string())?;
     fs::copy(&source_path, &dest_path).map_err(|e| e.to_string())?;
 
     if source_sidecar_path.exists()
@@ -3194,7 +3218,15 @@ fn duplicate_file_on_disk(path: &str) -> Result<String, String> {
         let (_, dest_sidecar_path) = parse_virtual_path(dest_str);
         let bytes =
             copied_sidecar_without_stack(&source_sidecar_path).map_err(|e| e.to_string())?;
-        write_file_atomically(&dest_sidecar_path, bytes).map_err(|e| e.to_string())?;
+        write_file_atomically_unmerged(&dest_sidecar_path, bytes).map_err(|e| e.to_string())?;
+        let source_history = crate::edit_history::history_path(&source_sidecar_path);
+        if source_history.exists() {
+            fs::copy(
+                &source_history,
+                crate::edit_history::history_path(&dest_sidecar_path),
+            )
+            .map_err(|e| e.to_string())?;
+        }
     }
 
     let mut source_rrexif_name = source_path.file_name().unwrap().to_os_string();
@@ -3209,6 +3241,39 @@ fn duplicate_file_on_disk(path: &str) -> Result<String, String> {
     }
 
     Ok(dest_path.to_string_lossy().into_owned())
+}
+
+pub(crate) fn save_recorded_metadata(
+    sidecar: &Path,
+    metadata: &ImageMetadata,
+    label: &str,
+    actor: crate::edit_history::Actor,
+) -> Result<Option<String>, String> {
+    let _guard = lock_sidecar(sidecar).map_err(|e| e.to_string())?;
+    let before = crate::exif_processing::load_sidecar_unlocked(sidecar).adjustments;
+    let bytes = metadata_bytes_preserving_owned(sidecar, metadata).map_err(|e| e.to_string())?;
+    write_file_atomically_unmerged(sidecar, bytes).map_err(|e| e.to_string())?;
+    Ok(crate::edit_history::append_history_locked(
+        sidecar,
+        &before,
+        &metadata.adjustments,
+        label,
+        actor,
+    )
+    .err())
+}
+
+fn report_history_warning(app: &AppHandle, path: &str, result: Result<Option<String>, String>) {
+    match result {
+        Ok(Some(warning)) => {
+            let _ = app.emit(
+                "edit-history-warning",
+                serde_json::json!({ "path": path, "warning": warning }),
+            );
+        }
+        Err(error) => log::warn!("Develop save failed: {error}"),
+        _ => {}
+    }
 }
 
 pub(crate) fn copied_sidecar_without_stack(source: &Path) -> std::io::Result<Vec<u8>> {
@@ -3261,7 +3326,10 @@ fn find_all_associated_files(source_image_path: &Path) -> Result<Vec<PathBuf>, S
             // image's edits such as `IMG.CR2.jpg.rrdata`.
             let is_sidecar = entry_filename
                 .strip_prefix(&*source_filename)
-                .and_then(|rest| rest.strip_suffix(".rrdata"))
+                .and_then(|rest| {
+                    rest.strip_suffix(".rrdata")
+                        .or_else(|| rest.strip_suffix(".rrhistory"))
+                })
                 .is_some_and(|rest| {
                     rest.is_empty() || rest.strip_prefix('.').is_some_and(is_virtual_copy_id)
                 });
@@ -3449,6 +3517,7 @@ pub async fn save_metadata_and_update_thumbnail(
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct HistorySaveReport {
+    history: Option<crate::edit_history::HistoryDocument>,
     adjustments: Value,
     history_warning: Option<String>,
 }
@@ -3494,6 +3563,7 @@ fn save_editor_develop_blocking(
     let exif = crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path).exif;
     let mut had_ai_work = false;
     let mut stripped_ai_results = false;
+    let saves_history = history.is_some();
     let requested_adjustments = adjustments.clone();
     let (metadata, history_warning) = save_develop_metadata_with_history(
         &source_path,
@@ -3532,7 +3602,11 @@ fn save_editor_develop_blocking(
     }
 
     queue_import_thumbnail_refresh(path, app_handle.clone(), &state);
+    let history = saves_history
+        .then(|| crate::edit_history::read_history(&sidecar_path, &metadata.adjustments).history)
+        .flatten();
     Ok(HistorySaveReport {
+        history,
         adjustments: metadata.adjustments,
         history_warning,
     })
@@ -4222,9 +4296,16 @@ pub async fn apply_adjustments_to_paths(
 
             existing_metadata.adjustments = new_adjustments;
 
-            if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
-                let _ = write_file_atomically(&sidecar_path, json_string);
-            }
+            report_history_warning(
+                &app_handle,
+                path,
+                save_recorded_metadata(
+                    &sidecar_path,
+                    &existing_metadata,
+                    "Paste / Sync (Library)",
+                    crate::edit_history::Actor::User,
+                ),
+            );
 
             if enable_xmp_sync {
                 let source_path = parse_virtual_path(path).0;
@@ -4286,9 +4367,16 @@ pub async fn reset_adjustments_for_paths(
                 lens_db.as_deref(),
             );
 
-            if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
-                let _ = write_file_atomically(&sidecar_path, json_string);
-            }
+            report_history_warning(
+                &app_handle,
+                path,
+                save_recorded_metadata(
+                    &sidecar_path,
+                    &existing_metadata,
+                    "Reset (Library)",
+                    crate::edit_history::Actor::User,
+                ),
+            );
             // Reset is an explicit removal of Styles, including on unopened photos.
             let _ = update_applied_preset(&sidecar_path, serde_json::Value::Null);
 
@@ -4403,9 +4491,16 @@ pub async fn apply_auto_lens_correction_to_paths(
                 &source_path,
             );
 
-            if let Ok(json_string) = serde_json::to_string_pretty(&existing_metadata) {
-                let _ = write_file_atomically(&sidecar_path, json_string);
-            }
+            report_history_warning(
+                &app_handle,
+                path,
+                save_recorded_metadata(
+                    &sidecar_path,
+                    &existing_metadata,
+                    "Auto lens correction (Library)",
+                    crate::edit_history::Actor::User,
+                ),
+            );
 
             if enable_xmp_sync {
                 sync_metadata_to_xmp(
@@ -4748,6 +4843,29 @@ pub(crate) fn update_sidecar(
     update: impl FnOnce(&mut ImageMetadata),
 ) -> Result<ImageMetadata, String> {
     update_sidecar_with_history(sidecar_path, None, update).map(|(metadata, _)| metadata)
+}
+
+pub(crate) fn update_sidecar_recorded(
+    sidecar: &Path,
+    label: &str,
+    actor: crate::edit_history::Actor,
+    update: impl FnOnce(&mut ImageMetadata),
+) -> Result<(ImageMetadata, Option<String>), String> {
+    let _guard = lock_sidecar(sidecar).map_err(|e| e.to_string())?;
+    let mut metadata = crate::exif_processing::load_sidecar_unlocked(sidecar);
+    let before = metadata.adjustments.clone();
+    update(&mut metadata);
+    let bytes = metadata_bytes_preserving_owned(sidecar, &metadata).map_err(|e| e.to_string())?;
+    write_file_atomically_unmerged(sidecar, bytes).map_err(|e| e.to_string())?;
+    let warning = crate::edit_history::append_history_locked(
+        sidecar,
+        &before,
+        &metadata.adjustments,
+        label,
+        actor,
+    )
+    .err();
+    Ok((metadata, warning))
 }
 
 pub(crate) fn update_sidecar_with_history(
@@ -5834,7 +5952,7 @@ pub fn clear_all_sidecars(root_path: String) -> Result<usize, String> {
         let path = entry.path();
         if path.is_file()
             && let Some(extension) = path.extension()
-            && (extension == "rrdata" || extension == "rrexif")
+            && (extension == "rrdata" || extension == "rrexif" || extension == "rrhistory")
             && !is_card_read_only_path(path)
         {
             if fs::remove_file(path).is_ok() {
@@ -6066,6 +6184,10 @@ fn plan_file_deletions(paths: Vec<String>) -> Result<DeletionPlan, String> {
         deletions.insert(path_str.clone());
 
         if path_str.contains("?vc=") {
+            let history = crate::edit_history::history_path(&sidecar_path);
+            if history.exists() {
+                files_to_trash.insert(history);
+            }
             if sidecar_path.exists() {
                 files_to_trash.insert(sidecar_path);
             }
@@ -6093,17 +6215,13 @@ fn plan_file_deletions(paths: Vec<String>) -> Result<DeletionPlan, String> {
 }
 
 fn deletion_stem_for(filename: &str) -> Option<&str> {
-    let image_filename = if filename.ends_with(".rrdata") {
-        let without_rrdata = filename.trim_end_matches(".rrdata");
-        if let Some(dot_pos) = without_rrdata.rfind('.') {
-            let suffix = &without_rrdata[dot_pos + 1..];
-            if suffix.len() == 6 && suffix.chars().all(|c| c.is_ascii_hexdigit()) {
-                &without_rrdata[..dot_pos]
-            } else {
-                without_rrdata
-            }
-        } else {
-            without_rrdata
+    let image_filename = if let Some(base) = filename
+        .strip_suffix(".rrdata")
+        .or_else(|| filename.strip_suffix(".rrhistory"))
+    {
+        match base.rsplit_once('.') {
+            Some((image, id)) if is_virtual_copy_id(id) => image,
+            _ => base,
         }
     } else if filename.ends_with(".rrexif") {
         filename.trim_end_matches(".rrexif")
@@ -6641,6 +6759,12 @@ pub(crate) fn create_virtual_copy_from_draft(
         let id = Uuid::new_v4().to_string()[..6].to_string();
         let copy = format!("{}?vc={id}", source.to_string_lossy());
         let (_, target) = parse_virtual_path(&copy);
+        if crate::edit_history::history_path(&target)
+            .try_exists()
+            .map_err(|e| e.to_string())?
+        {
+            continue;
+        }
         match fs::OpenOptions::new()
             .write(true)
             .create_new(true)
@@ -6695,9 +6819,18 @@ fn create_virtual_copy_on_disk(source_virtual_path: &str) -> Result<String, Stri
     let (source_path, source_sidecar_path) = parse_virtual_path(source_virtual_path);
     ensure_card_writable(&source_path)?;
 
-    let new_copy_id = Uuid::new_v4().to_string()[..6].to_string();
-    let new_virtual_path = format!("{}?vc={}", source_path.to_string_lossy(), new_copy_id);
-    let (_, new_sidecar_path) = parse_virtual_path(&new_virtual_path);
+    let (new_virtual_path, new_sidecar_path) = loop {
+        let id = Uuid::new_v4();
+        let path = format!("{}?vc={id}", source_path.to_string_lossy());
+        let (_, sidecar) = parse_virtual_path(&path);
+        if !sidecar.try_exists().map_err(|e| e.to_string())?
+            && !crate::edit_history::history_path(&sidecar)
+                .try_exists()
+                .map_err(|e| e.to_string())?
+        {
+            break (path, sidecar);
+        }
+    };
 
     // A virtual copy takes one complete atomic snapshot and writes a new
     // destination; it does not modify or need a write lock on the source.
@@ -10997,5 +11130,90 @@ mod unreadable_sidecar_tests {
                 .is_null()
         );
         assert!(update_sidecar(&sidecar, |m| m.rating = 2).is_ok());
+    }
+}
+
+#[cfg(test)]
+mod history_companion_reference_checks {
+    use super::*;
+
+    #[test]
+    fn history_pairs_survive_duplicate_virtual_copy_rename_move_and_deletion_plans() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("photo.ARW");
+        let path = source.to_string_lossy().into_owned();
+        fs::write(&source, b"photo fixture").unwrap();
+        let (_, sidecar) = parse_virtual_path(&path);
+        fs::write(
+            &sidecar,
+            include_bytes!("../tests/fixtures/history/develop.rrdata"),
+        )
+        .unwrap();
+        let (saved, warning) = update_sidecar_recorded(
+            &sidecar,
+            "Exposure",
+            crate::edit_history::Actor::User,
+            |metadata| metadata.adjustments["exposure"] = serde_json::json!(0.8),
+        )
+        .unwrap();
+        assert!(warning.is_none());
+        let history = crate::edit_history::history_path(&sidecar);
+        let bytes = fs::read(&history).unwrap();
+        let duplicate = duplicate_file_on_disk(&path).unwrap();
+        let duplicate_sidecar = parse_virtual_path(&duplicate).1;
+        assert_eq!(
+            fs::read(crate::edit_history::history_path(&duplicate_sidecar)).unwrap(),
+            bytes
+        );
+        let copy = create_virtual_copy_on_disk(&path).unwrap();
+        let copy_sidecar = parse_virtual_path(&copy).1;
+        assert!(!crate::edit_history::history_path(&copy_sidecar).exists());
+        update_sidecar_recorded(
+            &copy_sidecar,
+            "Copy contrast",
+            crate::edit_history::Actor::User,
+            |metadata| metadata.adjustments["contrast"] = serde_json::json!(10),
+        )
+        .unwrap();
+        let copy_history = crate::edit_history::history_path(&copy_sidecar);
+        let copy_bytes = fs::read(&copy_history).unwrap();
+        let (delete, _) = plan_file_deletions(vec![copy]).unwrap();
+        assert!(delete.contains(&copy_sidecar) && delete.contains(&copy_history));
+        assert!(!delete.contains(&source) && !delete.contains(&history));
+        let renamed = rename_files_on_disk(&[path], "renamed", &RenameOptions::default()).unwrap();
+        let new_path = renamed.images[0].to.clone();
+        let new_sidecar = parse_virtual_path(&new_path).1;
+        assert_eq!(
+            fs::read(crate::edit_history::history_path(&new_sidecar)).unwrap(),
+            bytes
+        );
+        assert!(
+            crate::edit_history::read_history(&new_sidecar, &saved.adjustments)
+                .history
+                .is_some()
+        );
+        let copy_id = copy_sidecar.file_stem().unwrap().to_string_lossy();
+        let copy_id = copy_id.rsplit('.').next().unwrap();
+        assert_eq!(
+            fs::read(dir.path().join(format!("renamed.ARW.{copy_id}.rrhistory"))).unwrap(),
+            copy_bytes
+        );
+        let destination = dir.path().join("moved");
+        fs::create_dir(&destination).unwrap();
+        move_files_on_disk(&[new_path.clone()], destination.to_str().unwrap()).unwrap();
+        let moved = destination.join("renamed.ARW");
+        let (delete, _) = plan_file_deletions(vec![moved.to_string_lossy().into_owned()]).unwrap();
+        assert!(delete.contains(&destination.join("renamed.ARW.rrhistory")));
+        assert!(delete.contains(&destination.join(format!("renamed.ARW.{copy_id}.rrhistory"))));
+        assert_eq!(
+            deletion_stem_for(&format!("renamed.ARW.{copy_id}.rrhistory")),
+            Some("renamed")
+        );
+        assert_eq!(
+            clear_all_sidecars(destination.to_string_lossy().into_owned()).unwrap(),
+            4
+        );
+        assert!(moved.exists());
+        assert!(!destination.join("renamed.ARW.rrhistory").exists());
     }
 }
