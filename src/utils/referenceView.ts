@@ -82,3 +82,7 @@ export const getWipeLabels = (swapped: boolean, referenceLabel: string | null = 
   const comparison = referenceLabel || 'Original';
   return swapped ? { left: 'Your edit', right: comparison } : { left: comparison, right: 'Your edit' };
 };
+
+// Legacy MCP reference commands select a source; upstream compareView controls its presentation.
+export const comparisonReferencePath = (state: ReferenceViewState): string | null =>
+  state.mode !== 'off' && (state.mode !== 'wipe' || state.wipeReference) ? (state.reference?.path ?? null) : null;

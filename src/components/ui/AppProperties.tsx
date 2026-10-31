@@ -45,6 +45,7 @@ export enum Invokes {
   CalculateAutoStraighten = 'calculate_auto_straighten',
   CancelAiTask = 'cancel_ai_task',
   CancelDenoise = 'cancel_denoise',
+  CancelEditInApp = 'cancel_edit_in_app',
   CancelExport = 'cancel_export',
   CheckAIConnectorStatus = 'check_ai_connector_status',
   ClearAllSidecars = 'clear_all_sidecars',
@@ -61,6 +62,7 @@ export enum Invokes {
   DiscardAiJobs = 'discard_ai_jobs',
   ApplyDenoising = 'apply_denoising',
   DuplicateFile = 'duplicate_file',
+  EditInApp = 'edit_in_app',
   EstimateExportSizes = 'estimate_export_sizes',
   ExportImages = 'export_images',
   FrontendLog = 'frontend_log',
@@ -156,7 +158,7 @@ export enum Invokes {
   SaveFocusStack = 'save_focus_stack',
   MergeHdr = 'merge_hdr',
   TestAIConnectorConnection = 'test_ai_connector_connection',
-  SampleDisplayArea = 'sample_display_area',
+  SampleHslMixerArea = 'sample_hsl_mixer_area',
   UndoLastRename = 'undo_last_rename',
   UpdateWgpuTransform = 'update_wgpu_transform',
   ReleaseOriginalPreview = 'release_original_preview',
@@ -272,8 +274,22 @@ export interface CustomAspectRatio {
   height: number;
 }
 
+export enum EditInMode {
+  Original = 'original',
+  Rendered = 'rendered',
+}
+
+export interface EditInApp {
+  name: string;
+  path: string;
+  args: string;
+  mode: EditInMode;
+}
+
 export type GroupPreference = 'jpeg' | 'raw';
 export type GroupingMode = 'off' | GroupPreference;
+export type CompareView = 'off' | 'vertical' | 'horizontal' | 'sideBySide';
+export type CompareMode = 'toggle' | Exclude<CompareView, 'off'>;
 
 export interface AppSettings {
   terminalSettings?: TerminalSettings;
@@ -319,6 +335,7 @@ export interface AppSettings {
   showInstagramGuide?: boolean;
   myLenses?: any;
   customAspectRatios?: CustomAspectRatio[];
+  editInApps?: EditInApp[];
   adjustmentLayout?: AdjustmentLayout;
   adjustmentDensity?: 'comfortable' | 'compact';
   enableFolderImageCounts?: boolean;
@@ -335,10 +352,12 @@ export interface AppSettings {
   /** Editor surround; `undefined` retains the old theme or neutral-grey behaviour. */
   editorCanvasBackground?: 'theme' | 'black' | 'dark-grey' | 'mid-grey' | 'white';
   canvasInputMode?: 'mouse' | 'trackpad';
+  compareMode?: CompareMode;
   whiteBalanceMode?: WhiteBalanceMode;
   zoomSpeedMultiplier?: number;
   zoomPhotoToPixelClick?: boolean;
   keybinds?: { [action: string]: string[] };
+  speedEditAdjustments?: string[];
   enableBaselineExposure?: boolean;
   autoLensCorrectionOnNewRaws?: boolean;
   baselineExposure?: number;

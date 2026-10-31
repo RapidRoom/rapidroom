@@ -9,12 +9,15 @@ import {
   Redo,
   Columns2,
   Frame,
-  SplitSquareVertical,
+  SquareSplitHorizontal,
+  SquareSplitVertical,
+  type LucideIcon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
-import { SelectedImage, GroupingMode } from '../../ui/AppProperties';
+import { type CompareMode, SelectedImage, GroupingMode } from '../../ui/AppProperties';
+import { ToolbarMenu, ToolbarMenuItem, useMenuDismiss } from './ToolbarMenu';
 import ShootingInfo from '../../ui/ShootingInfo';
 import Text from '../../ui/Text';
 import AppliedPresetBadge from '../../ui/AppliedPresetBadge';
@@ -26,6 +29,72 @@ import { findGroupVariants, getVariantLabel } from '../../../utils/imageGrouping
 import type { Adjustments } from '../../../utils/adjustments';
 import { describeHistoryChange, historyMenuPlacement } from '../../../utils/editHistory';
 
+const COMPARE_MODES = [
+  { mode: 'toggle', icon: Eye, label: 'editor.compare.toggle' },
+  { mode: 'vertical', icon: SquareSplitHorizontal, label: 'editor.compare.vertical' },
+  { mode: 'horizontal', icon: SquareSplitVertical, label: 'editor.compare.horizontal' },
+  { mode: 'sideBySide', icon: Columns2, label: 'editor.compare.sideBySide' },
+] as const satisfies ReadonlyArray<{ mode: CompareMode; icon: LucideIcon; label: string }>;
+
+interface CompareButtonProps {
+  compareMode: CompareMode;
+  isComparing: boolean;
+  onKeyDown(e: React.KeyboardEvent<HTMLButtonElement>): void;
+  onSelectMode(mode: CompareMode): void;
+  onToggle(): void;
+}
+
+function CompareButton({ compareMode, isComparing, onKeyDown, onSelectMode, onToggle }: CompareButtonProps) {
+  const { t } = useTranslation();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useMenuDismiss(containerRef, isMenuOpen, setIsMenuOpen);
+
+  const ModeIcon =
+    compareMode === 'toggle' && isComparing ? EyeOff : COMPARE_MODES.find((m) => m.mode === compareMode)!.icon;
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        className={clsx(
+          'p-2 rounded-full transition-colors',
+          isComparing
+            ? 'bg-accent text-button-text hover:bg-accent/90 hover:text-button-text'
+            : 'bg-surface hover:bg-card-active text-text-primary',
+        )}
+        onClick={onToggle}
+        onKeyDown={onKeyDown}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setIsMenuOpen((prev) => !prev);
+        }}
+        data-testid="editor-compare-toggle"
+        aria-label={t('editor.toolbar.tooltips.compare')}
+        aria-pressed={isComparing}
+        data-tooltip={t('editor.toolbar.tooltips.compare')}
+      >
+        <ModeIcon size={20} />
+      </button>
+
+      <ToolbarMenu isOpen={isMenuOpen} title={t('editor.compare.title')}>
+        {COMPARE_MODES.map(({ mode, icon, label }) => (
+          <ToolbarMenuItem
+            key={mode}
+            icon={icon}
+            isSelected={mode === compareMode}
+            label={t(label)}
+            onClick={() => {
+              onSelectMode(mode);
+              setIsMenuOpen(false);
+            }}
+            onKeyDown={onKeyDown}
+          />
+        ))}
+      </ToolbarMenu>
+    </div>
+  );
+}
+
 interface EditorToolbarProps {
   canRedo: boolean;
   canUndo: boolean;
@@ -35,14 +104,14 @@ interface EditorToolbarProps {
   onImageSelect?(path: string, event?: React.MouseEvent<HTMLButtonElement>): void;
   onRedo(): void;
   onToggleFullScreen(): void;
-  onToggleShowOriginal(): void;
+  onToggleCompare(): void;
+  onSelectCompareMode(mode: CompareMode): void;
   isReferenceViewActive?: boolean;
   onToggleReferenceView?(): void;
-  onToggleWipe?(): void;
-  isWipeActive?: boolean;
   onUndo(): void;
   selectedImage: SelectedImage;
-  showOriginal: boolean;
+  isComparing: boolean;
+  compareMode: CompareMode;
   adjustmentsHistory: Adjustments[];
   adjustmentsHistoryIndex: number;
   goToAdjustmentsHistoryIndex(index: number): void;
@@ -58,14 +127,14 @@ const EditorToolbar = memo(
     onImageSelect,
     onRedo,
     onToggleFullScreen,
-    onToggleShowOriginal,
+    onToggleCompare,
+    onSelectCompareMode,
     isReferenceViewActive = false,
     onToggleReferenceView,
-    onToggleWipe,
-    isWipeActive = false,
     onUndo,
     selectedImage,
-    showOriginal,
+    isComparing,
+    compareMode,
     adjustmentsHistory,
     adjustmentsHistoryIndex,
     goToAdjustmentsHistoryIndex,
@@ -413,21 +482,13 @@ const EditorToolbar = memo(
             </AnimatePresence>
           </div>
 
-          <button
-            className={clsx(
-              'p-1 rounded-full transition-colors',
-              showOriginal
-                ? 'bg-accent text-button-text hover:bg-accent/90 hover:text-button-text'
-                : 'bg-surface hover:bg-card-active text-text-primary',
-            )}
-            onClick={onToggleShowOriginal}
+          <CompareButton
+            compareMode={compareMode}
+            isComparing={isComparing}
+            onToggle={onToggleCompare}
+            onSelectMode={onSelectCompareMode}
             onKeyDown={handleButtonKeyDown}
-            data-tooltip={
-              showOriginal ? t('editor.toolbar.tooltips.showEdited') : t('editor.toolbar.tooltips.showOriginal')
-            }
-          >
-            {showOriginal ? <EyeOff size={20} /> : <Eye size={20} />}
-          </button>
+          />
           <button
             type="button"
             aria-label={t('export.instagram.guide')}
@@ -462,22 +523,6 @@ const EditorToolbar = memo(
               data-testid="editor-reference-view-toggle"
             >
               <Columns2 size={20} />
-            </button>
-          )}
-          {onToggleWipe && (
-            <button
-              className={clsx(
-                'p-1 rounded-full transition-colors',
-                isWipeActive ? 'bg-accent text-button-text' : 'bg-surface hover:bg-card-active text-text-primary',
-              )}
-              onClick={onToggleWipe}
-              onKeyDown={handleButtonKeyDown}
-              aria-pressed={isWipeActive}
-              aria-label="Compare versions"
-              data-tooltip="Compare versions (C)"
-              data-testid="editor-compare-wipe-toggle"
-            >
-              <SplitSquareVertical size={20} />
             </button>
           )}
           <button

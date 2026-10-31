@@ -997,6 +997,8 @@ fn estimate_export_memory(
     is_raw: bool,
     loaded_dimensions: Option<(u32, u32)>,
     mask_count: usize,
+    output_format: &str,
+    jpeg_quality: u8,
 ) -> u64 {
     let pixels = loaded_dimensions
         .map(|(w, h)| w as u64 * h as u64)
@@ -1007,8 +1009,17 @@ fn estimate_export_memory(
     };
 
     let bytes_per_pixel = if is_raw { 48 } else { 40 }
-        + 6 * mask_count.min(crate::image_processing::MAX_MASKS) as u64;
+        + 6 * mask_count.min(crate::image_processing::MAX_MASKS) as u64
+        + encoder_bytes_per_pixel(output_format, jpeg_quality);
     pixels * bytes_per_pixel
+}
+
+fn encoder_bytes_per_pixel(output_format: &str, jpeg_quality: u8) -> u64 {
+    match output_format.to_lowercase().as_str() {
+        "jxl" if jpeg_quality == 100 => 90,
+        "jxl" => 170,
+        _ => 0,
+    }
 }
 
 fn ensure_export_not_cancelled(cancellation_token: &AtomicBool) -> Result<(), String> {
@@ -1244,6 +1255,7 @@ pub(crate) fn process_source_view(
             lut: options.lut.clone(),
             mask_cache_key: None,
             roi: None,
+            hsl_probe: false,
         },
         debug_tag,
         options.output_precision,
@@ -1440,14 +1452,15 @@ fn encode_image_to_bytes(
             let has_alpha = image.color().has_alpha();
 
             let jxl_data = if jpeg_quality == 100 {
+                let config = LosslessConfig::new().with_tree_learning(false);
                 if has_alpha {
                     let rgba = image.to_rgba8();
-                    LosslessConfig::new()
+                    config
                         .encode(rgba.as_raw(), width, height, PixelLayout::Rgba8)
                         .map_err(|e| format!("Failed to encode lossless JXL: {}", e))?
                 } else {
                     let rgb = image.to_rgb8();
-                    LosslessConfig::new()
+                    config
                         .encode(rgb.as_raw(), width, height, PixelLayout::Rgb8)
                         .map_err(|e| format!("Failed to encode lossless JXL: {}", e))?
                 }
@@ -1694,6 +1707,7 @@ fn export_masks_for_image(
                     mask_cache_key: None,
                     lut: lut.clone(),
                     roi: None,
+                    hsl_probe: false,
                 },
                 "export_mask_image",
                 render_output_precision(extension, export_settings),
@@ -1818,6 +1832,7 @@ fn export_adjustments_as_lut(
             mask_cache_key: None,
             lut,
             roi: None,
+            hsl_probe: false,
         },
         "export_lut",
     )?;
@@ -2318,6 +2333,8 @@ pub(crate) async fn export_images_impl(
                             .as_ref()
                             .map(|loaded| (loaded.image.width(), loaded.image.height())),
                         js_adjustments["masks"].as_array().map_or(0, |m| m.len()),
+                        &output_format,
+                        export_settings.jpeg_quality,
                     );
                     let Some(_export_reservation) =
                         memory_budget.reserve(estimated_memory, Some(&cancellation_token_clone))
@@ -2542,6 +2559,47 @@ pub(crate) async fn export_images_impl(
 }
 
 #[allow(clippy::too_many_arguments)]
+pub(crate) async fn export_images_and_wait(
+    paths: Vec<String>,
+    output_folder_or_file: String,
+    is_explicit_file_path: bool,
+    base_origin_folders: Vec<String>,
+    export_settings: ExportSettings,
+    output_format: String,
+    adjustments_mode: ExportAdjustmentsMode,
+    state: tauri::State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    export_images_impl(
+        paths,
+        output_folder_or_file,
+        is_explicit_file_path,
+        base_origin_folders,
+        export_settings,
+        output_format,
+        adjustments_mode,
+        state,
+        app_handle,
+        Some(tx),
+    )
+    .await?;
+
+    match rx.await {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(errors)) => Err(match errors.as_slice() {
+            [error] => error.clone(),
+            _ => format!(
+                "{} exports failed:\n  {}",
+                errors.len(),
+                errors.join("\n  ")
+            ),
+        }),
+        Err(_) => Err("Export task panicked or was cancelled.".to_string()),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn export_images(
     paths: Vec<String>,
@@ -2701,8 +2759,6 @@ pub async fn run_headless_export(
         );
     }
 
-    let (tx, rx) = tokio::sync::oneshot::channel();
-
     let mode = if let Some(adj) = custom_adjustments {
         ExportAdjustmentsMode::GlobalOverride(adj)
     } else {
@@ -2712,7 +2768,7 @@ pub async fn run_headless_export(
         }
     };
 
-    export_images_impl(
+    export_images_and_wait(
         paths,
         session.output,
         is_explicit_file_path,
@@ -2722,26 +2778,12 @@ pub async fn run_headless_export(
         mode,
         state.clone(),
         app_handle.clone(),
-        Some(tx),
     )
-    .await?;
-
-    match rx.await {
-        Ok(Ok(())) => Ok(()),
-        Ok(Err(errors)) => Err(match errors.as_slice() {
-            [error] => error.clone(),
-            _ => format!(
-                "{} exports failed:\n  {}",
-                errors.len(),
-                errors.join("\n  ")
-            ),
-        }),
-        Err(_) => Err("Export task panicked or was cancelled.".to_string()),
-    }
+    .await
 }
 
 #[cfg(feature = "mcp")]
-pub(crate) async fn export_images_and_wait(
+pub(crate) async fn export_request_and_wait(
     request: ExportRequest,
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
@@ -2961,6 +3003,7 @@ pub async fn estimate_export_sizes(
                 mask_cache_key: None,
                 lut,
                 roi: None,
+                hsl_probe: false,
             },
             "estimate_export_size",
             render_output_precision(&output_format, &export_settings),
@@ -3090,6 +3133,7 @@ pub async fn estimate_export_sizes(
                 mask_cache_key: None,
                 lut,
                 roi: None,
+                hsl_probe: false,
             },
             "estimate_batch_export_size",
             render_output_precision(&output_format, &export_settings),
