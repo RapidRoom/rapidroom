@@ -513,6 +513,7 @@ export interface Preset {
   includeMasks?: boolean;
   includeCropTransform?: boolean;
   presetType?: 'tool' | 'style';
+  curvePreset?: boolean;
   favorite?: boolean;
   cameraModelRestriction?: string;
   unavailableReason?: string;

@@ -1,0 +1,14 @@
+{
+  "id": "curve-presets",
+  "title": "Save and reapply named tone curves",
+  "category": "feature",
+  "landed": "2026-10-28",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "highlight": "Save named curve presets and reapply them directly from the Curves panel.",
+  "notes": "Curve presets include luma and RGB point or parametric curve state, use fresh-default Tool-preset semantics, and are stored in the exportable user preset catalog."
+}
