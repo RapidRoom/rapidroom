@@ -8487,7 +8487,12 @@ mod tests {
             serde_json::json!({"temperature": 3771.0, "tint": 20.0})
         );
         assert_eq!(absolute.metadata.adjustments["exposure"], 0.5);
-        assert!(!absolute.not_transferred.contains(&"whiteBalance"));
+        assert!(
+            !absolute
+                .not_transferred
+                .iter()
+                .any(|item| item == "whiteBalance")
+        );
 
         fs::write(
             &xmp,
@@ -8508,7 +8513,12 @@ mod tests {
         );
         assert_eq!(relative.metadata.adjustments["tint"], -4.0);
         assert_eq!(relative.metadata.adjustments["whiteBalance"], Value::Null);
-        assert!(!relative.not_transferred.contains(&"whiteBalance"));
+        assert!(
+            !relative
+                .not_transferred
+                .iter()
+                .any(|item| item == "whiteBalance")
+        );
     }
 
     #[test]
