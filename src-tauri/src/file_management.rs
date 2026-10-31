@@ -3445,11 +3445,41 @@ pub async fn save_metadata_and_update_thumbnail(
     .map_err(|error| error.to_string())?
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct HistorySaveReport {
+    adjustments: Value,
+    history_warning: Option<String>,
+}
+
+#[tauri::command]
+pub(crate) async fn save_metadata_and_edit_history(
+    path: String,
+    adjustments: Value,
+    history: Value,
+    app_handle: AppHandle,
+) -> Result<HistorySaveReport, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        save_editor_develop_blocking(path, adjustments, Some(history), app_handle)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 fn save_metadata_and_update_thumbnail_blocking(
     path: String,
     adjustments: Value,
     app_handle: AppHandle,
 ) -> Result<(), String> {
+    save_editor_develop_blocking(path, adjustments, None, app_handle).map(|_| ())
+}
+
+fn save_editor_develop_blocking(
+    path: String,
+    adjustments: Value,
+    history: Option<Value>,
+    app_handle: AppHandle,
+) -> Result<HistorySaveReport, String> {
     let state = app_handle.state::<AppState>();
     let (source_path, sidecar_path) = parse_virtual_path(&path);
     ensure_card_writable(&source_path)?;
@@ -3463,28 +3493,35 @@ fn save_metadata_and_update_thumbnail_blocking(
     let exif = crate::exif_processing::load_sidecar_with_exif(&sidecar_path, &source_path).exif;
     let mut had_ai_work = false;
     let mut stripped_ai_results = false;
-    let metadata = save_develop_metadata(&source_path, &sidecar_path, &settings, |current| {
-        if current.exif.is_none() {
-            current.exif = exif;
-        }
-        had_ai_work = crate::ai_jobs::needs_generation(&current.adjustments, &source_path);
-        let mut final_adjustments = adjustments;
-        stripped_ai_results = source_id.as_ref().is_some_and(|source_id| {
-            crate::ai_jobs::reconcile_ai_results(
+    let requested_adjustments = adjustments.clone();
+    let (metadata, history_warning) = save_develop_metadata_with_history(
+        &source_path,
+        &sidecar_path,
+        &settings,
+        history.map(|history| (requested_adjustments, history)),
+        |current| {
+            if current.exif.is_none() {
+                current.exif = exif;
+            }
+            had_ai_work = crate::ai_jobs::needs_generation(&current.adjustments, &source_path);
+            let mut final_adjustments = adjustments;
+            stripped_ai_results = source_id.as_ref().is_some_and(|source_id| {
+                crate::ai_jobs::reconcile_ai_results(
+                    &mut final_adjustments,
+                    &current.adjustments,
+                    source_id,
+                    true,
+                )
+            });
+            resolve_lens_params_in_adjustments(
                 &mut final_adjustments,
-                &current.adjustments,
-                source_id,
-                true,
-            )
-        });
-        resolve_lens_params_in_adjustments(
-            &mut final_adjustments,
-            &current.exif,
-            lens_db.as_deref(),
-            &source_path,
-        );
-        current.adjustments = final_adjustments;
-    })?;
+                &current.exif,
+                lens_db.as_deref(),
+                &source_path,
+            );
+            current.adjustments = final_adjustments;
+        },
+    )?;
 
     if stripped_ai_results {
         crate::ai_jobs::enqueue(&app_handle, std::slice::from_ref(&path), true);
@@ -3494,7 +3531,10 @@ fn save_metadata_and_update_thumbnail_blocking(
     }
 
     queue_import_thumbnail_refresh(path, app_handle.clone(), &state);
-    Ok(())
+    Ok(HistorySaveReport {
+        adjustments: metadata.adjustments,
+        history_warning,
+    })
 }
 
 fn queue_import_thumbnail_refresh(
@@ -4600,8 +4640,19 @@ pub(crate) fn save_develop_metadata(
     settings: &crate::app_settings::AppSettings,
     update: impl FnOnce(&mut ImageMetadata),
 ) -> Result<ImageMetadata, String> {
+    save_develop_metadata_with_history(source, sidecar, settings, None, update)
+        .map(|(metadata, _)| metadata)
+}
+
+fn save_develop_metadata_with_history(
+    source: &Path,
+    sidecar: &Path,
+    settings: &crate::app_settings::AppSettings,
+    history: Option<(Value, Value)>,
+    update: impl FnOnce(&mut ImageMetadata),
+) -> Result<(ImageMetadata, Option<String>), String> {
     let _guard = crate::jpeg_culling::action_guard()?;
-    let metadata = update_sidecar(sidecar, update)?;
+    let (metadata, warning) = update_sidecar_with_history(sidecar, history, update)?;
     if settings.enable_xmp_sync.unwrap_or(false) {
         sync_metadata_to_xmp(
             source,
@@ -4610,7 +4661,7 @@ pub(crate) fn save_develop_metadata(
             settings.create_xmp_if_missing.unwrap_or(false),
         );
     }
-    Ok(metadata)
+    Ok((metadata, warning))
 }
 
 fn metadata_bytes_preserving_owned(
@@ -4695,6 +4746,14 @@ pub(crate) fn update_sidecar(
     sidecar_path: &Path,
     update: impl FnOnce(&mut ImageMetadata),
 ) -> Result<ImageMetadata, String> {
+    update_sidecar_with_history(sidecar_path, None, update).map(|(metadata, _)| metadata)
+}
+
+pub(crate) fn update_sidecar_with_history(
+    sidecar_path: &Path,
+    history: Option<(Value, Value)>,
+    update: impl FnOnce(&mut ImageMetadata),
+) -> Result<(ImageMetadata, Option<String>), String> {
     let _guard = lock_sidecar(sidecar_path).map_err(|e| e.to_string())?;
     let mut metadata = crate::exif_processing::load_sidecar_unlocked(sidecar_path);
     update(&mut metadata);
@@ -4706,7 +4765,16 @@ pub(crate) fn update_sidecar(
             sidecar_path.display()
         )
     })?;
-    Ok(metadata)
+    let warning = history.and_then(|(requested, history)| {
+        crate::edit_history::write_history_locked(
+            sidecar_path,
+            &metadata.adjustments,
+            &requested,
+            history,
+        )
+        .err()
+    });
+    Ok((metadata, warning))
 }
 
 fn update_metadata_for_paths(

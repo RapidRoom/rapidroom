@@ -1,0 +1,12 @@
+{
+  "id": "saved-history-storage",
+  "title": "Add saved edit-history storage groundwork",
+  "category": "feature",
+  "landed": "2026-10-30",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Parked, uncompiled draft for the approved separate .rrhistory design. Storage types and opt-in commands are scaffolded; companion-file handling, editor integration, the History panel, numeric start/end labels and validation remain unfinished. Not ready to merge."
+}
