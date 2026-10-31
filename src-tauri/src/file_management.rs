@@ -4462,6 +4462,7 @@ pub async fn apply_auto_lens_correction_to_paths(
         .clone();
 
     let sidecar_paths = paths.clone();
+    let history_app = app_handle.clone();
     tauri::async_runtime::spawn_blocking(move || {
         sidecar_paths.par_iter().for_each(|path| {
             let (source_path, sidecar_path) = parse_virtual_path(path);
@@ -4492,7 +4493,7 @@ pub async fn apply_auto_lens_correction_to_paths(
             );
 
             report_history_warning(
-                &app_handle,
+                &history_app,
                 path,
                 save_recorded_metadata(
                     &sidecar_path,
