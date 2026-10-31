@@ -92,6 +92,25 @@ pub struct CustomAspectRatio {
     pub height: f64,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum EditInMode {
+    #[default]
+    Original,
+    Rendered,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct EditInApp {
+    pub name: String,
+    pub path: String,
+    #[serde(default)]
+    pub args: String,
+    #[serde(default)]
+    pub mode: EditInMode,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum PasteMode {
@@ -672,6 +691,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub editor_neutral_grey_bg: Option<bool>,
     #[serde(default)]
+    pub editor_canvas_background: Option<String>,
+    #[serde(default)]
     pub canvas_input_mode: Option<String>,
     #[serde(default)]
     pub compare_mode: Option<String>,
@@ -758,6 +779,8 @@ pub struct AppSettings {
     pub auto_lens_correction_on_new_raws: Option<bool>,
     #[serde(default)]
     pub custom_aspect_ratios: Vec<CustomAspectRatio>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub edit_in_apps: Vec<EditInApp>,
     #[serde(default)]
     pub adjustment_layout: AdjustmentLayout,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -846,6 +869,7 @@ impl Default for AppSettings {
             #[cfg(not(any(target_os = "linux", target_os = "android")))]
             use_wgpu_renderer: Some(true),
             editor_neutral_grey_bg: Some(false),
+            editor_canvas_background: None,
             canvas_input_mode: Some("mouse".to_string()),
             compare_mode: None,
             white_balance_mode: None,
@@ -895,6 +919,7 @@ impl Default for AppSettings {
             always_decode_raw_thumbnails: Some(false),
             auto_lens_correction_on_new_raws: Some(true),
             custom_aspect_ratios: Vec::new(),
+            edit_in_apps: Vec::new(),
             adjustment_layout: AdjustmentLayout::default(),
             adjustment_density: None,
             workspace: WorkspaceState::default(),
@@ -1085,5 +1110,18 @@ mod tests {
 
         let reloaded: AppSettings = serde_json::from_value(saved).unwrap();
         assert_eq!(reloaded.adjustment_density.as_deref(), Some("compact"));
+    }
+
+    #[test]
+    fn editor_canvas_background_round_trips() {
+        let mut saved = serde_json::to_value(AppSettings::default()).unwrap();
+        saved["editorCanvasBackground"] = serde_json::json!("white");
+
+        let reloaded: AppSettings = serde_json::from_value(saved).unwrap();
+        assert_eq!(reloaded.editor_canvas_background.as_deref(), Some("white"));
+        assert_eq!(
+            serde_json::to_value(reloaded).unwrap()["editorCanvasBackground"],
+            "white"
+        );
     }
 }
