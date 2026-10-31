@@ -29,9 +29,10 @@ def run_saved_history(smoke, wait_for):
           input.dispatchEvent(new Event('input',{bubbles:true}));return true;""", [value])
         click_text('Save')
 
-    smoke.drag('Exposure', .4)
+    exposure_edit = smoke.drag('Exposure', .4)
+    exposure = exposure_edit['after']['value']
     smoke.stable_preview('history-exposure')
-    wait_for(lambda: document() and document()['steps'][-1]['adjustments']['exposure'] == .4, 'saved exposure History')
+    wait_for(lambda: document() and document()['steps'][-1]['adjustments']['exposure'] == exposure, 'saved exposure History')
     tab('history')
     wait_for(lambda: smoke.execute("return !!document.querySelector('[aria-label=History] [aria-current=step]');"), 'History panel')
     click_text('+ Snapshot')
@@ -47,14 +48,17 @@ def run_saved_history(smoke, wait_for):
     original_snapshot = document()['snapshots'][0]
     snapshot_capture = smoke.capture('history-snapshot')
     tab('adjustments')
-    smoke.drag('Contrast', 12)
+    contrast = smoke.drag('Contrast', 12)['after']['value']
     smoke.stable_preview('history-contrast')
-    wait_for(lambda: document() and document()['steps'][-1]['adjustments']['contrast'] == 12, 'contrast step saved')
+    wait_for(lambda: document() and document()['steps'][-1]['adjustments']['contrast'] == contrast, 'contrast step saved')
     tab('history')
     current = document()
     contrast_id = current['currentStepId']
+    def number(value):
+        return ('+' if value > 0 else '') + str(round(value, 4)).removesuffix('.0')
+    expected_label = f"Exposure {number(exposure_edit['before']['value'])} → {number(exposure)}"
     smoke.execute("""const buttons=[...document.querySelectorAll('[aria-label=History] button[data-history-row]')];
-      const e=buttons.find(e=>e.title.includes('Exposure 0 → +0.4'));if(!e)throw Error('Numeric transition absent');e.click();return true;""")
+      const e=buttons.find(e=>e.title.endsWith(arguments[0]));if(!e)throw Error('Numeric transition absent');e.click();return true;""", [expected_label])
     wait_for(lambda: document() and document()['currentStepId'] != contrast_id, 'jump saved current ID')
     focused = smoke.execute("""const e=document.querySelector('[aria-label=History] [aria-current=step]');e.focus();
       e.dispatchEvent(new KeyboardEvent('keydown',{key:'Home',bubbles:true,cancelable:true}));
@@ -63,9 +67,9 @@ def run_saved_history(smoke, wait_for):
         raise RuntimeError('History Home key did not focus the first visual row')
     branch_capture = smoke.capture('history-earlier-step')
     tab('adjustments')
-    smoke.drag('Contrast', -10)
+    branch_contrast = smoke.drag('Contrast', -10)['after']['value']
     smoke.stable_preview('history-branched')
-    wait_for(lambda: document() and document()['steps'][-1]['adjustments']['contrast'] == -10, 'branched History saved')
+    wait_for(lambda: document() and document()['steps'][-1]['adjustments']['contrast'] == branch_contrast, 'branched History saved')
     if contrast_id in [step['id'] for step in document()['steps']]:
         raise RuntimeError('Abandoned redo step remained in History')
     if document()['snapshots'][0] != original_snapshot:
