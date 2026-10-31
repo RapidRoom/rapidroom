@@ -296,6 +296,7 @@ export interface Adjustments {
   contrast: number;
   curves: Curves;
   pointCurves?: Curves;
+  nestedLookCurves?: NestedLookCurve[];
   parametricCurve?: ParametricCurve;
   curveMode?: 'point' | 'parametric';
   crop: Crop | null;
@@ -450,6 +451,11 @@ export interface Curves {
   green: Array<Coord>;
   luma: Array<Coord>;
   red: Array<Coord>;
+}
+
+export interface NestedLookCurve {
+  amount: number;
+  points: Coord[];
 }
 
 export function buildParametricCurvePoints(settings: ParametricCurveSettings): Array<Coord> {
@@ -855,9 +861,14 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
         colorGrading: normalizeColorGrading(containerAdjustments.colorGrading),
         hsl: normalizeHsl(containerAdjustments.hsl, INITIAL_MASK_ADJUSTMENTS.hsl),
         curves: containerAdjustments.curves ? deepCloneCurves(containerAdjustments.curves) : getDefaultCurves(),
-        pointCurves: containerAdjustments.pointCurves
-          ? deepCloneCurves(containerAdjustments.pointCurves)
-          : getDefaultCurves(),
+        pointCurves:
+          containerAdjustments.curveMode === 'parametric'
+            ? containerAdjustments.pointCurves
+              ? deepCloneCurves(containerAdjustments.pointCurves)
+              : getDefaultCurves()
+            : containerAdjustments.curves
+              ? deepCloneCurves(containerAdjustments.curves)
+              : getDefaultCurves(),
         parametricCurve: containerAdjustments.parametricCurve
           ? deepCloneParametric(containerAdjustments.parametricCurve)
           : getDefaultParametricCurve(),
@@ -953,7 +964,20 @@ export const normalizeLoadedAdjustments = (loadedAdjustments: Adjustments): any 
     monochromeMix: { ...INITIAL_ADJUSTMENTS.monochromeMix, ...(loadedAdjustments.monochromeMix || {}) },
     monochromeToning: { ...INITIAL_ADJUSTMENTS.monochromeToning, ...(loadedAdjustments.monochromeToning || {}) },
     curves: loadedAdjustments.curves ? deepCloneCurves(loadedAdjustments.curves) : getDefaultCurves(),
-    pointCurves: loadedAdjustments.pointCurves ? deepCloneCurves(loadedAdjustments.pointCurves) : getDefaultCurves(),
+    pointCurves:
+      loadedAdjustments.curveMode !== 'parametric' && !loadedAdjustments.nestedLookCurves?.length
+        ? loadedAdjustments.curves
+          ? deepCloneCurves(loadedAdjustments.curves)
+          : getDefaultCurves()
+        : loadedAdjustments.pointCurves
+          ? deepCloneCurves(loadedAdjustments.pointCurves)
+          : getDefaultCurves(),
+    nestedLookCurves: Array.isArray(loadedAdjustments.nestedLookCurves)
+      ? loadedAdjustments.nestedLookCurves.map((look) => ({
+          amount: look.amount,
+          points: look.points.map((point) => ({ ...point })),
+        }))
+      : [],
     parametricCurve: loadedAdjustments.parametricCurve
       ? deepCloneParametric(loadedAdjustments.parametricCurve)
       : getDefaultParametricCurve(),
@@ -998,7 +1022,7 @@ export const ADJUSTMENT_GROUPS: Record<string, AdjustmentGroup[]> = {
     },
     {
       label: 'modals.copyPaste.groups.curves',
-      keys: ['curves', 'pointCurves', 'parametricCurve', 'curveMode'],
+      keys: ['curves', 'pointCurves', 'parametricCurve', 'curveMode', 'nestedLookCurves'],
     },
   ],
   color: [
@@ -1190,7 +1214,7 @@ export const ADJUSTMENT_SECTIONS: Sections = {
     'cameraExposureCompensation',
     'toneMapper',
   ],
-  curves: ['curves', 'pointCurves', 'parametricCurve', 'curveMode'],
+  curves: ['curves', 'pointCurves', 'parametricCurve', 'curveMode', 'nestedLookCurves'],
   color: [
     ColorAdjustment.Saturation,
     ColorAdjustment.Temperature,

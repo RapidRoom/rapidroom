@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { filterPresetLibrary, presetUnavailableReason } from './presetBrowser';
-import { mixAdjustments, presetCurveY } from './presetAmount';
-import { INITIAL_ADJUSTMENTS } from './adjustments';
+import { composeParametricCurves, mixAdjustments, presetCurveY } from './presetAmount';
+import {
+  DEFAULT_PARAMETRIC_CURVE_SETTINGS,
+  INITIAL_ADJUSTMENTS,
+  buildParametricCurvePoints,
+  type Adjustments,
+} from './adjustments';
 import type { Preset } from '../components/ui/AppProperties';
 const preset = (name: string, extra: Partial<Preset> = {}): Preset => ({ id: name, name, adjustments: {}, ...extra });
 
@@ -28,6 +33,88 @@ describe('preset browser', () => {
   });
 });
 describe('preset Amount', () => {
+  it('keeps parametric preset fields sparse and composes them over the point curves', () => {
+    const pointCurves = {
+      ...INITIAL_ADJUSTMENTS.curves,
+      luma: [
+        { x: 0, y: 8 },
+        { x: 128, y: 140 },
+        { x: 255, y: 255 },
+      ],
+    };
+    const before: Adjustments = {
+      ...INITIAL_ADJUSTMENTS,
+      curves: pointCurves,
+      curveMode: 'point',
+      parametricCurve: {
+        luma: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS, darks: 17 },
+        red: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS },
+        green: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS },
+        blue: { ...DEFAULT_PARAMETRIC_CURVE_SETTINGS },
+      },
+    };
+    const presetPatch: Partial<Adjustments> = {
+      curveMode: 'parametric',
+      parametricCurve: { luma: { shadows: -50 } } as unknown as Adjustments['parametricCurve'],
+      pointCurves: { luma: pointCurves.luma } as unknown as Adjustments['pointCurves'],
+    };
+
+    const result = mixAdjustments(presetPatch, 100, before);
+    expect(result.curveMode).toBe('parametric');
+    expect(result.parametricCurve?.luma.shadows).toBe(-50);
+    expect(result.parametricCurve?.luma.darks).toBe(17);
+    expect(result.pointCurves?.luma).toEqual(pointCurves.luma);
+    expect(result.curves?.luma).toHaveLength(16);
+    expect(result.curves?.luma).not.toEqual(pointCurves.luma);
+    const sample = result.curves?.luma.find((point) => point.x === 136);
+    const parametric = buildParametricCurvePoints({
+      ...DEFAULT_PARAMETRIC_CURVE_SETTINGS,
+      shadows: -50,
+      darks: 17,
+    });
+    expect(sample?.y).toBe(Math.round(presetCurveY(pointCurves.luma, presetCurveY(parametric, 136))));
+    expect(result.curves?.red).toEqual(before.curves.red);
+  });
+
+  it('composes a preset over raw point curves when point mode retains a nested look', () => {
+    const lookPoints = [
+      { x: 0, y: 12 },
+      { x: 128, y: 165 },
+      { x: 255, y: 255 },
+    ];
+    const rawPointCurves = INITIAL_ADJUSTMENTS.curves;
+    const before: Adjustments = {
+      ...INITIAL_ADJUSTMENTS,
+      curveMode: 'point',
+      curves: { ...rawPointCurves, luma: lookPoints },
+      pointCurves: rawPointCurves,
+      nestedLookCurves: [{ amount: 1, points: lookPoints }],
+    };
+    const patch: Partial<Adjustments> = {
+      curveMode: 'parametric',
+      parametricCurve: { luma: { highlights: 20 } } as unknown as Adjustments['parametricCurve'],
+    };
+
+    const result = mixAdjustments(patch, 100, before);
+    expect(result.pointCurves).toEqual(rawPointCurves);
+    expect(result.curves).toEqual(
+      composeParametricCurves(result.parametricCurve!, rawPointCurves, before.nestedLookCurves),
+    );
+    expect(result.curves?.luma.find((point) => point.x === 136)?.y).toBe(176);
+  });
+
+  it('keeps an explicit zero parametric curve exactly equal to its point curve', () => {
+    const before: Adjustments = { ...INITIAL_ADJUSTMENTS, curveMode: 'point' };
+    const presetPatch: Partial<Adjustments> = {
+      curveMode: 'parametric',
+      parametricCurve: { luma: { shadows: 0 } } as unknown as Adjustments['parametricCurve'],
+      pointCurves: { luma: before.curves.luma } as unknown as Adjustments['pointCurves'],
+    };
+    const result = mixAdjustments(presetPatch, 100, before);
+
+    expect(result.curves?.luma).toEqual(before.curves.luma);
+  });
+
   it('scales from before the preset and preserves omitted/nested settings', () => {
     const before = {
       ...INITIAL_ADJUSTMENTS,

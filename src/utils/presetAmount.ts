@@ -1,4 +1,10 @@
-import type { Adjustments } from './adjustments';
+import {
+  buildParametricCurvePoints,
+  type Adjustments,
+  type Curves,
+  type NestedLookCurve,
+  type ParametricCurve,
+} from './adjustments';
 import type { Preset } from '../components/ui/AppProperties';
 import schema from '../../rapidroom/adjustment-schema.json';
 import { normalizeLensPolicyVersion } from './lensPolicyVersion';
@@ -59,6 +65,50 @@ export const presetCurveY = (points: Point[], x: number): number => {
   }
   return points[points.length - 1].y;
 };
+
+const DEFAULT_POINT_CURVE: Point[] = [
+  { x: 0, y: 0 },
+  { x: 255, y: 255 },
+];
+
+/** The renderer stores a baked master curve, so preserve Lightroom's look,
+ * parametric, then point-curve order when editable inputs change. */
+export function composeParametricCurves(
+  parametric: ParametricCurve,
+  pointCurves: Curves,
+  nestedLookCurves: NestedLookCurve[] = [],
+): Curves {
+  const channels = ['luma', 'red', 'green', 'blue'] as const;
+  return Object.fromEntries(
+    channels.map((channel) => {
+      const settings = parametric[channel];
+      const points = pointCurves[channel] ?? DEFAULT_POINT_CURVE;
+      const isIdentity =
+        settings.shadows === 0 &&
+        settings.darks === 0 &&
+        settings.lights === 0 &&
+        settings.highlights === 0 &&
+        settings.blackLevel === 0 &&
+        settings.whiteLevel === 0;
+      if (isIdentity && (channel !== 'luma' || nestedLookCurves.length === 0)) return [channel, points];
+
+      const parametricPoints = buildParametricCurvePoints(settings);
+      const combined = Array.from({ length: 16 }, (_, index) => {
+        const x = Math.round((index * 255) / 15);
+        let input = x;
+        if (channel === 'luma') {
+          for (const look of nestedLookCurves) {
+            const amount = Math.max(0, look.amount);
+            input += amount * (presetCurveY(look.points, input) - input);
+          }
+        }
+        const y = presetCurveY(points, presetCurveY(parametricPoints, input));
+        return { x, y: Math.round(y) };
+      });
+      return [channel, combined];
+    }),
+  ) as Curves;
+}
 
 // A neutral wheel's hue is invisible: preserve the coloured wheel while its
 // saturation fades. Two coloured wheels travel along the shortest hue arc.
@@ -126,11 +176,25 @@ export function mixAdjustments(
     }
     return target;
   };
-  const mixed = blend(preset, before, '') as Partial<Adjustments>;
-  if (preset.exposure !== undefined && preset.cameraExposureCompensation === undefined) {
-    mixed.cameraExposureCompensation = false;
+  const hasRetainedLook = (before.nestedLookCurves?.length ?? 0) > 0;
+  const pointSource =
+    before.curveMode === 'parametric' || hasRetainedLook ? (before.pointCurves ?? before.curves) : before.curves;
+  const baseline = { ...before, pointCurves: pointSource };
+  const result = blend(preset, baseline, '') as Partial<Adjustments>;
+  if (preset.curveMode === 'parametric' && preset.parametricCurve && result.parametricCurve) {
+    const pointCurves = preset.pointCurves ? (result.pointCurves ?? pointSource) : pointSource;
+    result.pointCurves = pointCurves;
+    result.curveMode = 'parametric';
+    result.curves = composeParametricCurves(
+      result.parametricCurve,
+      pointCurves as Curves,
+      result.nestedLookCurves ?? before.nestedLookCurves,
+    );
   }
-  return normalizeLensPolicyVersion(mixed, preset, before, fraction * 100);
+  if (preset.exposure !== undefined && preset.cameraExposureCompensation === undefined) {
+    result.cameraExposureCompensation = false;
+  }
+  return normalizeLensPolicyVersion(result, preset, before, fraction * 100);
 }
 
 // Style masks are additions to the existing edit. Templates use unit image

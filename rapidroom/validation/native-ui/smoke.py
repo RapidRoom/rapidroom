@@ -435,6 +435,23 @@ class Smoke:
         if (self.case / "xmp-photo-policy-test.json").exists():
             from xmp_photo_policy import run_photo_policy_checks
             run_photo_policy_checks(self, wait_for)
+        if (self.case / "lightroom-import-test.json").exists():
+            from lightroom_import import run_lightroom_import_checks
+            run_lightroom_import_checks(self, wait_for, baseline)
+            final = self.snapshot("final")
+            if final["errors"]:
+                raise RuntimeError("Frontend errors: " + str(final["errors"]))
+            request(self.url + "/window", method="DELETE")
+            app.wait(timeout=10)
+            if app.returncode != 0:
+                raise RuntimeError("App did not quit cleanly")
+            native_errors = [line for line in (self.case / "app.log").read_text().splitlines()
+                             if re.search(r"\[ERROR\]|CRITICAL|panicked at|Segmentation fault", line)]
+            if native_errors:
+                raise RuntimeError("Native errors: " + str(native_errors))
+            self.step("clean exit and no frontend/native errors", {"exit_code": app.returncode})
+            self.result["passed"] = True
+            return
         if (self.case / "untrusted-text-test.json").exists():
             from untrusted_text import run_untrusted_checks
             run_untrusted_checks(self.case, self, wait_for, baseline)
@@ -605,7 +622,7 @@ def launch(args):
         raise RuntimeError("Fixture differs from the published CC0 corpus")
     env = os.environ.copy()
     env["PYTHONDONTWRITEBYTECODE"] = "1"
-    if args.mcp_clients and not args.crop_noop:
+    if args.mcp_clients and not args.crop_noop and not args.lightroom_import:
         # Resolve version-manager wrappers before isolating the app's XDG paths.
         for name in ("claude", "codex"):
             binary = shutil.which(name)
@@ -714,6 +731,8 @@ def launch(args):
         save(case / "lightroom-ai-masks-test.json", {"digest":data[20:36].hex().upper(),"real_model_requests":False})
     if args.xmp_photo_policy:
         save(case / "xmp-photo-policy-test.json", {"issue": 218, "real_model_requests": False})
+    if args.lightroom_import:
+        save(case / "lightroom-import-test.json", {"issues": [214, 215], "real_model_requests": False})
     if args.crs_interop:
         save(case / "crs-interop-test.json", {"issue": 161, "real_model_requests": False})
     if args.untrusted_text:
@@ -721,7 +740,7 @@ def launch(args):
     if args.crop_noop:
         save(case / "crop-noop-test.json", {"issue": 149, "real_model_requests": False})
     if args.mcp_clients:
-        if not args.crop_noop and not args.mcp_compact_baseline and not args.untrusted_text and not args.crs_interop and not args.lightroom_ai_masks and not args.xmp_photo_policy:
+        if not args.crop_noop and not args.mcp_compact_baseline and not args.untrusted_text and not args.crs_interop and not args.lightroom_ai_masks and not args.xmp_photo_policy and not args.lightroom_import:
             save(case / "mcp-clients-test.json", {"clients": ["claude", "codex"], "real_model_requests": True})
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
@@ -732,6 +751,11 @@ def launch(args):
          "lastRootPath": str(case / "input"), "language": "en", "useWgpuRenderer": False,
          "editorPreviewResolution": 1280, "decorations": False,
          "mcpEnabled": args.style_stack or (args.mcp_clients and not args.mcp_packaging)})
+    if args.lightroom_import:
+        settings_path = settings / "settings.json"
+        settings_data = json.loads(settings_path.read_text())
+        settings_data.update(enableXmpSync=False, createXmpIfMissing=False)
+        save(settings_path, settings_data)
     if args.mcp_packaging:
         initial = json.loads((settings / "settings.json").read_text())
         initial.pop("mcpEnabled")
@@ -860,6 +884,7 @@ def main():
     parser.add_argument("--jpeg-metadata", action="store_true", help="Check opt-in JPEG culling writes and Undo with independent ExifTool/pixel checks")
     parser.add_argument("--lightroom-ai-masks", type=Path, help="Import an authored synthetic ACR fixture and verify named refusals without model requests")
     parser.add_argument("--xmp-photo-policy", action="store_true", help="Synthetic photo AlreadyApplied, pending draft/history and reusable preset checks")
+    parser.add_argument("--lightroom-import", action="store_true", help="Exercise public Lightroom photo import defaults, parametric curves, and GUI Undo")
     parser.add_argument("--crs-interop", action="store_true", help="Check public CRS import and XML safety without model requests")
     parser.add_argument("--mask-drop", action="store_true", help="Check mask creation drop insertion on a sub-mask row")
     parser.add_argument("--untrusted-text", action="store_true", help="Check hostile descriptive text against real authenticated MCP without model requests")
@@ -875,7 +900,7 @@ def main():
     if args.dock_layout:
         args.terminal = True
         WIDTH, HEIGHT = 1800, 1048
-    if args.mcp_skill or args.mcp_masks or args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop or args.lightroom_ai_masks or args.xmp_photo_policy:
+    if args.mcp_skill or args.mcp_masks or args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop or args.lightroom_ai_masks or args.xmp_photo_policy or args.lightroom_import:
         args.mcp_clients = True
     if args.mcp_skill and (not args.skill_source or not args.skill_source.is_dir()):
         parser.error("--mcp-skill requires --skill-source matching the pinned app commit")

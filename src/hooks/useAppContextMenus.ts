@@ -68,6 +68,7 @@ import { useTranslation } from 'react-i18next';
 import { describeLightroomSettings, type LightroomSettingReport } from '../utils/lightroomImportReport';
 import { useContextMenu } from '../context/ContextMenuContext';
 import { useEditorStore } from '../store/useEditorStore';
+import { describeHistoryChange, sameAdjustmentValue } from '../utils/editHistory';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { JobKind, useProcessStore } from '../store/useProcessStore';
 import { useUIStore } from '../store/useUIStore';
@@ -364,8 +365,16 @@ export function useAppContextMenus(latestProps: UseAppContextMenusProps) {
       if (pause?.hasNewerDraft(targetPath)) return;
       if (editorState.selectedImage?.path === targetPath) {
         markEditorDraftPersisted(targetPath, normalized);
+        const previous = editorState.adjustments;
+        const currentHistory = editorState.history[editorState.historyIndex];
+        if (!sameAdjustmentValue(currentHistory, previous)) {
+          editorState.pushHistory(
+            previous,
+            currentHistory ? describeHistoryChange(currentHistory, previous, 'user') : undefined,
+          );
+        }
+        editorState.pushHistory(normalized, describeHistoryChange(previous, normalized, 'user'));
         editorState.setEditor({ adjustments: normalized });
-        editorState.resetHistory(normalized);
       }
 
       const libraryState = useLibraryStore.getState();
