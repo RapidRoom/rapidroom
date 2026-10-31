@@ -2932,6 +2932,17 @@ mod tests {
     }
 
     #[test]
+    fn scales_negative_dehaze_through_raw_sidecar_entry_point() {
+        let preset = convert_xmp_sidecar_to_preset_for_image(
+            r#"<rdf:Description crs:Dehaze="-40" />"#,
+            Path::new("photo.ARW"),
+        )
+        .unwrap();
+
+        assert_eq!(preset.adjustments["dehaze"], json!(-5.0));
+    }
+
+    #[test]
     fn prefers_pv2012_values_and_curves_over_legacy_fallbacks() {
         let preset = convert_xmp_to_preset(
             r#"<rdf:Description
