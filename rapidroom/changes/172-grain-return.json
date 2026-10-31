@@ -1,0 +1,13 @@
+{
+  "id": "ai-denoise-grain-return",
+  "title": "Add adjustable luminance grain return to AI raw denoise",
+  "category": "feature",
+  "landed": "2026-10-29",
+  "authors": ["yojen7", "skymanbp"],
+  "source": "rapidroom (adapted MIT AutoShade post-demosaic neutral luminance residual return)",
+  "commits": ["https://github.com/skymanbp/autoshade/commit/8f25a8aed6e77b4aa2f1dde64da2c8fbde5a9ed2"],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Best/Fast Strength defaults to 71 and returns the source luminance residual along RGB grey after demosaic, colour restoration and the complete model chain. Strength 100 preserves the full-clean endpoint. Preview and saved editable DNGs share the result; sensor and queue caches include strength. TreeNet inputs and models are unchanged; no AutoShade weights, telemetry or variance-stabilized input transform are imported. The default requires human quality review and is not a Lightroom-equivalence claim."
+}

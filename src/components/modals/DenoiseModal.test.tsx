@@ -113,7 +113,7 @@ describe('Denoise dialog cancellation', () => {
     await mount();
     await click(button('btnStart'));
     expect(calls(Invokes.ApplyDenoising)).toEqual([
-      { jobId: 1, path: '/photos/a.raw', intensity: 1, method: 'tree_best', sharpen: true },
+      { jobId: 1, path: '/photos/a.raw', intensity: 0.71, method: 'tree_best', sharpen: true },
     ]);
     await click(backdrop());
     expect(state().denoiseModalState.isOpen).toBe(true);
@@ -179,7 +179,7 @@ describe('Denoise dialog cancellation', () => {
     const { refreshImageList } = await mount(['/photos/a.raw', '/photos/b.raw']);
     await click(button('btnBatchDenoise'));
     expect(calls(Invokes.BatchDenoiseImages)).toEqual([
-      { jobId: 1, paths: ['/photos/a.raw', '/photos/b.raw'], intensity: 1, method: 'tree_best', sharpen: true },
+      { jobId: 1, paths: ['/photos/a.raw', '/photos/b.raw'], intensity: 0.71, method: 'tree_best', sharpen: true },
     ]);
     await act(async () => emit('denoise-complete', { jobId: 1, denoised: 'intermediate batch image' }));
     await act(async () => emit('denoise-error', { jobId: 1, message: 'Failed to denoise a.raw' }));
@@ -292,7 +292,7 @@ describe('AI raw denoise presets', () => {
     await click(container.querySelector('input[type="checkbox"]')!);
     await click(button('btnStart'));
     expect(calls(Invokes.ApplyDenoising)).toEqual([
-      { jobId: 1, path: '/photos/a.raw', intensity: 1, method: 'tree_fast', sharpen: false },
+      { jobId: 1, path: '/photos/a.raw', intensity: 0.71, method: 'tree_fast', sharpen: false },
     ]);
   });
 });
