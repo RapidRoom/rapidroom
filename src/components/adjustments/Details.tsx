@@ -16,7 +16,7 @@ import {
 } from '../../utils/adjustments';
 import { AppSettings } from '../ui/AppProperties';
 import AdjustmentSubSection from './AdjustmentSubSection';
-import { useEditorStore } from '../../store/useEditorStore';
+import { canvasToolState, useEditorStore } from '../../store/useEditorStore';
 import { selectAiModelDownloadStatus, useProcessStore } from '../../store/useProcessStore';
 
 interface DetailsPanelProps {
@@ -103,6 +103,7 @@ function DetailsPanel({
             max={100}
             min={-100}
             onChange={(e) => handleAdjustmentChange(DetailsAdjustment.Clarity, e.target.value)}
+            speedEditId={DetailsAdjustment.Clarity}
             step={1}
             value={adjustments.clarity}
             onDragStateChange={onDragStateChange}
@@ -112,6 +113,7 @@ function DetailsPanel({
             max={100}
             min={-100}
             onChange={(e) => handleAdjustmentChange(DetailsAdjustment.Dehaze, e.target.value)}
+            speedEditId={DetailsAdjustment.Dehaze}
             step={1}
             value={adjustments.dehaze}
             onDragStateChange={onDragStateChange}
@@ -121,6 +123,7 @@ function DetailsPanel({
             max={100}
             min={-100}
             onChange={(e) => handleAdjustmentChange(DetailsAdjustment.Structure, e.target.value)}
+            speedEditId={DetailsAdjustment.Structure}
             step={1}
             value={adjustments.structure}
             onDragStateChange={onDragStateChange}
@@ -128,14 +131,7 @@ function DetailsPanel({
           {!isForMask && (
             <div
               data-center-marker-controls="centre"
-              onPointerDown={() =>
-                setEditor({
-                  activeCenterMarker: 'centre',
-                  isRelightPickerActive: false,
-                  isWbPickerActive: false,
-                  mixerPickerProperty: null,
-                })
-              }
+              onPointerDown={() => setEditor(canvasToolState({ activeCenterMarker: 'centre' }))}
             >
               <Slider
                 label={t('adjustments.details.centre')}

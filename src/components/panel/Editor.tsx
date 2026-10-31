@@ -32,6 +32,7 @@ import EmbeddedPreviewWarning from './EmbeddedPreviewWarning';
 import ImageCanvas from './editor/ImageCanvas';
 import { canvasBackgroundRgb, resolveEditorCanvasBackground } from '../../utils/editorCanvasBackground';
 import ReferencePane from './editor/ReferencePane';
+import SpeedEditOverlay from './editor/overlays/SpeedEditOverlay';
 import { Mask, SubMask } from './right/Masks';
 import { CompareView, Panel, TransformState, Invokes } from '../ui/AppProperties';
 import { useEditorStore } from '../../store/useEditorStore';
@@ -2830,6 +2831,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           )}
           {straightenOverlay}
         </div>
+        <SpeedEditOverlay />
       </div>
     </div>
   );

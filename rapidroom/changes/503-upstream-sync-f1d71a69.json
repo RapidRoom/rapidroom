@@ -1,0 +1,21 @@
+{
+  "id": "upstream-sync-f1d71a69",
+  "title": "Sync upstream main: Edit In external editors, Speed Edit and the HSL-stage color mixer pipette",
+  "category": "feature",
+  "landed": "2026-10-31",
+  "authors": ["CyberTimon", "lalibertemarc"],
+  "source": "CyberTimon/RapidRAW",
+  "commits": [
+    "https://github.com/CyberTimon/RapidRAW/commit/f1d71a69",
+    "https://github.com/CyberTimon/RapidRAW/commit/a66c28c1",
+    "https://github.com/CyberTimon/RapidRAW/commit/bd7206c6",
+    "https://github.com/CyberTimon/RapidRAW/commit/494d8077",
+    "https://github.com/CyberTimon/RapidRAW/commit/a0aead51",
+    "https://github.com/CyberTimon/RapidRAW/commit/51fd37fc"
+  ],
+  "upstream_issues": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#2082", "CyberTimon/RapidRAW#2072"],
+  "rendering_change": false,
+  "highlight": "Edit In sends a photo to an external editor and brings the result back, Speed Edit cycles sliders from the keyboard, and the Color Mixer pipette now also edits mask mixers.",
+  "notes": "Upstream's mixer pipette (sampled at the HSL stage by a backend probe pass) replaces RapidRoom's harvested copy of the same feature; RapidRoom's extras are ported onto it: the pipette ends when the image changes, the window loses focus or the Color/Color Mixer tool is bypassed, a focused slider field is committed before a drag, an unmoved press writes no edit, and the pipette turns off when the Color panel unmounts. The old display-texture sampler is removed. RapidRoom's mask/perf-trace spans and Lightroom adjustment-key attributes are kept, as are its keybinding priority, Instagram export entries and the headless export error report. Locale catalogs are upstream's byte for byte. The probe is a separate compute pass and does not change rendered output."
+}

@@ -963,7 +963,7 @@ async fn export_images(app_handle: &AppHandle, arguments: &Value) -> Result<Valu
     let destination_type = export_settings.destination_type.clone();
     let subfolder = export_settings.subfolder.clone();
 
-    crate::export_processing::export_images_and_wait(
+    crate::export_processing::export_request_and_wait(
         ExportRequest {
             paths: paths.clone(),
             output_folder: output_directory.clone(),
