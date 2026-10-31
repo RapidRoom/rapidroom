@@ -1,3 +1,4 @@
+import { RefObject } from 'react';
 import { describeHistoryChange, sameAdjustmentValue, type HistoryDetails } from '../utils/editHistory';
 import { create } from 'zustand';
 import {
@@ -19,6 +20,7 @@ import {
   ReferenceViewState,
   reduceReferenceView,
 } from '../utils/referenceView';
+import type { SpeedEditTarget } from '../components/ui/Slider';
 
 export type CenterMarker = 'vignette' | 'centre';
 
@@ -73,6 +75,8 @@ interface EditorState {
 
   // Interaction State
   isSliderDragging: boolean;
+  speedEditTarget: RefObject<SpeedEditTarget | null> | null;
+  isSpeedEditHeld: boolean;
   zoom: number;
   zoomRequest: { imagePath: string; percent: number | null; resetPosition?: boolean } | null;
   displaySize: ImageDimensions;
@@ -149,6 +153,18 @@ const rememberPhotoHistory = (
   }
   return next;
 };
+type CanvasToolState = Pick<
+  EditorState,
+  'isWbPickerActive' | 'isRelightPickerActive' | 'activeCenterMarker' | 'mixerPickerProperty'
+>;
+
+export const canvasToolState = (activeTool: Partial<CanvasToolState> = {}): CanvasToolState => ({
+  isWbPickerActive: false,
+  isRelightPickerActive: false,
+  activeCenterMarker: null,
+  mixerPickerProperty: null,
+  ...activeTool,
+});
 
 export const useEditorStore = create<EditorState>((set) => ({
   selectedImage: null,
@@ -176,6 +192,8 @@ export const useEditorStore = create<EditorState>((set) => ({
   waveformHeight: 220,
 
   isSliderDragging: false,
+  speedEditTarget: null,
+  isSpeedEditHeld: false,
   interactivePatch: null,
   activeMaskContainerId: null,
   activeMaskId: null,

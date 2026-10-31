@@ -56,6 +56,7 @@
         "reds": "Červená",
         "yellows": "Žlutá"
       },
+      "mixerPickerTooltip": "Pipeta míchání barev: klikněte na fotografii a táhněte nahoru nebo dolů",
       "monochrome": {
         "badge": "Č/B",
         "balance": "Vyvážení",
@@ -285,6 +286,7 @@
       "cullImage": "Automatické třídění",
       "denoise": "Odšumit",
       "editImage": "Upravit snímek",
+      "editIn": "Upravit v",
       "exportImage": "Export snímku",
       "flag": "Vlajka",
       "flagPick": "Vybrané",
@@ -421,6 +423,9 @@
     "toasts": {
       "couldNotShowExplorer": "Nelze zobrazit soubor v průzkumníku: {{err}}",
       "couldNotShowFolder": "Nelze zobrazit složku: {{err}}",
+      "editInFailed": "{{app}} selhal: {{err}}",
+      "editInNoOutput": "{{app}} byl zavřen bez uložení.",
+      "editInWaiting": "Čekání na {{app}}. Uložte tam soubor, aby se vrátil zpět, nebo zavřete tuto zprávu a čekání ukončete.",
       "failedAddToAlbum": "Nepodařilo se přidat do alba: {{err}}",
       "failedApplyAuto": "Nepodařilo se použít automatické úpravy: {{err}}",
       "failedChangeIcon": "Ikonu se nepodařilo změnit: {{err}}",
@@ -938,6 +943,10 @@
         "style": "Styl",
         "tool": "Nástroj"
       }
+    },
+    "speedEdit": {
+      "copied": "Zkopírováno: <0>{{label}}</0> <1>{{value}}</1>",
+      "pasted": "Vloženo: <0>{{label}}</0> <1>{{value}}</1>"
     },
     "switcher": {
       "tooltips": {
@@ -1837,6 +1846,27 @@
       "pressKey": "Stiskněte klávesu... (Esc pro vymazání)",
       "resetDefaults": "Obnovit vše na výchozí",
       "speed": "Rychlost",
+      "speedEdit": {
+        "adjustments": "Úpravy",
+        "gestures": {
+          "doubleClick": "Dvojklikem obnovíte",
+          "drag": "Tažením po plátně upravíte",
+          "fine": "Shift pro jemnost"
+        },
+        "keys": {
+          "hold": "Podržet",
+          "previousImage": "Předch. snímek",
+          "nextImage": "Další snímek",
+          "reset": "Obnovit",
+          "previousAdjustment": "Předch. posuvník",
+          "nextAdjustment": "Další posuvník",
+          "copy": "Kopírovat",
+          "paste": "Vložit",
+          "stepDown": "−1 krok",
+          "stepUp": "+1 krok"
+        },
+        "title": "Rychlá úprava"
+      },
       "title": "Ovládání myší",
       "zoom": "Rychlost zoomu",
       "zoomClick": "Přiblížit snímek na 100 %",
@@ -2131,6 +2161,21 @@
         "vulkan": "Vulkan"
       },
       "dynamicDesc": "Editor vykresluje náhled tak, aby odpovídal skutečné hustotě pixelů vašeho displeje. Tím je zajištěno, že každý detail je zobrazen s přesností pixelů 1:1, což poskytuje maximální jasnost při přibližování a kontrole zaostření.",
+      "editIn": {
+        "add": "Přidat program",
+        "args": "Argumenty ({file} = cesta k obrázku)",
+        "browse": "Procházet",
+        "description": "Programy pro nabídku „Upravit v“.",
+        "executable": "Programy",
+        "modes": {
+          "original": "Odeslat původní soubor",
+          "rendered": "Odeslat upravený TIFF"
+        },
+        "name": "Název",
+        "path": "Cesta k programu",
+        "remove": "Odebrat",
+        "title": "Upravit v"
+      },
       "enableLivePreviews": "Povolit živé náhledy",
       "highDpi": "High-DPI rendering",
       "highDpiDesc": "Vykreslovat náhledy v nativním {{dpr}}x fyzickém rozlišení pixelů obrazovky. Poskytuje nejostřejší možný náhled, ale spotřebovává výrazně více paměti.",
