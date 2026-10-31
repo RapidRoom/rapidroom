@@ -88,6 +88,9 @@ interface EditorState {
   isAutoStraightening: boolean;
   isWbPickerActive: boolean;
   mixerPickerProperty: HslMixerProperty | null;
+  isPointColorPickerActive: boolean;
+  pointColorPickerMaskId: string | null;
+  selectedPointColorId: string | null;
   isRelightPickerActive: boolean;
   activeRelightLightId: string | null;
   activeCenterMarker: CenterMarker | null;
@@ -204,6 +207,9 @@ export const useEditorStore = create<EditorState>((set) => ({
   isAutoStraightening: false,
   isWbPickerActive: false,
   mixerPickerProperty: null,
+  isPointColorPickerActive: false,
+  pointColorPickerMaskId: null,
+  selectedPointColorId: null,
   isRelightPickerActive: false,
   activeRelightLightId: null,
   activeCenterMarker: null,

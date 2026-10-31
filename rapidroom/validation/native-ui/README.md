@@ -310,6 +310,11 @@ viewport coordinates through an owned file, then calls the WebView GTK event
 handler. It is never bundled in the app. Physical devices remain untested.
 `--presets` checks Ctrl+Shift+N preset creation, flat Style name/description search, hover cancellation, one-step preset Undo and Amount0 through the actual native app. It also exercises built-in Styles description search, favourites, native export, Amount30/60/0, twenty flat top-level Styles, deletion through the preset menu followed by repeated native reloads, and marker-only migration of a pre-existing library without losing user folders, moved presets or saved order. Empty or missing saved libraries with the migration marker do not resurrect deleted Styles. XMP serialization/import and compatibility conditions also have unit coverage; Lightroom itself has not been tested.
 
+Point Color: pass `--point-color` to pick a swatch on the real canvas, verify
+zero-shift pixels are identical, edit its range and Hue Shift, and verify one
+Undo restores the shift and exact preview. The usual edit/export/exit checks
+follow. Uses an owned sample copy and native GPU processing.
+
 ## Optional command palette scenario
 
 Build normally and run `smoke.py --palette`. Public Ctrl+K and keyboard input
@@ -320,6 +325,8 @@ pixels. A typed `crop 4:3` must alter the preview and be reversible in one Undo.
 The normal edit/Undo/Compact/export/clean-exit smoke follows. No model requests,
 React store fixtures or private photos are used. Physical input and other
 platforms remain untested.
+
+`--point-color-mcp` implies `--point-color` and enables MCP only in the isolated test settings. Build with `build.py --mcp-clients`. The scenario uses authenticated local JSON-RPC discovery and edits, checks the eight-swatch/bounded schema and rejection without mutation, applies a selected-swatch Hue Shift through the real editor, and requires one GUI Undo to restore state and exact pixels. It verifies endpoint cleanup on exit. No Claude/Codex processes or model requests are launched.
 
 ### Assistant untrusted text (#165)
 

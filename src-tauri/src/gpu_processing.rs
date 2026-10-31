@@ -3234,6 +3234,29 @@ pub fn read_display_area(
     )
 }
 
+pub fn render_point_color_input(
+    context: &GpuContext,
+    state: &tauri::State<AppState>,
+    base_image: &DynamicImage,
+    mut request: RenderRequest,
+) -> Result<DynamicImage, String> {
+    if request.adjustments.global.point_color_input == 0 {
+        request.adjustments.global.point_color_input = 1;
+    }
+    process_and_get_dynamic_image_inner(
+        context,
+        state,
+        base_image,
+        0,
+        request,
+        "point_color_input",
+        RenderOutputPrecision::SixteenBit,
+        None,
+        None,
+        true,
+    )
+}
+
 pub fn process_and_get_dynamic_image(
     context: &GpuContext,
     state: &tauri::State<AppState>,
@@ -3252,6 +3275,7 @@ pub fn process_and_get_dynamic_image(
         RenderOutputPrecision::EightBit,
         None,
         None,
+        false,
     )
 }
 
@@ -3274,6 +3298,7 @@ pub fn process_and_get_dynamic_image_with_precision(
         output_precision,
         None,
         None,
+        false,
     )
 }
 
@@ -3298,6 +3323,7 @@ pub fn process_and_get_dynamic_image_with_analytics(
         RenderOutputPrecision::EightBit,
         display_output,
         analytics_config,
+        false,
     )
 }
 
@@ -3341,6 +3367,7 @@ fn process_and_get_dynamic_image_inner(
     output_precision: RenderOutputPrecision,
     display_output: Option<DisplayOutput>,
     analytics_config: Option<crate::AnalyticsConfig>,
+    isolated: bool,
 ) -> Result<DynamicImage, String> {
     let start_time = Instant::now();
     let display_layer = display_output
@@ -3362,6 +3389,13 @@ fn process_and_get_dynamic_image_inner(
         return Ok(base_image.clone());
     }
 
+    let isolated_processor = std::sync::Mutex::new(None);
+    let isolated_cache = std::sync::Mutex::new(None);
+    let processor_mutex = if isolated {
+        &isolated_processor
+    } else {
+        &state.gpu_processor
+    };
     let is_raw = request.adjustments.global.is_raw_image;
     let source = (
         base_image.as_bytes().as_ptr() as usize,
@@ -3376,7 +3410,11 @@ fn process_and_get_dynamic_image_inner(
     };
 
     let cache_target = display_output.map_or(PreviewTarget::Editor, |output| output.target);
-    let image_cache = state.gpu_image_cache_for(cache_target);
+    let image_cache = if isolated {
+        &isolated_cache
+    } else {
+        state.gpu_image_cache_for(cache_target)
+    };
     let mut img_rgba_f16: Option<Vec<f16>> = None;
     let lock_span = crate::perf_trace::span("gpu.wait_processor_lock");
     let (mut processor_lock, mut cache_lock) = loop {
@@ -3388,7 +3426,7 @@ fn process_and_get_dynamic_image_inner(
             img_rgba_f16 = Some(to_rgba_f16(base_image));
         }
 
-        let processor_lock = lock_or_reset(&state.gpu_processor, "GPU processor");
+        let processor_lock = lock_or_reset(processor_mutex, "GPU processor");
         let cache_lock = lock_or_reset(image_cache, "GPU image cache");
         let is_cached = cache_lock
             .as_ref()
@@ -3898,3 +3936,7 @@ mod tests {
         assert_eq!(needs(&a), NONE);
     }
 }
+
+#[cfg(test)]
+#[path = "point_color_shader_tests.rs"]
+mod point_color_shader_tests;

@@ -206,7 +206,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const overlayRotation = useEditorStore((s) => s.overlayRotation);
   const isStraightenActive = useEditorStore((s) => s.isStraightenActive);
   const isWbPickerActive = useEditorStore((s) => s.isWbPickerActive);
-  const isMixerPickerActive = useEditorStore((s) => s.mixerPickerProperty !== null);
+  const isMixerPickerActive = useEditorStore((s) => s.mixerPickerProperty !== null || s.isPointColorPickerActive);
   const isRelightPickerActive = useEditorStore((s) => s.isRelightPickerActive);
   const liveRotation = useEditorStore((s) => s.liveRotation);
   const brushSettings = useEditorStore((s) => s.brushSettings);

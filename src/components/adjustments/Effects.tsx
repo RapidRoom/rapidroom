@@ -321,6 +321,7 @@ function EffectsPanel({
       isRelightPickerActive: true,
       isWbPickerActive: false,
       mixerPickerProperty: null,
+      isPointColorPickerActive: false,
       activeCenterMarker: null,
     });
   };
@@ -336,6 +337,7 @@ function EffectsPanel({
       isRelightPickerActive: true,
       isWbPickerActive: false,
       mixerPickerProperty: null,
+      isPointColorPickerActive: false,
       activeCenterMarker: null,
     });
   };
@@ -382,6 +384,7 @@ function EffectsPanel({
       isRelightPickerActive: true,
       isWbPickerActive: false,
       mixerPickerProperty: null,
+      isPointColorPickerActive: false,
       activeCenterMarker: null,
     });
   };

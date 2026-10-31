@@ -140,6 +140,7 @@ pub fn all_available_adjustments() -> HashSet<String> {
         "saturation",
         "vibrance",
         "hsl",
+        "pointColor",
         "hue",
         "colorGrading",
         "colorCalibration",

@@ -90,7 +90,7 @@ describe('stored GUI drawing placeholders (issue359)', () => {
       rotation: original.rotation,
       feather: original.feather,
     });
-    expect(result.adjustments).toEqual(fixture.mask.adjustments);
+    expect(result.adjustments).toEqual({ ...fixture.mask.adjustments, pointColor: [] });
     expect(JSON.stringify(fixture.mask)).toBe(before);
   });
 });

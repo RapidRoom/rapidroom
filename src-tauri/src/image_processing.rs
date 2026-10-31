@@ -2106,6 +2106,7 @@ pub struct GlobalAdjustments {
     pub color_calibration: ColorCalibrationSettings,
 
     pub hsl: [HslColor; 8],
+    pub point_color: [crate::point_color::GpuPointColor; 8],
     pub luma_curve: [Point; 16],
     pub red_curve: [Point; 16],
     pub green_curve: [Point; 16],
@@ -2114,8 +2115,8 @@ pub struct GlobalAdjustments {
     pub red_curve_count: u32,
     pub green_curve_count: u32,
     pub blue_curve_count: u32,
-    _pad_end1: f32,
-    _pad_end2: f32,
+    pub point_color_input: u32,
+    pub point_color_active: u32,
     _pad_end3: f32,
     _pad_end4: f32,
 
@@ -2169,6 +2170,7 @@ pub struct MaskAdjustments {
     _pad6: f32,
 
     pub hsl: [HslColor; 8],
+    pub point_color: [crate::point_color::GpuPointColor; 8],
     pub luma_curve: [Point; 16],
     pub red_curve: [Point; 16],
     pub green_curve: [Point; 16],
@@ -3194,6 +3196,11 @@ fn get_global_adjustments_from_json(
         } else {
             [HslColor::default(); 8]
         },
+        point_color: if color_mixer_visible {
+            crate::point_color::parse(&js_adjustments["pointColor"])
+        } else {
+            [crate::point_color::GpuPointColor::default(); 8]
+        },
         luma_curve: convert_points_to_aligned(luma_points.clone()),
         red_curve: convert_points_to_aligned(red_points.clone()),
         green_curve: convert_points_to_aligned(green_points.clone()),
@@ -3202,8 +3209,8 @@ fn get_global_adjustments_from_json(
         red_curve_count: red_points.len() as u32,
         green_curve_count: green_points.len() as u32,
         blue_curve_count: blue_points.len() as u32,
-        _pad_end1: 0.0,
-        _pad_end2: 0.0,
+        point_color_input: 0,
+        point_color_active: 0,
         _pad_end3: 0.0,
         _pad_end4: 0.0,
 
@@ -3364,6 +3371,11 @@ fn get_mask_adjustments_from_json(
         } else {
             [HslColor::default(); 8]
         },
+        point_color: if color_mixer_visible {
+            crate::point_color::parse(&adj["pointColor"])
+        } else {
+            [crate::point_color::GpuPointColor::default(); 8]
+        },
         luma_curve: convert_points_to_aligned(luma_points.clone()),
         red_curve: convert_points_to_aligned(red_points.clone()),
         green_curve: convert_points_to_aligned(green_points.clone()),
@@ -3407,7 +3419,7 @@ pub fn get_all_adjustments_from_json(
     } else {
         as_shot.white_balance
     };
-    let global = get_global_adjustments_from_json(
+    let mut global = get_global_adjustments_from_json(
         js_adjustments,
         is_raw,
         white_balance::adaptation_log_gains(as_shot.white_balance, target_white_balance),
@@ -3430,6 +3442,17 @@ pub fn get_all_adjustments_from_json(
             get_mask_adjustments_from_json(&mask_def.adjustments, target_white_balance);
         mask_count += 1;
     }
+    global.point_color_active = u32::from(
+        global
+            .point_color
+            .iter()
+            .chain(
+                mask_adjustments
+                    .iter()
+                    .flat_map(|mask| mask.point_color.iter()),
+            )
+            .any(|point| point.shift[3] != 0.0),
+    );
 
     AllAdjustments {
         global,

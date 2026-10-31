@@ -315,6 +315,7 @@
   "negativeGreenWeight": 1,
   "negativeRedWeight": 1,
   "orientationSteps": 0,
+  "pointColor": [],
   "rotation": 0,
   "saturation": 0,
   "shadows": 0,

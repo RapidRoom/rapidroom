@@ -1,3 +1,12 @@
+import { createPointColor, POINT_COLOR_RANGES } from './pointColor';
+import {
+  selectedPointColorTarget,
+  pointColorCommandId,
+  parsePointColorCommandId,
+  pointColorNumericValue,
+  setPointColorNumericValue,
+  type PointColorNumericKey,
+} from './pointColorCommands';
 import schemaData from '../../rapidroom/adjustment-schema.json';
 import { buildParametricCurves, type Adjustments } from './adjustments';
 
@@ -100,7 +109,36 @@ export const PALETTE_PARAMETERS: PaletteParameter[] = Object.entries(schema.para
   ];
 });
 
+export function selectedPointColorParameters(
+  adjustments: Adjustments,
+  maskId: string | null,
+  selectedId: string | null,
+): PaletteParameter[] {
+  const target = selectedPointColorTarget(adjustments, maskId, selectedId);
+  if (!target) return [];
+  const defaults = createPointColor({ lightness: 0, chroma: 0, hue: 0 }, 'defaults');
+  return (Object.keys(POINT_COLOR_RANGES) as PointColorNumericKey[]).map((key) => {
+    const [minimum, maximum, step] = POINT_COLOR_RANGES[key];
+    const title = humanize(key);
+    return {
+      id: pointColorCommandId(target, key),
+      title,
+      labelKey: `pointColor.${key}`,
+      section: maskId === null ? 'Point Color' : 'Mask Point Color',
+      aliases: [`point color ${title}`, `point colour ${title}`, 'selected swatch picked color'],
+      minimum,
+      maximum,
+      step,
+      defaultValue: defaults[key],
+    };
+  });
+}
+
 export function getParameterValue(adjustments: Adjustments, id: string): number {
+  if (id.startsWith('pointColor:')) {
+    const command = parsePointColorCommandId(id);
+    return command ? (pointColorNumericValue(adjustments, command.target, command.key) ?? 0) : 0;
+  }
   let value: unknown = adjustments;
   for (const key of id.split('.')) {
     if (!value || typeof value !== 'object') return 0;
@@ -111,6 +149,10 @@ export function getParameterValue(adjustments: Adjustments, id: string): number 
 
 export function setParameterValue(adjustments: Adjustments, parameter: PaletteParameter, value: number): Adjustments {
   if (!Number.isFinite(value)) return adjustments;
+  if (parameter.id.startsWith('pointColor:')) {
+    const command = parsePointColorCommandId(parameter.id);
+    return command ? setPointColorNumericValue(adjustments, command.target, command.key, value) : adjustments;
+  }
   const next = Math.min(parameter.maximum, Math.max(parameter.minimum, value));
   if (getParameterValue(adjustments, parameter.id) === next) return adjustments;
   const result = { ...adjustments };

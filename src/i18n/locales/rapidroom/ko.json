@@ -1,4 +1,14 @@
 {
+  "pointColor": {
+    "title": "Point Color",
+    "hsl": "HSL",
+    "pick": "Pick a Point Color on the photo",
+    "select": "Select Point Color {{index}}",
+    "delete": "Delete selected Point Color",
+    "empty": "Pick a color on the photo to adjust nearby colors.",
+    "bounded": "Shifts adapt to the selected range to keep colors in order.",
+    "sampleFailed": "Could not sample this color. Try again on the photo."
+  },
   "adjustments": {
     "color": {
       "mixerPickerTooltip": "컬러 믹서 스포이트: 사진을 클릭한 채 위아래로 드래그",

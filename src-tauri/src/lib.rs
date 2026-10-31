@@ -104,6 +104,7 @@ mod panorama_stitching;
 mod panorama_utils;
 mod perf_trace;
 mod photo_stacks;
+mod point_color;
 mod preset_application;
 mod preset_converter;
 mod preset_xmp;
@@ -689,6 +690,99 @@ fn loaded_image_cache_hash(image: &LoadedImage, adjustments_hash: u64) -> u64 {
     calculate_image_cache_hash(&image.path, adjustments_hash, image.source_epoch).hash(&mut hasher);
     image.generation.hash(&mut hasher);
     hasher.finish()
+}
+
+#[tauri::command]
+async fn sample_point_color_input(
+    path: String,
+    mask_id: Option<String>,
+    mut adjustments: serde_json::Value,
+    x: f32,
+    y: f32,
+    radius: f32,
+    app_handle: tauri::AppHandle,
+) -> Result<point_color::Sample, String> {
+    if adjustments["monochromeEnabled"].as_bool().unwrap_or(false) {
+        return Err("Point Color sampling is unavailable in Black & White mode".into());
+    }
+    if ![x, y, radius].iter().all(|value| value.is_finite())
+        || !(0.0..=1.0).contains(&x)
+        || !(0.0..=1.0).contains(&y)
+        || !(0.0..=0.1).contains(&radius)
+    {
+        return Err("Invalid Point Color sample coordinates".into());
+    }
+    tokio::task::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let loaded = state
+            .original_image
+            .lock()
+            .map_err(|_| "Image state unavailable")?
+            .as_ref()
+            .filter(|image| image.path == path)
+            .cloned()
+            .ok_or("Active image changed")?;
+        hydrate_adjustments(&state, &mut adjustments);
+        let context = get_or_init_gpu_context(&state, &app_handle)?;
+        let (base, scale, offset) =
+            generate_transformed_preview(&state, &loaded, &adjustments, 1024)?;
+        let definitions = mask_generation::parse_mask_definitions(&adjustments);
+        let masks = get_cached_or_generate_masks(
+            &state,
+            &loaded.path,
+            &definitions,
+            base.width(),
+            base.height(),
+            scale,
+            (offset.0 * scale, offset.1 * scale),
+            &adjustments,
+        );
+        let mut parsed = get_all_adjustments_from_json(
+            &adjustments,
+            loaded.is_raw,
+            loaded.as_shot,
+            resolve_render_options_from_handle(&app_handle, loaded.is_raw),
+        );
+        if let Some(id) = mask_id {
+            if !definitions.iter().any(|mask| mask.id == id) {
+                return Err("Selected mask changed".into());
+            }
+            let active_masks: Vec<_> = definitions
+                .iter()
+                .filter(|mask| mask.visible && !mask.sub_masks.is_empty())
+                .take(image_processing::MAX_MASKS)
+                .collect();
+            let index = active_masks
+                .iter()
+                .position(|mask| mask.id == id)
+                .ok_or("Selected mask is hidden, empty, or unavailable")?;
+            parsed.global.point_color_input = index as u32 + 2;
+        }
+        let output = crate::gpu_processing::render_point_color_input(
+            &context,
+            &state,
+            &base,
+            RenderRequest {
+                adjustments: parsed,
+                mask_bitmaps: &masks.bitmaps,
+                mask_cache_key: Some(masks.cache_key),
+                lut: None,
+                roi: None,
+            },
+        )?;
+        if !state
+            .original_image
+            .lock()
+            .map_err(|_| "Image state unavailable")?
+            .as_ref()
+            .is_some_and(|image| image.path == path)
+        {
+            return Err("Active image changed".into());
+        }
+        point_color::average_sample(&output, x, y, radius)
+    })
+    .await
+    .map_err(|error| format!("Point Color sampling task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -3330,6 +3424,7 @@ pub fn run() {
             cancel_thumbnail_generation,
             update_wgpu_transform,
             sample_display_area,
+            sample_point_color_input,
             release_original_preview,
             viewer_window::open_viewer_window,
             viewer_window::close_viewer_window,

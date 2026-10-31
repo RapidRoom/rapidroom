@@ -426,6 +426,9 @@ class Smoke:
         if (self.case / "presets-test.json").exists():
             from presets import run_preset_checks
             run_preset_checks(self, wait_for, baseline)
+        if (self.case / "point-color-test.json").exists():
+            from point_color import run_point_color_checks
+            run_point_color_checks(self, wait_for, baseline)
         if (self.case / "lightroom-ai-masks-test.json").exists():
             from lightroom_ai_masks import run_ai_mask_checks
             run_ai_mask_checks(self, wait_for)
@@ -557,7 +560,7 @@ class Smoke:
         app.wait(timeout=10)
         if app.returncode != 0:
             raise RuntimeError("App did not quit cleanly")
-        if (self.case / "mcp-packaging-test.json").exists():
+        if (self.case / "mcp-packaging-test.json").exists() or (self.case / "point-color-mcp-test.json").exists():
             if (self.case / "config/io.github.CyberTimon.RapidRAW/mcp-endpoint.json").exists():
                 raise RuntimeError("Endpoint file survived clean app exit")
             self.step("endpoint removed on app exit", {"endpoint_exists": False})
@@ -605,7 +608,7 @@ def launch(args):
         raise RuntimeError("Fixture differs from the published CC0 corpus")
     env = os.environ.copy()
     env["PYTHONDONTWRITEBYTECODE"] = "1"
-    if args.mcp_clients and not args.crop_noop:
+    if args.mcp_clients and not args.crop_noop and not args.point_color_mcp:
         # Resolve version-manager wrappers before isolating the app's XDG paths.
         for name in ("claude", "codex"):
             binary = shutil.which(name)
@@ -676,6 +679,10 @@ def launch(args):
                         str(wheel_source), "-o", str(case / "native-wheel.so"), *flags], check=True)
         save(case / "native-wheel-injector.json", {"source_sha256": sha(wheel_source),
              "library_sha256": sha(case / "native-wheel.so"), "method": "GTK GDK_SCROLL_UP/DOWN through gtk_widget_event(WebView)"})
+    if args.point_color:
+        save(case / "point-color-test.json", {"issue": 160})
+    if args.point_color_mcp:
+        save(case / "point-color-mcp-test.json", {"issue": 160, "real_model_requests": False})
     if args.stacks:
         from stacks import prepare_stacks
         prepare_stacks(case)
@@ -721,7 +728,7 @@ def launch(args):
     if args.crop_noop:
         save(case / "crop-noop-test.json", {"issue": 149, "real_model_requests": False})
     if args.mcp_clients:
-        if not args.crop_noop and not args.mcp_compact_baseline and not args.untrusted_text and not args.crs_interop and not args.lightroom_ai_masks and not args.xmp_photo_policy:
+        if not args.crop_noop and not args.mcp_compact_baseline and not args.point_color_mcp and not args.untrusted_text and not args.crs_interop and not args.lightroom_ai_masks and not args.xmp_photo_policy:
             save(case / "mcp-clients-test.json", {"clients": ["claude", "codex"], "real_model_requests": True})
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
@@ -849,6 +856,8 @@ def main():
     parser.add_argument("--mcp-revisions", action="store_true", help="Real clients read latest state across a GUI edit and receive strict stale-write details")
     parser.add_argument("--mcp-compact", action="store_true", help="Measure three-mask compact payloads and verify real clients with local schemas")
     parser.add_argument("--mcp-compact-baseline", action="store_true", help="Capture old three-mask payload bytes without real model requests")
+    parser.add_argument("--point-color-mcp", action="store_true", help="Check Point Color through authenticated local MCP and the public UI, without model requests")
+    parser.add_argument("--point-color", action="store_true", help="Pick a Point Color and verify zero-shift pixels, shifts and Undo")
     parser.add_argument("--crop-noop", action="store_true", help="Check native crop history/revision/sidecars with private MCP reads; no model requests")
     parser.add_argument("--compare-read-only", action="store_true", help="Check real Original/pinned comparison rendering never writes sidecars or legacy EXIF")
     parser.add_argument("--zoom", action="store_true", help="Check wheel stops, continuous pinch and common zoom ceiling")
@@ -875,6 +884,8 @@ def main():
     if args.dock_layout:
         args.terminal = True
         WIDTH, HEIGHT = 1800, 1048
+    if args.point_color_mcp:
+        args.point_color = args.mcp_clients = True
     if args.mcp_skill or args.mcp_masks or args.mcp_history or args.mcp_measure or args.mcp_revisions or args.mcp_compact or args.mcp_compact_baseline or args.crop_noop or args.untrusted_text or args.crs_interop or args.lightroom_ai_masks or args.xmp_photo_policy:
         args.mcp_clients = True
     if args.mcp_skill and (not args.skill_source or not args.skill_source.is_dir()):

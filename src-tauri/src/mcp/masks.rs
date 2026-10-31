@@ -20,6 +20,7 @@ pub(super) const LOCAL_ADJUSTMENTS: &[&str] = &[
     "halationAmount",
     "highlights",
     "hsl",
+    "pointColor",
     "hue",
     "lumaNoiseReduction",
     "saturation",
