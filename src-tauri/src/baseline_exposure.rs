@@ -101,9 +101,9 @@ pub fn read(
 fn camera_baseline(make: &str, model: &str) -> Option<f32> {
     // J40 mean encoded-luma calibration; see validation/488-tone-sliders.
     match (make.trim().to_ascii_uppercase().as_str(), model.trim()) {
-        ("SONY", "ILCE-7CM2") => Some(1.220),
+        ("SONY", "ILCE-7CM2") => Some(1.222),
         ("CANON", "Canon EOS R6m2") => Some(0.270),
-        ("NIKON CORPORATION", "NIKON Z f") => Some(0.812),
+        ("NIKON CORPORATION", "NIKON Z f") => Some(0.816),
         // Existing, uncalibrated value: no J40 export is available for this body.
         ("SONY", "ILCE-7RM5") => Some(0.35),
         _ => None,

@@ -40,7 +40,7 @@ export function captureAdjustments(
   // The interpretation travels with captured tone controls, including local masks.
   if (
     owns(source, 'toneSliderVersion') &&
-    keys.some((key) => ['highlights', 'shadows', 'whites', 'blacks', 'masks'].includes(key))
+    Object.keys(patch).some((key) => ['highlights', 'shadows', 'whites', 'blacks', 'masks'].includes(key))
   ) {
     patch.toneSliderVersion = source.toneSliderVersion;
   }

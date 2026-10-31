@@ -1477,5 +1477,5 @@ export const getAdjustmentToolOrder = (section: string, toolOrder?: Record<strin
   reconcileOrder(getAdjustmentSectionToolIds(section), toolOrder?.[section]);
 
 export function createResetAdjustmentsForImage(_image: { width: number; height: number } | null): Adjustments {
-  return { ...INITIAL_ADJUSTMENTS, aiPatches: [] };
+  return { ...INITIAL_ADJUSTMENTS, aiPatches: [], toneSliderVersion: 1 };
 }

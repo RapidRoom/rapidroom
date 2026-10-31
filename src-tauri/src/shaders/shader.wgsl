@@ -717,7 +717,9 @@ fn apply_highlights_adjustment(
         } else {
             detail_gain = exp2(mix(orig_log_detail, soft_log_detail * (1.0 + highlights_adj * 0.20), detail_ramp)) / detail_ratio;
         }
-        target_luma = fitted_tone(max(luma_base, 0.0), highlights_adj * 1.2, 0u) * detail_ratio * detail_gain;
+        let detail_blend = smoothstep(l_pivot, l_pivot + 0.22, pixel_luma);
+        let blended_detail_gain = pow(detail_gain, detail_blend);
+        target_luma = fitted_tone(max(luma_base, 0.0), highlights_adj * 1.2, 0u) * detail_ratio * blended_detail_gain;
     }
     let luma_ratio = target_luma / pixel_luma;
     var final_color = color_in * luma_ratio;

@@ -412,7 +412,7 @@ pub(super) fn adjustments_schema() -> Value {
     );
     properties.insert(
         "toneSliderVersion".to_string(),
-        json!({ "type": "integer", "description": "Tone slider process version: absent or 0 keeps the previous law; 1 uses the Lightroom-fitted law for global and mask Highlights, Shadows, Whites and Blacks. Later versions use the newest supported law. Slider patches do not insert this key." }),
+        json!({ "type": "integer", "minimum": 0, "maximum": 1, "description": "Tone slider process version: absent or 0 keeps the previous law; 1 uses the Lightroom-fitted law for global and mask Highlights, Shadows, Whites and Blacks. Later versions use the newest supported law. Slider patches do not insert this key." }),
     );
     properties.insert(
         "cameraLensCorrectionVersion".to_string(),
@@ -819,8 +819,11 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                 "toneMapper" => validate_string_enum(value, key, &["basic", "agx"])?,
                 "lensCorrectionMode" => validate_string_enum(value, key, &["auto", "manual"])?,
                 "toneSliderVersion" => {
-                    if value.as_i64().is_none() {
-                        return Err("toneSliderVersion must be an integer".into());
+                    if !value
+                        .as_f64()
+                        .is_some_and(|version| version == 0.0 || version == 1.0)
+                    {
+                        return Err("toneSliderVersion must be the integer 0 or 1".into());
                     }
                 }
                 "cameraLensCorrectionVersion" => {

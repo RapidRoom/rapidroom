@@ -113,7 +113,7 @@ pub fn migrate_tone_sliders(mut adjustments: Value) -> Result<Value, String> {
         return Err("adjustments must be an object".into());
     }
     let mut residuals = json!({});
-    if adjustments["toneSliderVersion"].as_i64().unwrap_or(0) < 1 {
+    if crate::image_processing::tone_slider_version(&adjustments) == 0 {
         migrate_controls(&mut adjustments, "", &mut residuals)?;
         if let Some(masks) = adjustments["masks"].as_array_mut() {
             for (index, mask) in masks.iter_mut().enumerate() {

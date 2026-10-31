@@ -1796,7 +1796,9 @@ fn convert_xmp_to_preset_with_crop(
         }
     }
 
-    if !adjustments.is_empty()
+    if ["highlights", "shadows", "whites", "blacks"]
+        .iter()
+        .any(|key| adjustments.contains_key(*key))
         && !matches!(
             image_kind,
             Some(XmpImageKind::Rendered | XmpImageKind::RenderedJpeg)

@@ -8576,7 +8576,10 @@ mod lightroom_xmp_import_tests {
                 .get("toneSliderVersion")
                 .is_none()
         );
-        assert_eq!(imported.metadata.adjustments["whites"], 100);
+        assert_eq!(
+            imported.metadata.adjustments["whites"].as_f64(),
+            Some(100.0)
+        );
         let reopened = crate::exif_processing::load_sidecar(&sidecar);
         assert_eq!(reopened.adjustments, imported.metadata.adjustments);
     }

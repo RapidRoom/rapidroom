@@ -8,5 +8,5 @@
   "upstream_issues": [],
   "upstream_prs": [],
   "rendering_change": true,
-  "notes": "New edits and raw/develop imports use toneSliderVersion 1 for global and mask tone sliders. Missing versions retain the previous law. An opt-in ramp-matching converter reports approximation residuals. Camera baselines are calibrated per model; uncalibrated models contribute zero EV. Calibrated camera baselines also change existing law-0 edits with camera exposure compensation enabled; empty legacy sidecars are unchanged. The uncalibrated A7R V baseline remains +0.35 EV."
+  "notes": "New edits and raw/develop imports use toneSliderVersion 1 for global and mask tone sliders. Missing versions retain the previous law. An opt-in ramp-matching converter reports approximation residuals. Camera baselines are calibrated per model; models without an entry contribute zero EV. Calibrated camera baselines also change existing law-0 edits with camera exposure compensation enabled; empty legacy sidecars are unchanged. A7C II changes from +0.35 to +1.222 EV, R6 II from 0 to +0.270 EV, and Zf from 0 to +0.816 EV. The uncalibrated A7R V baseline remains +0.35 EV."
 }
