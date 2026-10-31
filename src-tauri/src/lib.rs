@@ -782,8 +782,14 @@ async fn sample_hsl_mixer_area(
             .ok_or("No original image loaded")?;
         let mut adjustments = js_adjustments;
         hydrate_adjustments(&state, &mut adjustments);
+        crate::camera_lens::resolve_snapshot_read_only(
+            &mut adjustments,
+            &loaded_image.path,
+            &state,
+        );
 
-        let transform_hash = calculate_transform_hash(&adjustments);
+        let transform_hash =
+            loaded_image_cache_hash(&loaded_image, calculate_transform_hash(&adjustments));
         let (image, scale, crop_offset) = state
             .cached_preview_for(PreviewTarget::Editor)
             .lock()

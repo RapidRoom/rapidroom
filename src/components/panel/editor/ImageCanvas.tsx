@@ -3506,8 +3506,6 @@ const ImageCanvas = memo(
       isMixerPickerActive,
       wbBox,
       pickerHover.visible,
-      isMixerPickerDragging,
-      isMixerPickerActive,
       isInitialDrawing,
       isBrushActive,
       isCloneOrHealActive,
