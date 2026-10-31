@@ -123,6 +123,7 @@ mod terminal;
 mod terminal_pty;
 #[cfg(test)]
 mod test_support;
+mod tone_migration;
 mod tree_denoise;
 mod two_phase_rename;
 mod video_notice;
@@ -2664,6 +2665,13 @@ fn frontend_ready(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|arg| arg == "migrate-tone") {
+        if let Err(error) = tone_migration::run_cli(&args[1..]) {
+            cli_eprintln!("{error}");
+            std::process::exit(1);
+        }
+        std::process::exit(0);
+    }
     if args.first().map(String::as_str) == Some("denoise-selective") {
         std::process::exit(denoise_selective::run_cli(&args[1..]));
     }
@@ -3304,6 +3312,7 @@ pub fn run() {
             }),
         })
         .invoke_handler(tauri::generate_handler![
+            tone_migration::migrate_tone_sliders,
             apply_adjustments,
             subscribe_analytics,
             generate_preview_for_path,

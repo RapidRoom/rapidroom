@@ -4,6 +4,7 @@ import { Adjustments, INITIAL_ADJUSTMENTS } from './adjustments';
 export const originalComparisonAdjustments = (adjustments: Adjustments): Adjustments => {
   const original: Adjustments = { ...INITIAL_ADJUSTMENTS };
   const preservedKeys: Array<keyof Adjustments> = [
+    'toneSliderVersion',
     'baselineExposure',
     'cameraExposureCompensation',
     'crop',

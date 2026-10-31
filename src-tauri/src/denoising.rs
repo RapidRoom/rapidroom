@@ -702,6 +702,7 @@ fn uses_default_raw_tone(is_raw: bool, method: &str) -> bool {
 fn nind_raw_defaults(source_adjustments: &serde_json::Value) -> serde_json::Value {
     let mut defaults = crate::image_processing::default_adjustments();
     crate::image_processing::copy_exposure_policy(source_adjustments, &mut defaults);
+    crate::image_processing::copy_tone_slider_version(source_adjustments, &mut defaults);
     defaults
 }
 

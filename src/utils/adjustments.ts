@@ -342,6 +342,7 @@ export interface Adjustments {
   fogTint: number;
   lensCorrectionMode: 'auto' | 'manual';
   cameraLensCorrectionVersion?: 0 | 1;
+  toneSliderVersion?: number;
   lensDistortionAmount: number;
   lensVignetteAmount: number;
   lensTcaAmount: number;

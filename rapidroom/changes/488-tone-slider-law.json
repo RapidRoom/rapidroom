@@ -1,0 +1,12 @@
+{
+  "id": "488-tone-slider-law",
+  "title": "Fit tone slider strength to Lightroom while preserving existing recipes",
+  "category": "fix",
+  "landed": "2026-10-29",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "New edits and raw/develop imports use toneSliderVersion 1 for global and mask tone sliders. Missing versions retain the previous law. An opt-in ramp-matching converter reports approximation residuals. Camera baselines are calibrated per model; uncalibrated models contribute zero EV. Calibrated camera baselines also change existing law-0 edits with camera exposure compensation enabled; empty legacy sidecars are unchanged. The uncalibrated A7R V baseline remains +0.35 EV."
+}
