@@ -1,0 +1,13 @@
+{
+  "id": "lightroom-photo-raw-defaults",
+  "title": "Apply Lightroom defaults to photo XMP imports",
+  "category": "fix",
+  "landed": "2026-10-26",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Fills absent native Lightroom defaults for photo XMP imports on recognized process versions, with RAW and rendered-source defaults kept distinct. Preset imports remain sparse; metadata-only records, explicit zeroes and unknown process versions do not acquire inferred values. Unsupported non-default controls are reported. Default non-imported renders remain unchanged; Lightroom appearance parity is not claimed."
+}

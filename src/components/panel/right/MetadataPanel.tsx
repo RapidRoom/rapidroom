@@ -1,3 +1,4 @@
+import CaptureTime from '../../ui/CaptureTime';
 import { useState, useMemo, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Check, ChevronDown, ChevronRight, Plus, Star, Tag, X, User } from 'lucide-react';
@@ -249,7 +250,7 @@ export default function MetadataPanel() {
   const multiSelectedPaths = useLibraryStore((s) => s.multiSelectedPaths);
   const imageRatings = useLibraryStore((s) => s.imageRatings);
   const appSettings = useSettingsStore((s) => s.appSettings);
-  const thumbnails = useProcessStore((s) => s.thumbnails);
+  const liveThumbnailUrl = useProcessStore((s) => (selectedImage ? s.thumbnails[selectedImage.path] : undefined));
 
   const { handleRate, handleToggleFlag, handleSetColorLabel, handleTagsChanged, handleUpdateExif } =
     useLibraryActions();
@@ -260,7 +261,6 @@ export default function MetadataPanel() {
     if (!selectedImage) return EMPTY_TAGS;
     return state.imageList.find((img) => img.path === selectedImage.path)?.tags ?? EMPTY_TAGS;
   });
-  const liveThumbnailUrl = selectedImage ? thumbnails[selectedImage.path] : undefined;
 
   const targetPaths = multiSelectedPaths?.length > 0 ? multiSelectedPaths : selectedImage ? [selectedImage.path] : [];
   const getPathsToUpdate = () => {
@@ -269,7 +269,7 @@ export default function MetadataPanel() {
     return expandGroupedPaths(imageList, targetPaths, groupingMode);
   };
 
-  const { cameraGridSettings, lensSetting, gpsData, otherExifEntries } = useMemo(() => {
+  const { cameraGridSettings, lensSetting, focusDistance, gpsData, otherExifEntries } = useMemo(() => {
     const exif = selectedImage?.exif || {};
 
     const cameraGridKeys = ['ExposureTime', 'FNumber', 'PhotographicSensitivity', 'FocalLengthIn35mmFilm'];
@@ -328,12 +328,17 @@ export default function MetadataPanel() {
       }
     }
 
-    const handledKeys = [...cameraGridKeys, 'LensModel', ...EDITABLE_FIELDS.map((f) => f.key)];
+    const focusValue = exif.FocusDistance;
+    const focusText = focusValue !== undefined && focusValue !== null && focusValue !== '' ? String(focusValue) : null;
+    // The metadata value stays exiftool's `inf`. The panel shows the infinity glyph.
+    const focusDistance = focusText === 'inf' ? '∞' : focusText;
+
+    const handledKeys = [...cameraGridKeys, 'LensModel', 'FocusDistance', ...EDITABLE_FIELDS.map((f) => f.key)];
     const otherExifEntries = Object.entries(exif)
       .filter(([key]) => !handledKeys.includes(key))
       .sort(([keyA], [keyB]) => keyA.localeCompare(keyB));
 
-    return { cameraGridSettings, lensSetting, gpsData, otherExifEntries };
+    return { cameraGridSettings, lensSetting, focusDistance, gpsData, otherExifEntries };
   }, [selectedImage?.exif, t]);
 
   const currentColor = useMemo(() => {
@@ -457,9 +462,7 @@ export default function MetadataPanel() {
                         })
                       : t('editor.metadata.fileInfo.emptyDimensions')}
                   </Text>
-                  <Text variant={TextVariants.small} color={TextColors.secondary} className="truncate drop-shadow-sm">
-                    {selectedImage.exif?.DateTimeOriginal || '-'}
-                  </Text>
+                  <CaptureTime path={selectedImage.path} exif={selectedImage.exif} editable />
                 </div>
               </div>
             </div>
@@ -516,6 +519,32 @@ export default function MetadataPanel() {
                     {lensSetting.value}
                   </Text>
                 </div>
+
+                {focusDistance && (
+                  <div
+                    className="flex items-center justify-between gap-2 bg-surface border border-surface px-3 py-2 rounded-xl cursor-default"
+                    data-tooltip={t('editor.metadata.camera.focusDistance')}
+                  >
+                    <Text
+                      as="span"
+                      variant={TextVariants.small}
+                      color={TextColors.secondary}
+                      weight={TextWeights.medium}
+                      className="shrink-0"
+                    >
+                      {t('editor.metadata.camera.focusDistance')}
+                    </Text>
+                    <Text
+                      as="span"
+                      variant={TextVariants.small}
+                      weight={TextWeights.medium}
+                      color={TextColors.primary}
+                      className="truncate"
+                    >
+                      {focusDistance}
+                    </Text>
+                  </div>
+                )}
               </div>
             </div>
 

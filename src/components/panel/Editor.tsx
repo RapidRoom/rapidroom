@@ -6,7 +6,15 @@ import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 
 import { ImageDimensions, RenderSize, useImageRenderSize } from '../../hooks/useImageRenderSize';
-import { Adjustments, AiPatch, MaskContainer, INITIAL_ADJUSTMENTS } from '../../utils/adjustments';
+import {
+  Adjustments,
+  AiPatch,
+  MaskContainer,
+  INITIAL_ADJUSTMENTS,
+  omitTonalAdjustments,
+} from '../../utils/adjustments';
+import { useShallow } from 'zustand/react/shallow';
+import { prepareAdjustmentsPayload } from '../../utils/backendPayload';
 import {
   calculateCenteredCrop,
   getOrientedDimensions,
@@ -17,19 +25,22 @@ import {
   moveCropInsideBounds,
   zoomCrop,
   normalizeCropChange,
+  toPixelCrop,
 } from '../../utils/cropUtils';
 import EditorToolbar from './editor/EditorToolbar';
 import EmbeddedPreviewWarning from './EmbeddedPreviewWarning';
 import ImageCanvas from './editor/ImageCanvas';
+import { canvasBackgroundRgb, resolveEditorCanvasBackground } from '../../utils/editorCanvasBackground';
 import ReferencePane from './editor/ReferencePane';
+import SpeedEditOverlay from './editor/overlays/SpeedEditOverlay';
 import { Mask, SubMask } from './right/Masks';
-import { Panel, TransformState, Invokes } from '../ui/AppProperties';
+import { CompareView, Panel, TransformState, Invokes } from '../ui/AppProperties';
 import { useEditorStore } from '../../store/useEditorStore';
 import { useSettingsStore } from '../../store/useSettingsStore';
 import { useUIStore } from '../../store/useUIStore';
 import { useLibraryStore } from '../../store/useLibraryStore';
 import { useAiMasking } from '../../hooks/useAiMasking';
-import { useEditorActions } from '../../hooks/useEditorActions';
+import { useEditorActions, withRotation } from '../../hooks/useEditorActions';
 import {
   getDpr,
   transformFromPercent,
@@ -42,7 +53,9 @@ import {
   isAtMaxZoom,
 } from '../../utils/zoom';
 import { useDevicePixelRatio } from '../../hooks/useDevicePixelRatio';
-import { getReferenceLabel, isReferenceViewActive } from '../../utils/referenceView';
+import { comparisonReferencePath, isReferenceViewActive } from '../../utils/referenceView';
+import { preserveCompareViewport } from '../../utils/compareViewport';
+import { interpretWheel, movedBeyondClick } from '../../utils/canvasControls';
 
 const parseRgb = (rgbStr: string): [number, number, number, number] => {
   const match = rgbStr.match(/[\d.]+/g);
@@ -52,7 +65,16 @@ const parseRgb = (rgbStr: string): [number, number, number, number] => {
   return [0, 0, 0, 1.0];
 };
 
-const NEUTRAL_GREY_RGB: [number, number, number, number] = [128 / 255, 128 / 255, 128 / 255, 1.0];
+const NO_SPLIT = { splitOrigin: [0, 0], splitNormal: [0, 0], splitOffset: [0, 0] };
+
+const withClientXShift = <T extends object>(event: T, shift: number): T =>
+  new Proxy(event, {
+    get: (target, key) => {
+      if (key === 'clientX') return (target as { clientX: number }).clientX + shift;
+      const value = Reflect.get(target, key);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
 
 const checkCropValid = (pixelCrop: Partial<Crop>, imageW: number, imageH: number, rotation: number) => {
   if (pixelCrop.x === undefined || pixelCrop.y === undefined || !pixelCrop.width || !pixelCrop.height) {
@@ -83,6 +105,55 @@ const checkCropValid = (pixelCrop: Partial<Crop>, imageW: number, imageH: number
   return true;
 };
 
+interface SplitDividerProps {
+  boundsRef: React.Ref<HTMLDivElement>;
+  isVertical: boolean;
+  position: number;
+  onPositionChange(position: number): void;
+}
+
+function SplitDivider({ boundsRef, isVertical, position, onPositionChange }: SplitDividerProps) {
+  const updatePosition = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const rect = e.currentTarget.parentElement!.getBoundingClientRect();
+      const fraction = isVertical ? (e.clientX - rect.left) / rect.width : (e.clientY - rect.top) / rect.height;
+      onPositionChange(Math.min(1, Math.max(0, fraction)));
+    },
+    [isVertical, onPositionChange],
+  );
+
+  return (
+    <div ref={boundsRef} className="absolute pointer-events-none z-20">
+      <div
+        data-split-divider
+        className={clsx(
+          'absolute flex items-center justify-center pointer-events-auto touch-none group',
+          isVertical
+            ? 'inset-y-0 w-8 -translate-x-1/2 cursor-col-resize'
+            : 'inset-x-0 h-8 -translate-y-1/2 cursor-row-resize',
+        )}
+        style={isVertical ? { left: `${position * 100}%` } : { top: `${position * 100}%` }}
+        onPointerDown={(e) => {
+          if (e.button !== 0) return;
+          e.currentTarget.setPointerCapture(e.pointerId);
+          updatePosition(e);
+        }}
+        onPointerMove={(e) => {
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) updatePosition(e);
+        }}
+      >
+        <div
+          className={clsx(
+            'absolute bg-accent/80 shadow-[0_0_3px_rgba(0,0,0,0.5)]',
+            isVertical ? 'inset-y-0 w-0.5' : 'inset-x-0 h-0.5',
+          )}
+        />
+        <div className="relative shrink-0 w-4 h-4 rounded-full bg-accent shadow-md transition-transform group-hover:scale-110 group-active:scale-125" />
+      </div>
+    </div>
+  );
+}
+
 interface WgpuRenderState {
   useWgpuRenderer: boolean | undefined;
   isReady: boolean;
@@ -90,6 +161,8 @@ interface WgpuRenderState {
   isCropping: boolean;
   uncroppedAdjustedPreviewUrl: string | null;
   showOriginal: boolean;
+  compareView: CompareView;
+  splitPosition: number;
   bgPrimary: [number, number, number, number];
   bgSecondary: [number, number, number, number];
 }
@@ -112,18 +185,22 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const setUI = useUIStore((s) => s.setUI);
   const isLoading = useLibraryStore((s) => s.isViewLoading);
   const selectedImage = useEditorStore((s) => s.selectedImage);
-  const adjustments = useEditorStore((s) => s.adjustments);
+  const adjustments = useEditorStore(useShallow((s) => omitTonalAdjustments(s.adjustments)));
   const adjustmentsHistory = useEditorStore((s) => s.history);
   const adjustmentsHistoryIndex = useEditorStore((s) => s.historyIndex);
   const finalPreviewUrl = useEditorStore((s) => s.finalPreviewUrl);
   const uncroppedAdjustedPreviewUrl = useEditorStore((s) => s.uncroppedAdjustedPreviewUrl);
-  const interactivePatch = useEditorStore((s) => s.interactivePatch);
   const showOriginal = useEditorStore((s) => s.showOriginal);
   const referenceView = useEditorStore((s) => s.referenceView);
   const dispatchReferenceView = useEditorStore((s) => s.dispatchReferenceView);
   const isReferenceViewOn = isReferenceViewActive(referenceView);
+  const comparisonSourcePath = comparisonReferencePath(referenceView);
+  const compareView = useEditorStore((s) => s.compareView);
+  const splitPosition = useEditorStore((s) => s.splitPosition);
+  const originalPreview = useEditorStore((s) => s.originalPreview);
   const isSliderDragging = useEditorStore((s) => s.isSliderDragging);
   const targetZoom = useEditorStore((s) => s.zoom);
+  const zoomRequest = useEditorStore((s) => s.zoomRequest);
   const dpr = useDevicePixelRatio();
   const isRotationActive = useEditorStore((s) => s.isRotationActive);
   const overlayMode = useEditorStore((s) => s.overlayMode);
@@ -131,6 +208,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const isStraightenActive = useEditorStore((s) => s.isStraightenActive);
   const isWbPickerActive = useEditorStore((s) => s.isWbPickerActive);
   const isMixerPickerActive = useEditorStore((s) => s.mixerPickerProperty !== null);
+  const isRelightPickerActive = useEditorStore((s) => s.isRelightPickerActive);
   const liveRotation = useEditorStore((s) => s.liveRotation);
   const brushSettings = useEditorStore((s) => s.brushSettings);
   const activeMaskContainerId = useEditorStore((s) => s.activeMaskContainerId);
@@ -141,6 +219,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const hasRenderedFirstFrame = useEditorStore((s) => s.hasRenderedFirstFrame);
 
   const setEditor = useEditorStore((s) => s.setEditor);
+  useEffect(() => () => setEditor({ zoomRequest: null }), [setEditor]);
   const toggleFullScreen = useUIStore((s) => s.toggleFullScreen);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
@@ -151,7 +230,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const isAndroid = osPlatform === 'android';
 
   const { handleGenerateAiMask, handleQuickErase, handleDirectPatch } = useAiMasking();
-  const { setAdjustments, toggleShowOriginal } = useEditorActions();
+  const { setAdjustments, toggleCompare, selectCompareMode } = useEditorActions();
 
   const [crop, setCrop] = useState<Crop | null>(null);
   const prevCropParams = useRef<any>(null);
@@ -161,7 +240,6 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const [isMaskHovered, setIsMaskHovered] = useState(false);
   const [isMaskTouchInteracting, setIsMaskTouchInteracting] = useState(false);
   const [isLoaderVisible, setIsLoaderVisible] = useState(false);
-  const [showExifDateView, setShowExifDateView] = useState(false);
   const [maskOverlayUrl, setMaskOverlayUrl] = useState<string | null>(null);
   const [transformState, setTransformState] = useState<TransformState>({ scale: 1, positionX: 0, positionY: 0 });
 
@@ -176,6 +254,12 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const originalPaneRef = useRef<HTMLDivElement>(null);
+  const originalContentRef = useRef<HTMLDivElement>(null);
+  const originalClipRef = useRef<HTMLDivElement>(null);
+  const splitBoundsRef = useRef<HTMLDivElement>(null);
+  const splitLayoutRef = useRef<{ view: CompareView; position: number }>({ view: 'off', position: 0.5 });
   const transformStateRef = useRef<TransformState>(transformState);
   transformStateRef.current = transformState;
   const [isPanningState, setIsPanningState] = useState(false);
@@ -183,7 +267,8 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const clickAnimationTime = 250;
   const zoomDebounceTimeoutRef = useRef<number | null>(null);
   const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
-  const savedZoomState = useRef<{ scale: number; positionX: number; positionY: number } | null>(null);
+  const animationZoomTargetRef = useRef<number | null>(null);
+  const clickAnimationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focalPointRef = useRef({ x: 0.5, y: 0.5 });
   const isTransitioningRef = useRef(false);
   const [toolbarOverflowVisible, setToolbarOverflowVisible] = useState(!isFullScreen);
@@ -205,6 +290,9 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     offsetX: 0,
     offsetY: 0,
     width: 0,
+    height: 0,
+    containerWidth: 0,
+    containerHeight: 0,
   });
   const transitionAnchorRef = useRef<{
     active: boolean;
@@ -212,6 +300,31 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     screenImageTop: number;
     physicalImageWidth: number;
   } | null>(null);
+  useLayoutEffect(() => {
+    const cancelPendingZoom = () => {
+      if (animationFrameId.current !== null) cancelAnimationFrame(animationFrameId.current);
+      if (physicsFrameId.current !== null) cancelAnimationFrame(physicsFrameId.current);
+      if (zoomDebounceTimeoutRef.current !== null) clearTimeout(zoomDebounceTimeoutRef.current);
+      if (wheelSnapTimeout.current !== null) clearTimeout(wheelSnapTimeout.current);
+      if (clickAnimationTimeoutRef.current !== null) clearTimeout(clickAnimationTimeoutRef.current);
+      animationFrameId.current = null;
+      animationZoomTargetRef.current = null;
+      physicsFrameId.current = null;
+      zoomDebounceTimeoutRef.current = null;
+      wheelSnapTimeout.current = null;
+      clickAnimationTimeoutRef.current = null;
+      isClickAnimating.current = false;
+      activePointers.current.clear();
+      lastPanPos.current = null;
+      lastPinch.current = null;
+      panVelocityHistory.current = [];
+      isMiddleMousePanning.current = false;
+    };
+    cancelPendingZoom();
+    setIsPanningState(false);
+    return cancelPendingZoom;
+  }, [selectedImage?.path]);
+
   const wgpuSyncRef = useRef<number | null>(null);
   const lastWgpuTransformRef = useRef<string | null>(null);
 
@@ -250,6 +363,13 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      const editingText = target?.matches('input, textarea, [contenteditable="true"]');
+      if (!editingText && !e.metaKey && !e.ctrlKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        toggleCompare();
+        return;
+      }
       if (e.key === 'Shift') {
         setIsShiftPressed(true);
       }
@@ -286,7 +406,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('blur', handleBlur);
     };
-  }, []);
+  }, [toggleCompare]);
 
   useEffect(() => {
     const clearCropResizeStart = () => {
@@ -324,34 +444,15 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   const handleZoomed = useCallback(
     (state: TransformState) => {
+      if (useEditorStore.getState().selectedImage?.path !== selectedImage?.path) return;
       setEditor({ zoom: state.scale });
     },
-    [setEditor],
+    [setEditor, selectedImage?.path],
   );
 
   const handleStraighten = useCallback(
     (angleCorrection: number) => {
-      setAdjustments((prev: Adjustments) => {
-        const newRotation = (prev.rotation || 0) + angleCorrection;
-        const newCrop =
-          selectedImage?.width && selectedImage?.height
-            ? calculateAutoCropForRotation(
-                selectedImage.width,
-                selectedImage.height,
-                prev.orientationSteps || 0,
-                prev.aspectRatio,
-                newRotation,
-                prev.crop,
-                angleCorrection,
-              )
-            : prev.crop;
-
-        return {
-          ...prev,
-          rotation: newRotation,
-          crop: newCrop,
-        };
-      });
+      setAdjustments((prev: Adjustments) => withRotation(prev, selectedImage, (prev.rotation || 0) + angleCorrection));
       setEditor({ isStraightenActive: false });
     },
     [selectedImage, setAdjustments, setEditor],
@@ -359,16 +460,19 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   const updateSubMaskLocal = useCallback(
     (subMaskId: string, updatedData: any) => {
+      const updateContainers = <T extends MaskContainer | AiPatch>(containers: T[]): T[] =>
+        containers.map((c) =>
+          c.subMasks.some((sm: SubMask) => sm.id === subMaskId)
+            ? {
+                ...c,
+                subMasks: c.subMasks.map((sm: SubMask) => (sm.id === subMaskId ? { ...sm, ...updatedData } : sm)),
+              }
+            : c,
+        );
       setAdjustments((prev: Adjustments) => ({
         ...prev,
-        masks: prev.masks.map((c: MaskContainer) => ({
-          ...c,
-          subMasks: c.subMasks.map((sm: SubMask) => (sm.id === subMaskId ? { ...sm, ...updatedData } : sm)),
-        })),
-        aiPatches: (prev.aiPatches || []).map((p: AiPatch) => ({
-          ...p,
-          subMasks: p.subMasks.map((sm: SubMask) => (sm.id === subMaskId ? { ...sm, ...updatedData } : sm)),
-        })),
+        masks: updateContainers(prev.masks),
+        aiPatches: updateContainers(prev.aiPatches || []),
       }));
     },
     [setAdjustments],
@@ -390,16 +494,30 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const isCropping = activePanel === Panel.Crop;
   const isMasking = activePanel === Panel.Masks;
   const isAiEditing = activePanel === Panel.Ai;
+  const isSideBySide = compareView === 'sideBySide' && !isCropping;
+
+  const getOriginalPaneShift = useCallback(
+    () =>
+      (imageContainerRef.current?.getBoundingClientRect().left ?? 0) -
+      (originalPaneRef.current?.getBoundingClientRect().left ?? 0),
+    [],
+  );
+
+  const forwardFromOriginalPane = useCallback(
+    <E extends React.MouseEvent<HTMLDivElement>>(handler: (e: E) => void) =>
+      (e: E) =>
+        handler(withClientXShift(e, getOriginalPaneShift())),
+    [getOriginalPaneShift],
+  );
 
   const croppedDimensions = useMemo<ImageDimensions | null>(() => {
     if (!selectedImage?.width || !selectedImage?.height) {
       return null;
     }
-    return zoomReferenceSize(
-      { width: selectedImage.width, height: selectedImage.height },
-      adjustments.orientationSteps || 0,
-      adjustments.crop,
-    );
+    const orientationSteps = adjustments.orientationSteps || 0;
+    const oriented = getOrientedDimensions(selectedImage.width, selectedImage.height, orientationSteps);
+    const pixelCrop = adjustments.crop ? toPixelCrop(adjustments.crop, oriented.width, oriented.height) : null;
+    return zoomReferenceSize({ width: selectedImage.width, height: selectedImage.height }, orientationSteps, pixelCrop);
   }, [selectedImage, adjustments.crop, adjustments.orientationSteps]);
 
   const imageRenderSize = useImageRenderSize(imageContainerRef, croppedDimensions);
@@ -411,10 +529,9 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const minScaleRef = useRef(transformConfig.minScale);
   const maxScaleRef = useRef(transformConfig.maxScale);
 
-  useEffect(() => {
-    minScaleRef.current = transformConfig.minScale;
-    maxScaleRef.current = transformConfig.maxScale;
-  }, [transformConfig.minScale, transformConfig.maxScale]);
+  // Geometry-bound requests reconcile in a layout effect, before passive effects run.
+  minScaleRef.current = transformConfig.minScale;
+  maxScaleRef.current = transformConfig.maxScale;
 
   const getTransformBounds = useCallback((scale: number) => {
     const container = imageContainerRef.current;
@@ -464,15 +581,56 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     [getTransformBounds],
   );
 
+  const getVisibleImageRect = useCallback(() => {
+    const container = imageContainerRef.current;
+    if (!container) return null;
+    const { positionX, positionY, scale } = transformStateRef.current;
+    const { offsetX, offsetY, width, height } = imageRenderSizeRef.current;
+    const left = Math.max(0, positionX + offsetX * scale);
+    const top = Math.max(0, positionY + offsetY * scale);
+    const right = Math.min(container.clientWidth, positionX + (offsetX + width) * scale);
+    const bottom = Math.min(container.clientHeight, positionY + (offsetY + height) * scale);
+    return { left, top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
+  }, []);
+
+  const syncSplitOverlay = useCallback(() => {
+    const { view, position } = splitLayoutRef.current;
+    if (view !== 'vertical' && view !== 'horizontal') return;
+    const rect = getVisibleImageRect();
+    const container = imageContainerRef.current;
+    if (!rect || !container) return;
+
+    if (splitBoundsRef.current) {
+      Object.assign(splitBoundsRef.current.style, {
+        left: `${rect.left}px`,
+        top: `${rect.top}px`,
+        width: `${rect.width}px`,
+        height: `${rect.height}px`,
+      });
+    }
+    if (originalClipRef.current) {
+      originalClipRef.current.style.clipPath =
+        view === 'vertical'
+          ? `inset(0 ${container.clientWidth - rect.left - rect.width * position}px 0 0)`
+          : `inset(0 0 ${container.clientHeight - rect.top - rect.height * position}px 0)`;
+    }
+  }, [getVisibleImageRect]);
+
   const applyTransform = useCallback(
     (x: number, y: number, scale: number) => {
       scale = Math.min(Math.max(Number.isFinite(scale) ? scale : 1, minScaleRef.current), maxScaleRef.current);
       transformStateRef.current = { positionX: x, positionY: y, scale };
       setTransformState({ scale, positionX: x, positionY: y });
 
+      const transform = `translate(${x}px, ${y}px) scale(${scale})`;
       if (contentRef.current) {
-        contentRef.current.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+        contentRef.current.style.transform = transform;
       }
+      if (originalContentRef.current) {
+        originalContentRef.current.style.transform = transform;
+      }
+      syncSplitOverlay();
+      syncWgpuRef.current();
 
       if (!isTransitioningRef.current) {
         if (scale > 1.01) {
@@ -495,14 +653,15 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         handleZoomed({ scale, positionX: x, positionY: y });
       }, 100);
     },
-    [handleZoomed],
+    [handleZoomed, syncSplitOverlay],
   );
 
   useEffect(() => {
+    if (zoomRequest) return;
     const { positionX, positionY, scale } = transformStateRef.current;
     const bounded = clampToBounds(positionX, positionY, scale);
     if (bounded.scale !== scale) applyTransform(bounded.x, bounded.y, bounded.scale);
-  }, [transformConfig, clampToBounds, applyTransform]);
+  }, [transformConfig, clampToBounds, applyTransform, zoomRequest]);
 
   const animateTransform = useCallback(
     (targetX: number, targetY: number, targetScale: number, duration: number) => {
@@ -528,10 +687,18 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
         if (progress < 1) {
           animationFrameId.current = requestAnimationFrame(step);
+        } else {
+          animationFrameId.current = null;
+          animationZoomTargetRef.current = null;
         }
       };
 
-      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+        animationFrameId.current = null;
+        animationZoomTargetRef.current = null;
+      }
+      animationZoomTargetRef.current = boundedTarget.scale;
       animationFrameId.current = requestAnimationFrame(step);
     },
     [applyTransform, clampToBounds],
@@ -540,7 +707,11 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const startPhysicsLoop = useCallback(
     (initialVx: number, initialVy: number) => {
       if (physicsFrameId.current) cancelAnimationFrame(physicsFrameId.current);
-      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+        animationFrameId.current = null;
+        animationZoomTargetRef.current = null;
+      }
 
       let vx = initialVx;
       let vy = initialVy;
@@ -634,6 +805,15 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   useImperativeHandle(
     transformWrapperRef,
     () => ({
+      getZoomIntent: () => {
+        const state = useEditorStore.getState();
+        if (state.zoomRequest && state.zoomRequest.imagePath === state.selectedImage?.path)
+          return state.zoomRequest.percent;
+        const scale = animationZoomTargetRef.current ?? transformStateRef.current.scale;
+        return Math.abs(scale - 1) <= 0.01
+          ? null
+          : percentFromTransform(imageRenderSizeRef.current.scale, scale, getDpr());
+      },
       zoomIn: (factor: number, time?: number) => {
         zoomToCenter(transformStateRef.current.scale * Math.exp(factor), time || 0);
       },
@@ -662,8 +842,58 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     [animateTransform, applyTransform, clampToBounds, zoomToCenter],
   );
 
+  useLayoutEffect(() => {
+    if (!zoomRequest) return;
+    if (zoomRequest.imagePath !== selectedImage?.path) {
+      setEditor({ zoomRequest: null });
+      return;
+    }
+    if (!selectedImage.isReady || !croppedDimensions || imageRenderSize.width <= 0) return;
+    // Wait for fitted geometry after a photo or crop change, including Fit requests.
+    const expectedScale = Math.min(
+      imageRenderSize.containerWidth / croppedDimensions.width,
+      imageRenderSize.containerHeight / croppedDimensions.height,
+    );
+    if (Math.abs(imageRenderSize.scale - expectedScale) > 1e-9) return;
+    const scale =
+      zoomRequest.percent === null ? 1 : transformFromPercent(zoomRequest.percent, imageRenderSize.scale, dpr);
+    setEditor({
+      zoomRequest: null,
+      zoom: scale,
+      baseRenderSize: {
+        ...imageRenderSize,
+        renderScale: imageRenderSize.scale,
+      },
+    });
+    if (zoomRequest.resetPosition) {
+      const container = imageContainerRef.current;
+      if (container) {
+        const bounded = clampToBounds(
+          (container.clientWidth * (1 - scale)) / 2,
+          (container.clientHeight * (1 - scale)) / 2,
+          scale,
+        );
+        applyTransform(bounded.x, bounded.y, bounded.scale);
+      }
+    } else {
+      zoomToCenter(scale, 200);
+    }
+  }, [
+    applyTransform,
+    clampToBounds,
+    zoomRequest,
+    selectedImage,
+    croppedDimensions,
+    imageRenderSize,
+    dpr,
+    setEditor,
+    zoomToCenter,
+  ]);
+
   useEffect(() => {
-    if (!transformWrapperRef.current || !targetZoom || targetZoom <= 0) return;
+    if (zoomRequest || !transformWrapperRef.current || !targetZoom || targetZoom <= 0) return;
+    if (animationZoomTargetRef.current !== null && Math.abs(animationZoomTargetRef.current - targetZoom) < 0.001)
+      return;
 
     const currentScale = transformStateRef.current.scale || 1;
     if (Math.abs(currentScale - targetZoom) < 0.001) return;
@@ -674,7 +904,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     } else {
       transformWrapperRef.current.zoomOut(Math.log(currentScale / targetZoom), animationTime);
     }
-  }, [targetZoom, transformWrapperRef]);
+  }, [targetZoom, transformWrapperRef, zoomRequest]);
 
   const activeSubMask = useMemo(() => {
     if (isMasking && activeMaskId) {
@@ -720,7 +950,8 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         activeSubMask?.type === Mask.Luminance ||
         activeSubMask?.parameters?.isInitialDraw)) ||
     isWbPickerActive ||
-    isMixerPickerActive;
+    isMixerPickerActive ||
+    isRelightPickerActive;
 
   useEffect(() => {
     const container = imageContainerRef.current;
@@ -728,7 +959,12 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
     const handleNativeWheel = (e: WheelEvent) => {
       e.preventDefault();
-      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+      setEditor({ zoomRequest: null });
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+        animationFrameId.current = null;
+        animationZoomTargetRef.current = null;
+      }
       if (physicsFrameId.current) cancelAnimationFrame(physicsFrameId.current);
 
       if (isCtrlPressedRef.current && selectedImage) {
@@ -773,24 +1009,15 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         return;
       }
 
-      const isPinch = e.ctrlKey;
-      const isTrackpad = appSettings?.canvasInputMode === 'trackpad';
-      let zoomSpeedMult = appSettings?.zoomSpeedMultiplier ?? 1.0;
+      const gesture = interpretWheel(e, appSettings?.zoomSpeedMultiplier, appSettings?.canvasInputMode);
 
-      if (isTrackpad) {
-        zoomSpeedMult *= 5;
-      }
-
-      const isZoomIntent = isPinch || (!isTrackpad && !e.shiftKey && !e.altKey);
-
-      if (isZoomIntent) {
+      if (gesture.kind === 'zoom') {
         const rect = container.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
+        const isTrackpad = appSettings?.canvasInputMode === 'trackpad';
         const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
-        const zoomSensitivity = 0.002 * zoomSpeedMult;
-        const exponent = delta * zoomSensitivity;
 
         const renderScale = imageRenderSizeRef.current.scale;
         const fit = renderScale * getDpr();
@@ -802,7 +1029,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
                 renderScale,
                 getDpr(),
               )
-            : transformStateRef.current.scale * Math.exp(-exponent);
+            : transformStateRef.current.scale * gesture.factor;
         newScale = Math.max(minScaleRef.current, Math.min(maxScaleRef.current, newScale));
 
         const ratio = newScale / transformStateRef.current.scale;
@@ -817,24 +1044,8 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         const { positionX: curX, positionY: curY, scale } = transformStateRef.current;
         const bounds = getTransformBounds(scale);
 
-        let dx = e.deltaX;
-        let dy = e.deltaY;
-
-        if (!isTrackpad) {
-          if (e.shiftKey && e.altKey) {
-            dx = e.deltaY !== 0 ? e.deltaY : e.deltaX;
-            dy = dx;
-          } else if (e.shiftKey) {
-            dx = e.deltaY !== 0 ? e.deltaY : e.deltaX;
-            dy = 0;
-          } else if (e.altKey) {
-            dx = 0;
-            dy = e.deltaY !== 0 ? e.deltaY : e.deltaX;
-          }
-        }
-
-        let newX = curX - dx;
-        let newY = curY - dy;
+        let newX = curX - gesture.dx;
+        let newY = curY - gesture.dy;
 
         const resistance = 0.5;
 
@@ -853,9 +1064,18 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       }
     };
 
+    const originalPane = originalPaneRef.current;
+    const handleOriginalPaneWheel = (e: WheelEvent) => handleNativeWheel(withClientXShift(e, getOriginalPaneShift()));
+
     container.addEventListener('wheel', handleNativeWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleNativeWheel);
+    originalPane?.addEventListener('wheel', handleOriginalPaneWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleNativeWheel);
+      originalPane?.removeEventListener('wheel', handleOriginalPaneWheel);
+    };
   }, [
+    isSideBySide,
+    getOriginalPaneShift,
     applyTransform,
     clampToBounds,
     getTransformBounds,
@@ -869,20 +1089,27 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     liveRotation,
     getEffectiveCrop,
     setAdjustments,
+    setEditor,
   ]);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      setEditor({ zoomRequest: null });
+      if ((e.target as HTMLElement).closest('[data-split-divider]')) return;
       wasPanningDisabledOnDown.current = isPanningDisabled;
 
       const isCropHandle = isCropping && e.button === 0 && !!(e.target as HTMLElement).closest('[data-ord]');
       cropResizeStartRef.current = isCropHandle ? lastValidCropRef.current : null;
 
       if (e.pointerType === 'mouse' && e.button === 0 && e.shiftKey && !isBrushActive && !isCropping) {
-        if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+        if (animationFrameId.current) {
+          cancelAnimationFrame(animationFrameId.current);
+          animationFrameId.current = null;
+          animationZoomTargetRef.current = null;
+        }
         if (physicsFrameId.current) cancelAnimationFrame(physicsFrameId.current);
 
-        const rect = e.currentTarget.getBoundingClientRect();
+        const rect = imageContainerRef.current!.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         straightenDragStartRef.current = { x, y };
@@ -893,21 +1120,22 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       }
 
       if (e.pointerType === 'mouse' && e.button === 0 && (e.ctrlKey || e.metaKey) && !isBrushActive) {
-        if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+        if (animationFrameId.current) {
+          cancelAnimationFrame(animationFrameId.current);
+          animationFrameId.current = null;
+          animationZoomTargetRef.current = null;
+        }
         if (physicsFrameId.current) cancelAnimationFrame(physicsFrameId.current);
 
         const now = Date.now();
         if (now - lastCtrlClickTimeRef.current < 300) {
           lastCtrlClickTimeRef.current = 0;
 
-          const originalAspectRatio =
-            selectedImage?.width && selectedImage?.height ? selectedImage.width / selectedImage.height : null;
-
           setAdjustments((prev) => ({
             ...prev,
             crop: INITIAL_ADJUSTMENTS.crop,
             rotation: INITIAL_ADJUSTMENTS.rotation ?? 0,
-            aspectRatio: originalAspectRatio,
+            aspectRatio: INITIAL_ADJUSTMENTS.aspectRatio,
           }));
 
           setEditor({ liveRotation: null, isSliderDragging: false });
@@ -938,7 +1166,11 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         isMiddleMousePanning.current = true;
       }
 
-      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+        animationFrameId.current = null;
+        animationZoomTargetRef.current = null;
+      }
       if (physicsFrameId.current) cancelAnimationFrame(physicsFrameId.current);
 
       panVelocityHistory.current = [];
@@ -959,7 +1191,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
       if (e.pointerType === 'mouse') e.currentTarget.setPointerCapture(e.pointerId);
     },
-    [isPanningDisabled, isBrushActive, isCropping, getEffectiveCrop],
+    [isPanningDisabled, isBrushActive, isCropping, getEffectiveCrop, setEditor],
   );
 
   useEffect(() => {
@@ -976,8 +1208,12 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      if (useEditorStore.getState().isMaskControlHovered) {
+        setEditor({ isMaskControlHovered: false });
+      }
+
       if (straightenDragStartRef.current && e.pointerType === 'mouse') {
-        const rect = e.currentTarget.getBoundingClientRect();
+        const rect = imageContainerRef.current!.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         const dx = x - straightenDragStartRef.current.x;
@@ -1079,6 +1315,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       liveRotation,
       imageRenderSize.scale,
       setAdjustments,
+      setEditor,
     ],
   );
 
@@ -1166,33 +1403,24 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         e.ctrlKey ||
         e.metaKey ||
         straightenDragLine ||
-        isStraightenDraggingRef.current
+        isStraightenDraggingRef.current ||
+        (e.target as HTMLElement).closest('[data-split-divider]')
       )
         return;
       if (isPanningDisabled || wasPanningDisabledOnDown.current) return;
 
-      if (mouseDownPos.current) {
-        const dx = Math.abs(e.clientX - mouseDownPos.current.x);
-        const dy = Math.abs(e.clientY - mouseDownPos.current.y);
-        if (dx > 5 || dy > 5) return;
-      }
+      if (mouseDownPos.current && movedBeyondClick(mouseDownPos.current, e.clientX, e.clientY)) return;
 
       const currentScale = transformStateRef.current.scale;
 
-      if (isClickAnimating.current || currentScale > 1.01) {
-        if (!isClickAnimating.current && currentScale > 1.01) {
-          savedZoomState.current = {
-            scale: currentScale,
-            positionX: transformStateRef.current.positionX,
-            positionY: transformStateRef.current.positionY,
-          };
-        }
+      if (isClickAnimating.current || Math.abs(currentScale - 1) > 0.01) {
         animateTransform(0, 0, 1, clickAnimationTime);
         isClickAnimating.current = false;
       } else {
         isClickAnimating.current = true;
-        setTimeout(() => {
+        clickAnimationTimeoutRef.current = setTimeout(() => {
           isClickAnimating.current = false;
+          clickAnimationTimeoutRef.current = null;
         }, clickAnimationTime + 50);
 
         const container = imageContainerRef.current;
@@ -1205,15 +1433,9 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
-        let zoomTarget = Math.min(currentScale * 2, maxScaleRef.current);
-
-        if (appSettings?.zoomPhotoToPixelClick) {
-          const renderScale = imageRenderSizeRef.current.scale || 1;
-          const scaleForPhysical100 = transformFromPercent(1, renderScale, getDpr());
-          zoomTarget = Math.max(1.05, Math.min(scaleForPhysical100, maxScaleRef.current));
-        } else {
-          zoomTarget = savedZoomState.current ? savedZoomState.current.scale : zoomTarget;
-        }
+        const renderScale = imageRenderSizeRef.current.scale || 1;
+        const requestedPercent = appSettings?.zoomPhotoToPixelClick ? 1 : 2;
+        const zoomTarget = Math.min(transformFromPercent(requestedPercent, renderScale, getDpr()), maxScaleRef.current);
         const ratio = zoomTarget / currentScale;
 
         const newPositionX = mouseX - (mouseX - currentPositionX) * ratio;
@@ -1271,6 +1493,21 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       ) {
         applyTransform(posNewX, posNewY, scaleNew);
       }
+    } else {
+      const prev = prevRenderState.current;
+      const containerResized =
+        Math.abs(prev.containerWidth - imageRenderSize.containerWidth) > 0.5 ||
+        Math.abs(prev.containerHeight - imageRenderSize.containerHeight) > 0.5;
+
+      if (containerResized && prev.width > 0 && prev.height > 0 && scaleOld > 1.01) {
+        const next = preserveCompareViewport(prev, imageRenderSize, {
+          scale: scaleOld,
+          positionX: posOldX,
+          positionY: posOldY,
+        });
+        const bounded = clampToBounds(next.positionX, next.positionY, next.scale);
+        applyTransform(bounded.x, bounded.y, bounded.scale);
+      }
     }
 
     prevRenderState.current = {
@@ -1279,8 +1516,11 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       offsetX: imageRenderSize.offsetX,
       offsetY: imageRenderSize.offsetY,
       width: imageRenderSize.width,
+      height: imageRenderSize.height,
+      containerWidth: imageRenderSize.containerWidth,
+      containerHeight: imageRenderSize.containerHeight,
     };
-  }, [isFullScreen, imageRenderSize, isInstantTransition, applyTransform]);
+  }, [isFullScreen, imageRenderSize, isInstantTransition, applyTransform, clampToBounds]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1328,18 +1568,12 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         });
       };
 
-      const strippedAdjustments = structuredClone(jsAdjustments);
-      if (strippedAdjustments.masks) {
-        strippedAdjustments.masks.forEach((m: any) => stripSubMasks(m.subMasks));
-      }
-      if (strippedAdjustments.aiPatches) {
-        strippedAdjustments.aiPatches.forEach((p: any) => stripSubMasks(p.subMasks));
-      }
+      const { payload: strippedAdjustments, markSent } = prepareAdjustmentsPayload(jsAdjustments);
 
       const strippedMaskDef = structuredClone(maskDef);
       stripSubMasks(strippedMaskDef.subMasks);
 
-      const dataUrl: string = await invoke(Invokes.GenerateMaskOverlay, {
+      const buffer: ArrayBuffer = await invoke(Invokes.GenerateMaskOverlay, {
         cropOffset,
         height: Math.round(renderSize.height),
         maskDef: strippedMaskDef,
@@ -1347,9 +1581,10 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         width: Math.round(renderSize.width),
         jsAdjustments: strippedAdjustments,
       });
+      markSent();
 
-      if (dataUrl) {
-        setMaskOverlayUrl(dataUrl);
+      if (buffer && buffer.byteLength > 0) {
+        setMaskOverlayUrl(URL.createObjectURL(new Blob([buffer], { type: 'image/png' })));
       } else {
         setMaskOverlayUrl(null);
       }
@@ -1363,6 +1598,13 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!maskOverlayUrl) return;
+    return () => {
+      setTimeout(() => URL.revokeObjectURL(maskOverlayUrl), 1000);
+    };
+  }, [maskOverlayUrl]);
 
   const requestMaskOverlay = useCallback(
     (maskDef: any, renderSize: any, currentAdjustments: any) => {
@@ -1382,15 +1624,40 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           opacity: 100,
         };
       }
-      requestMaskOverlay(normalizedDef, imageRenderSize, adjustments);
+      requestMaskOverlay(normalizedDef, imageRenderSize, useEditorStore.getState().adjustments);
     },
-    [imageRenderSize, adjustments, requestMaskOverlay],
+    [imageRenderSize, requestMaskOverlay],
+  );
+
+  const handleSelectAiPatchContainer = useCallback(
+    (id: string | null) => setEditor({ activeAiPatchContainerId: id }),
+    [setEditor],
+  );
+  const handleSelectMaskContainer = useCallback(
+    (id: string | null) => setEditor({ activeMaskContainerId: id }),
+    [setEditor],
+  );
+  const handleSelectAiSubMask = useCallback((id: string | null) => setEditor({ activeAiSubMaskId: id }), [setEditor]);
+  const handleSelectMask = useCallback((id: string | null) => setEditor({ activeMaskId: id }), [setEditor]);
+  const handleSplitPositionChange = useCallback(
+    (position: number) => setEditor({ splitPosition: position }),
+    [setEditor],
   );
 
   const croppedDimensionsRef = useRef(croppedDimensions);
   useEffect(() => {
     croppedDimensionsRef.current = croppedDimensions;
   }, [croppedDimensions]);
+
+  const activeCompareView: CompareView =
+    originalPreview?.path === selectedImage?.path &&
+    originalPreview?.sourcePath === (comparisonSourcePath ?? selectedImage?.path) &&
+    !isCropping
+      ? compareView
+      : 'off';
+  splitLayoutRef.current = { view: activeCompareView, position: splitPosition };
+
+  useLayoutEffect(syncSplitOverlay, [syncSplitOverlay, activeCompareView, splitPosition, imageRenderSize]);
 
   const wgpuStateRef = useRef<WgpuRenderState>({
     useWgpuRenderer: appSettings?.useWgpuRenderer,
@@ -1399,6 +1666,8 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     isCropping,
     uncroppedAdjustedPreviewUrl,
     showOriginal,
+    compareView: comparisonSourcePath ? 'off' : activeCompareView,
+    splitPosition,
     bgPrimary: [24 / 255, 24 / 255, 24 / 255, 1.0],
     bgSecondary: [35 / 255, 35 / 255, 35 / 255, 1.0],
   });
@@ -1408,7 +1677,10 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     const rootStyle = getComputedStyle(document.documentElement);
     const bgPrimaryStr = rootStyle.getPropertyValue('--app-bg-primary') || 'rgb(24, 24, 24)';
     const bgSecondaryStr = rootStyle.getPropertyValue('--app-bg-secondary') || 'rgb(35, 35, 35)';
-    const isNeutralGrey = appSettings?.editorNeutralGreyBg ?? false;
+    const editorCanvasBackground = resolveEditorCanvasBackground(
+      appSettings?.editorCanvasBackground,
+      appSettings?.editorNeutralGreyBg,
+    );
 
     wgpuStateRef.current = {
       useWgpuRenderer: appSettings?.useWgpuRenderer,
@@ -1417,18 +1689,24 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       isCropping,
       uncroppedAdjustedPreviewUrl,
       showOriginal,
+      compareView: comparisonSourcePath ? 'off' : activeCompareView,
+      splitPosition,
       bgPrimary: isLightsOut ? [0, 0, 0, 1] : parseRgb(bgPrimaryStr),
-      bgSecondary: isLightsOut ? [0, 0, 0, 1] : isNeutralGrey ? NEUTRAL_GREY_RGB : parseRgb(bgSecondaryStr),
+      bgSecondary: isLightsOut ? [0, 0, 0, 1] : canvasBackgroundRgb(editorCanvasBackground, parseRgb(bgSecondaryStr)),
     };
   }, [
     appSettings?.useWgpuRenderer,
     appSettings?.editorNeutralGreyBg,
+    appSettings?.editorCanvasBackground,
     selectedImage?.isReady,
     hasRenderedFirstFrame,
     isCropping,
     uncroppedAdjustedPreviewUrl,
     showOriginal,
     isLightsOut,
+    activeCompareView,
+    comparisonSourcePath,
+    splitPosition,
     appSettings?.theme,
     finalPreviewUrl,
   ]);
@@ -1438,12 +1716,16 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   }, [
     appSettings?.useWgpuRenderer,
     appSettings?.editorNeutralGreyBg,
+    appSettings?.editorCanvasBackground,
     isLightsOut,
     selectedImage?.isReady,
     hasRenderedFirstFrame,
     isCropping,
     uncroppedAdjustedPreviewUrl,
     showOriginal,
+    activeCompareView,
+    comparisonSourcePath,
+    splitPosition,
     appSettings?.theme,
     finalPreviewUrl,
     transformState,
@@ -1478,11 +1760,12 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       const windowWidth = Math.max(window.innerWidth * dpr, 1);
       const windowHeight = Math.max(window.innerHeight * dpr, 1);
 
+      const viewportRect = viewportRef.current?.getBoundingClientRect() ?? currentRect;
       const OVERLAP = 2;
-      const clipX = (currentRect.left - OVERLAP) * dpr;
-      const clipY = (currentRect.top - OVERLAP) * dpr;
-      const clipW = Math.max((currentRect.width + OVERLAP * 2) * dpr, 1);
-      const clipH = Math.max((currentRect.height + OVERLAP * 2) * dpr, 1);
+      const clipX = (viewportRect.left - OVERLAP) * dpr;
+      const clipY = (viewportRect.top - OVERLAP) * dpr;
+      const clipW = Math.max((viewportRect.width + OVERLAP * 2) * dpr, 1);
+      const clipH = Math.max((viewportRect.height + OVERLAP * 2) * dpr, 1);
       const irs = imageRenderSizeRef.current;
 
       if (
@@ -1514,6 +1797,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
               bgPrimary: state.bgPrimary || [0, 0, 0, 1],
               bgSecondary: state.bgSecondary || [0, 0, 0, 1],
               pixelated: false,
+              ...NO_SPLIT,
             },
           })
             .catch(() => {})
@@ -1554,7 +1838,31 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         screenH = Math.max(screenH, 1);
       }
 
-      const currentTransform = `${windowWidth},${windowHeight},${screenX},${screenY},${screenW},${screenH},${clipX},${clipY},${clipW},${clipH},${state.bgPrimary?.join(',')},${state.bgSecondary?.join(',')}`;
+      const originalPaneLeft = originalPaneRef.current?.getBoundingClientRect().left;
+      const visibleRect =
+        state.compareView === 'vertical' || state.compareView === 'horizontal' ? getVisibleImageRect() : null;
+      const split =
+        visibleRect && state.compareView === 'vertical'
+          ? {
+              ...NO_SPLIT,
+              splitOrigin: [(currentRect.left + visibleRect.left + visibleRect.width * state.splitPosition) * dpr, 0],
+              splitNormal: [1, 0],
+            }
+          : visibleRect
+            ? {
+                ...NO_SPLIT,
+                splitOrigin: [0, (currentRect.top + visibleRect.top + visibleRect.height * state.splitPosition) * dpr],
+                splitNormal: [0, 1],
+              }
+            : state.compareView === 'sideBySide' && originalPaneLeft !== undefined
+              ? {
+                  splitOrigin: [currentRect.left * dpr, 0],
+                  splitNormal: [1, 0],
+                  splitOffset: [(currentRect.left - originalPaneLeft) * dpr, 0],
+                }
+              : NO_SPLIT;
+
+      const currentTransform = `${windowWidth},${windowHeight},${screenX},${screenY},${screenW},${screenH},${clipX},${clipY},${clipW},${clipH},${state.bgPrimary?.join(',')},${state.bgSecondary?.join(',')},${split.splitOrigin},${split.splitNormal},${split.splitOffset}`;
 
       if (lastWgpuTransformRef.current !== currentTransform && !isInvoking) {
         lastWgpuTransformRef.current = currentTransform;
@@ -1577,6 +1885,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
             bgPrimary: state.bgPrimary || [0, 0, 0, 1],
             bgSecondary: state.bgSecondary || [0, 0, 0, 1],
             pixelated: isZoomedIn,
+            ...split,
           },
         })
           .catch((err) => console.warn('WGPU Sync Error:', err))
@@ -1606,7 +1915,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       resizeObserver.disconnect();
       window.removeEventListener('resize', scheduleSync);
     };
-  }, []);
+  }, [getVisibleImageRect]);
 
   const overlayTriggerHash = useMemo(() => {
     let activeMaskDef = null;
@@ -1706,7 +2015,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
       }
     }
 
-    requestMaskOverlay(maskDefForOverlay, imageRenderSize, adjustments);
+    requestMaskOverlay(maskDefForOverlay, imageRenderSize, useEditorStore.getState().adjustments);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     overlayTriggerHash,
@@ -1728,20 +2037,28 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   }, [showSpinner]);
 
   useEffect(() => {
-    if (!isCropping || !selectedImage?.width || !selectedImage?.height) {
+    const { aspectRatio, orientationSteps = 0, crop: storedCrop, rotation = 0 } = adjustments;
+
+    if (!isCropping) {
+      prevCropParams.current = { rotation, aspectRatio, orientationSteps };
       return;
     }
 
-    const { aspectRatio, orientationSteps = 0, crop: currentAdjCrop, rotation = 0 } = adjustments;
+    if (!selectedImage?.width || !selectedImage?.height) {
+      return;
+    }
+
     const effectiveRotation = liveRotation !== null && liveRotation !== undefined ? liveRotation : rotation;
 
+    const imageChanged = prevCropParams.current?.imagePath !== selectedImage.path;
     const geometryChanged =
+      imageChanged ||
       prevCropParams.current?.rotation !== rotation ||
       prevCropParams.current?.aspectRatio !== aspectRatio ||
       prevCropParams.current?.orientationSteps !== orientationSteps;
 
     const isDraggingRotation = liveRotation !== null && liveRotation !== undefined;
-    const needsRecalc = currentAdjCrop === null || geometryChanged || isDraggingRotation;
+    const needsRecalc = storedCrop === null || geometryChanged || isDraggingRotation;
 
     if (needsRecalc) {
       const { width: W, height: H } = getOrientedDimensions(
@@ -1750,6 +2067,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         orientationSteps,
       );
       const A = aspectRatio || (W > 0 && H > 0 ? W / H : 1);
+      const currentAdjCrop = storedCrop ? toPixelCrop(storedCrop, W, H) : null;
 
       let nextPixelCrop: Crop | null;
       const aspectChanged = prevCropParams.current?.aspectRatio !== aspectRatio;
@@ -1778,7 +2096,9 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         }
       }
 
-      if (!currentAdjCrop || orientationChanged) {
+      if (imageChanged && currentAdjCrop && !isDraggingRotation) {
+        nextPixelCrop = currentAdjCrop;
+      } else if (!currentAdjCrop || orientationChanged) {
         nextPixelCrop = calculateCenteredCrop(
           selectedImage.width,
           selectedImage.height,
@@ -1787,7 +2107,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           effectiveRotation,
         );
       } else if (aspectChanged) {
-        if (!aspectRatio) {
+        if (aspectRatio === null) {
           nextPixelCrop = currentAdjCrop;
         } else {
           const curW = currentAdjCrop.width;
@@ -1856,25 +2176,28 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         lastValidCropRef.current = pc;
       }
       if (!isDraggingRotation) {
-        prevCropParams.current = { rotation, aspectRatio, orientationSteps };
+        prevCropParams.current = { imagePath: selectedImage.path, rotation, aspectRatio, orientationSteps };
 
-        const normalizedCrop = normalizeCropChange(
-          currentAdjCrop,
-          nextPixelCrop,
-          selectedImage.width,
-          selectedImage.height,
-          orientationSteps,
-          rotation,
-        );
+        const normalizedCrop =
+          imageChanged && storedCrop
+            ? storedCrop
+            : normalizeCropChange(
+                storedCrop,
+                nextPixelCrop,
+                selectedImage.width,
+                selectedImage.height,
+                orientationSteps,
+                rotation,
+              );
 
         if (
-          normalizedCrop !== currentAdjCrop &&
+          normalizedCrop !== storedCrop &&
           (!normalizedCrop ||
-            !currentAdjCrop ||
-            Math.abs(currentAdjCrop.x - normalizedCrop.x) > 1 ||
-            Math.abs(currentAdjCrop.y - normalizedCrop.y) > 1 ||
-            Math.abs(currentAdjCrop.width - normalizedCrop.width) > 1 ||
-            Math.abs(currentAdjCrop.height - normalizedCrop.height) > 1)
+            !storedCrop ||
+            Math.abs(storedCrop.x - normalizedCrop.x) > 1 ||
+            Math.abs(storedCrop.y - normalizedCrop.y) > 1 ||
+            Math.abs(storedCrop.width - normalizedCrop.width) > 1 ||
+            Math.abs(storedCrop.height - normalizedCrop.height) > 1)
         ) {
           setAdjustments((prev: Adjustments) => ({ ...prev, crop: normalizedCrop }));
         }
@@ -1909,13 +2232,16 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
     const { crop: pixelCrop } = adjustments;
 
     if (pixelCrop) {
-      const pct: PercentCrop = {
-        unit: '%',
-        x: (pixelCrop.x / cropBaseWidth) * 100,
-        y: (pixelCrop.y / cropBaseHeight) * 100,
-        width: (pixelCrop.width / cropBaseWidth) * 100,
-        height: (pixelCrop.height / cropBaseHeight) * 100,
-      };
+      const pct: PercentCrop =
+        pixelCrop.unit === '%'
+          ? { ...pixelCrop, unit: '%' }
+          : {
+              unit: '%',
+              x: (pixelCrop.x / cropBaseWidth) * 100,
+              y: (pixelCrop.y / cropBaseHeight) * 100,
+              width: (pixelCrop.width / cropBaseWidth) * 100,
+              height: (pixelCrop.height / cropBaseHeight) * 100,
+            };
       setCrop(pct);
       lastValidCropRef.current = pct;
     }
@@ -2072,7 +2398,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
 
       const lastRatio = oldW / oldH;
       const newRatio = newW / newH;
-      const isProportional = adjustments.aspectRatio || Math.abs(lastRatio - newRatio) < 0.005;
+      const isProportional = adjustments.aspectRatio !== null || Math.abs(lastRatio - newRatio) < 0.005;
 
       if (isProportional) {
         const oldCX = oldL + oldW / 2;
@@ -2281,17 +2607,60 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   }
 
   const isWgpuActive = appSettings?.useWgpuRenderer !== false && hasRenderedFirstFrame;
+  const isSplitActive = activeCompareView === 'vertical' || activeCompareView === 'horizontal';
+  const contentTransform = `translate(${transformStateRef.current.positionX}px, ${transformStateRef.current.positionY}px) scale(${transformStateRef.current.scale})`;
+  const originalLayer = originalPreview?.url && (
+    <div
+      ref={originalContentRef}
+      className="absolute inset-0 origin-top-left pointer-events-none"
+      style={{ transform: contentTransform }}
+    >
+      <img
+        alt=""
+        src={originalPreview.url}
+        className="absolute"
+        style={{
+          left: imageRenderSize.offsetX,
+          top: imageRenderSize.offsetY,
+          width: imageRenderSize.width,
+          height: imageRenderSize.height,
+          imageRendering: isMaxZoom ? 'pixelated' : 'auto',
+          objectFit: comparisonSourcePath ? 'contain' : undefined,
+        }}
+      />
+    </div>
+  );
+  const straightenOverlay = straightenDragLine && (
+    <svg className="absolute inset-0 pointer-events-none z-[100]" style={{ width: '100%', height: '100%' }}>
+      <line
+        x1={straightenDragLine.start.x}
+        y1={straightenDragLine.start.y}
+        x2={straightenDragLine.end.x}
+        y2={straightenDragLine.end.y}
+        stroke="#0ea5e9"
+        strokeWidth="2"
+        strokeDasharray="4 4"
+      />
+    </svg>
+  );
   const hasRenderedAnyPreview = hasRenderedFirstFrame || !!finalPreviewUrl;
+  const editorCanvasBackground = resolveEditorCanvasBackground(
+    appSettings?.editorCanvasBackground,
+    appSettings?.editorNeutralGreyBg,
+  );
 
   return (
     <div
+      data-current-path={selectedImage.path}
+      data-full-render-complete={hasRenderedAnyPreview ? 'true' : 'false'}
+      data-testid="editor-current-photo"
       className={clsx(
         'lights-out-content flex-1 flex flex-col relative overflow-hidden min-h-0',
         !isInstantTransition && 'transition-all duration-300 ease-in-out',
         isFullScreen
           ? 'rounded-none p-0 gap-0'
           : clsx(
-              'rounded-lg p-2 gap-2',
+              'rounded-none p-0 gap-0',
               appSettings?.useWgpuRenderer !== false ? 'bg-transparent' : isLightsOut ? 'bg-black' : 'bg-bg-secondary',
             ),
       )}
@@ -2301,7 +2670,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
         className={clsx(
           'lights-out-chrome shrink-0 relative z-10',
           !isInstantTransition && 'transition-all duration-300 ease-in-out',
-          isFullScreen ? 'max-h-0 opacity-0 m-0' : 'max-h-25 opacity-100',
+          isFullScreen ? 'max-h-0 opacity-0 m-0' : 'max-h-25 opacity-100 px-2 py-1',
           toolbarOverflowVisible ? 'overflow-visible' : 'overflow-hidden',
         )}
       >
@@ -2314,41 +2683,61 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           onImageSelect={onImageSelect}
           onRedo={redo}
           onToggleFullScreen={toggleFullScreen}
-          onToggleShowOriginal={toggleShowOriginal}
-          isReferenceViewActive={isReferenceViewOn}
-          onToggleReferenceView={() => dispatchReferenceView({ type: 'toggle' })}
+          onToggleCompare={toggleCompare}
+          onSelectCompareMode={selectCompareMode}
           onUndo={undo}
           selectedImage={selectedImage}
-          showOriginal={showOriginal}
-          showDateView={showExifDateView}
-          onToggleDateView={() => setShowExifDateView((prev) => !prev)}
+          isComparing={showOriginal || compareView !== 'off'}
+          compareMode={
+            showOriginal ? 'toggle' : compareView !== 'off' ? compareView : (appSettings?.compareMode ?? 'toggle')
+          }
+          isReferenceViewActive={isReferenceViewOn}
+          onToggleReferenceView={() => dispatchReferenceView({ type: 'open-chooser' })}
           adjustmentsHistory={adjustmentsHistory}
           adjustmentsHistoryIndex={adjustmentsHistoryIndex}
           goToAdjustmentsHistoryIndex={goToHistoryIndex}
         />
       </div>
 
-      <div className={clsx('lights-out-content flex-1 flex min-h-0 min-w-0', isReferenceViewOn && 'gap-2')}>
-        {isReferenceViewOn && (
-          <ReferencePane
-            isChooserOpen={referenceView.isChooserOpen}
-            reference={referenceView.reference}
-            onCancelChooser={() => dispatchReferenceView({ type: 'close-chooser' })}
-            onChoose={() => dispatchReferenceView({ type: 'open-chooser' })}
-            onClear={() => dispatchReferenceView({ type: 'clear-reference' })}
-            onExit={() => dispatchReferenceView({ type: 'exit' })}
-          />
+      {isReferenceViewOn && <ReferencePane />}
+      <div
+        data-compare-view={activeCompareView}
+        ref={viewportRef}
+        className={clsx(
+          'flex-1 flex relative overflow-hidden',
+          isFullScreen ? 'rounded-none' : 'rounded-lg',
+          appSettings?.useWgpuRenderer !== false && !isFullScreen && 'ring-[9999px] ring-bg-secondary',
+          'lights-out-content',
+          !isWgpuActive &&
+            (isLightsOut
+              ? 'bg-black'
+              : {
+                  black: 'bg-black',
+                  'dark-grey': 'bg-[#303030]',
+                  'mid-grey': 'bg-[#808080]',
+                  theme: 'bg-bg-secondary',
+                  white: 'bg-white',
+                }[editorCanvasBackground]),
+        )}
+      >
+        {isSideBySide && (
+          <div
+            ref={originalPaneRef}
+            className="flex-1 relative overflow-hidden touch-none border-r border-border-color"
+            style={{ cursor: cursorStyle }}
+            onContextMenu={onContextMenu}
+            onPointerDownCapture={forwardFromOriginalPane(handlePointerDown)}
+            onPointerMove={forwardFromOriginalPane(handlePointerMove)}
+            onPointerUp={forwardFromOriginalPane(handlePointerUp)}
+            onPointerCancel={forwardFromOriginalPane(handlePointerUp)}
+            onClick={forwardFromOriginalPane(handleClick)}
+          >
+            {activeCompareView === 'sideBySide' && originalLayer}
+            {straightenOverlay}
+          </div>
         )}
         <div
-          className={clsx(
-            'lights-out-content flex-1 basis-0 min-w-0 relative overflow-hidden touch-none',
-            isFullScreen ? 'rounded-none' : 'rounded-lg',
-            appSettings?.useWgpuRenderer !== false &&
-              !isFullScreen &&
-              clsx('ring-[9999px]', isLightsOut ? 'ring-black' : 'ring-bg-secondary'),
-            !isWgpuActive &&
-              (isLightsOut ? 'bg-black' : appSettings?.editorNeutralGreyBg ? 'bg-[#808080]' : 'bg-bg-secondary'),
-          )}
+          className="flex-1 relative overflow-hidden touch-none"
           style={{ cursor: cursorStyle }}
           onContextMenu={onContextMenu}
           ref={imageContainerRef}
@@ -2359,10 +2748,6 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           onPointerCancel={handlePointerUp}
           onClick={handleClick}
         >
-          <EmbeddedPreviewWarning
-            isReady={selectedImage?.isReady ?? false}
-            usedEmbeddedPreview={selectedImage?.usedEmbeddedPreview}
-          />
           {showSpinner && (
             <div
               className={clsx(
@@ -2377,9 +2762,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
           <div
             ref={contentRef}
             className="w-full h-full flex items-center justify-center origin-top-left"
-            style={{
-              transform: `translate(${transformState.positionX}px, ${transformState.positionY}px) scale(${transformState.scale})`,
-            }}
+            style={{ transform: contentTransform }}
           >
             <ImageCanvas
               appSettings={appSettings}
@@ -2393,7 +2776,6 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
               finalPreviewUrl={finalPreviewUrl}
               handleCropComplete={handleCropComplete}
               imageRenderSize={imageRenderSize}
-              interactivePatch={interactivePatch}
               isAiEditing={isAiEditing}
               isCropping={isCropping}
               isMaskControlHovered={isMaskControlHovered}
@@ -2403,13 +2785,13 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
               isSliderDragging={isSliderDragging}
               maskOverlayUrl={maskOverlayUrl}
               onGenerateAiMask={handleGenerateAiMask}
-              onSelectAiPatchContainer={(id) => setEditor({ activeAiPatchContainerId: id })}
-              onSelectMaskContainer={(id) => setEditor({ activeMaskContainerId: id })}
+              onSelectAiPatchContainer={handleSelectAiPatchContainer}
+              onSelectMaskContainer={handleSelectMaskContainer}
               onLiveMaskPreview={handleLiveMaskPreview}
               onDirectPatch={handleDirectPatch}
               onQuickErase={handleQuickErase}
-              onSelectAiSubMask={(id) => setEditor({ activeAiSubMaskId: id })}
-              onSelectMask={(id) => setEditor({ activeMaskId: id })}
+              onSelectAiSubMask={handleSelectAiSubMask}
+              onSelectMask={handleSelectMask}
               onStraighten={handleStraighten}
               selectedImage={selectedImage}
               setCrop={handleCropChange}
@@ -2430,28 +2812,26 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
               hasRenderedFirstFrame={hasRenderedFirstFrame}
             />
           </div>
-          {straightenDragLine && (
-            <svg className="absolute inset-0 pointer-events-none z-[100]" style={{ width: '100%', height: '100%' }}>
-              <line
-                x1={straightenDragLine.start.x}
-                y1={straightenDragLine.start.y}
-                x2={straightenDragLine.end.x}
-                y2={straightenDragLine.end.y}
-                stroke="#0ea5e9"
-                strokeWidth="2"
-                strokeDasharray="4 4"
+          {showOriginal &&
+            comparisonSourcePath &&
+            originalPreview?.sourcePath === comparisonSourcePath &&
+            originalLayer}
+          {isSplitActive && (
+            <>
+              <div ref={originalClipRef} className="absolute inset-0 pointer-events-none">
+                {originalLayer}
+              </div>
+              <SplitDivider
+                boundsRef={splitBoundsRef}
+                isVertical={activeCompareView === 'vertical'}
+                position={splitPosition}
+                onPositionChange={handleSplitPositionChange}
               />
-            </svg>
+            </>
           )}
-          {isReferenceViewOn && (
-            <div className="lights-out-chrome absolute left-2 top-2 z-20 flex max-w-[70%] items-center gap-2 rounded-md bg-surface/90 px-2 py-1 shadow pointer-events-none">
-              <span className="shrink-0 rounded bg-accent px-1.5 text-[10px] font-semibold uppercase tracking-wide text-button-text">
-                {t('editor.referenceView.active')}
-              </span>
-              <span className="truncate text-xs text-text-primary">{getReferenceLabel(selectedImage.path)}</span>
-            </div>
-          )}
+          {straightenOverlay}
         </div>
+        <SpeedEditOverlay />
       </div>
     </div>
   );

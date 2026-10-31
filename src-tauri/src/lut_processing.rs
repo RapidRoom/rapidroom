@@ -18,14 +18,16 @@ use tauri::{AppHandle, Manager, State};
 use crate::AppState;
 use crate::cache_utils::calculate_transform_hash;
 use crate::image_processing::{
-    RenderRequest, get_all_adjustments_from_json, process_and_get_dynamic_image,
-    resolve_tonemapper_override_from_handle,
+    RenderRequest, copy_exposure_policy, get_all_adjustments_from_json,
+    process_and_get_dynamic_image, resolve_render_options_from_handle,
 };
 
 #[derive(Debug, Clone)]
 pub struct Lut {
     pub size: u32,
     pub data: Vec<f32>,
+    pub domain_min: [f32; 3],
+    pub domain_max: [f32; 3],
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -111,7 +113,7 @@ pub fn list_luts_in_dir(dir: &Path, is_built_in: bool) -> anyhow::Result<Vec<Lut
     Ok(entries)
 }
 
-fn unique_lut_destination(dir: &Path, stem: &str, extension: &str) -> PathBuf {
+pub fn unique_destination(dir: &Path, stem: &str, extension: &str) -> PathBuf {
     let mut candidate = dir.join(format!("{}.{}", stem, extension));
     let mut suffix = 1;
     while candidate.exists() && suffix < 1000 {
@@ -146,7 +148,7 @@ pub fn import_luts_to_dir(dir: &Path, source_paths: &[String]) -> anyhow::Result
             .and_then(|s| s.to_str())
             .unwrap_or("cube")
             .to_lowercase();
-        let destination = unique_lut_destination(dir, stem, &extension);
+        let destination = unique_destination(dir, stem, &extension);
         if let Err(error) = copy(source_path, &destination) {
             log::error!("Failed to copy LUT '{}': {}", source, error);
         }
@@ -176,7 +178,7 @@ fn import_android_lut(source: &str) -> anyhow::Result<()> {
         .parent()
         .ok_or_else(|| anyhow!("Invalid cache path"))?
         .to_path_buf();
-    let destination = unique_lut_destination(&cache_dir, &stem, &extension);
+    let destination = unique_destination(&cache_dir, &stem, &extension);
     std::fs::write(&destination, &bytes)?;
     Ok(())
 }
@@ -185,11 +187,13 @@ fn parse_cube(reader: impl BufRead) -> anyhow::Result<Lut> {
     let mut size: Option<u32> = None;
     let mut data: Vec<f32> = Vec::new();
     let mut line_num = 0;
+    let mut domain_min = None;
+    let mut domain_max = None;
 
     for line in reader.lines() {
         line_num += 1;
         let line = line?;
-        let trimmed = line.trim();
+        let trimmed = line.split('#').next().unwrap_or_default().trim();
 
         if trimmed.is_empty() || trimmed.starts_with('#') {
             continue;
@@ -201,7 +205,37 @@ fn parse_cube(reader: impl BufRead) -> anyhow::Result<Lut> {
         }
 
         match parts[0].to_uppercase().as_str() {
-            "TITLE" | "DOMAIN_MIN" | "DOMAIN_MAX" => continue,
+            "TITLE" => continue,
+            "DOMAIN_MIN" | "DOMAIN_MAX" => {
+                if parts.len() != 4 {
+                    return Err(anyhow!(
+                        "{} requires exactly three components on line {}",
+                        parts[0],
+                        line_num
+                    ));
+                }
+                let mut values = [0.0; 3];
+                for (value, part) in values.iter_mut().zip(&parts[1..]) {
+                    *value = part
+                        .parse::<f32>()
+                        .map_err(|_| anyhow!("Invalid domain component on line {}", line_num))?;
+                    if !value.is_finite() {
+                        return Err(anyhow!("Non-finite domain component on line {}", line_num));
+                    }
+                }
+                let target = if parts[0].eq_ignore_ascii_case("DOMAIN_MIN") {
+                    &mut domain_min
+                } else {
+                    &mut domain_max
+                };
+                if target.replace(values).is_some() {
+                    return Err(anyhow!(
+                        "Duplicate {} header on line {}",
+                        parts[0],
+                        line_num
+                    ));
+                }
+            }
 
             "LUT_3D_SIZE" => {
                 if parts.len() < 2 {
@@ -263,7 +297,27 @@ fn parse_cube(reader: impl BufRead) -> anyhow::Result<Lut> {
     }
 
     let lut_size = size.ok_or(anyhow!("LUT_3D_SIZE not found in .cube file"))?;
-    let expected_len = (lut_size * lut_size * lut_size * 3) as usize;
+    if lut_size < 2 {
+        return Err(anyhow!("3D LUT size must be at least 2"));
+    }
+    let domain_min = domain_min.unwrap_or([0.0; 3]);
+    let domain_max = domain_max.unwrap_or([1.0; 3]);
+    for channel in 0..3 {
+        let span = domain_max[channel] - domain_min[channel];
+        if domain_min[channel] >= domain_max[channel]
+            || !span.is_finite()
+            || !(1.0 / span).is_finite()
+        {
+            return Err(anyhow!(
+                "LUT domain bounds must be finite, strictly ordered and have a representable span (component {})",
+                channel
+            ));
+        }
+    }
+    let expected_len = (lut_size as usize)
+        .checked_pow(3)
+        .and_then(|n| n.checked_mul(3))
+        .ok_or_else(|| anyhow!("LUT size exceeds supported bounds"))?;
     if data.len() != expected_len {
         return Err(anyhow!(
             "LUT data size mismatch. Expected {} float values (for size {}), but found {}. The file may be corrupt or incomplete.",
@@ -276,6 +330,8 @@ fn parse_cube(reader: impl BufRead) -> anyhow::Result<Lut> {
     Ok(Lut {
         size: lut_size,
         data,
+        domain_min,
+        domain_max,
     })
 }
 
@@ -313,7 +369,12 @@ fn parse_3dl(reader: impl BufRead) -> anyhow::Result<Lut> {
         ));
     }
 
-    Ok(Lut { size, data })
+    Ok(Lut {
+        size,
+        data,
+        domain_min: [0.0; 3],
+        domain_max: [1.0; 3],
+    })
 }
 
 fn parse_hald(image: DynamicImage) -> anyhow::Result<Lut> {
@@ -345,10 +406,15 @@ fn parse_hald(image: DynamicImage) -> anyhow::Result<Lut> {
         data.push(pixel[2] as f32 / 255.0);
     }
 
-    Ok(Lut { size, data })
+    Ok(Lut {
+        size,
+        data,
+        domain_min: [0.0; 3],
+        domain_max: [1.0; 3],
+    })
 }
 
-pub fn parse_lut_file(path_str: &str) -> anyhow::Result<Lut> {
+pub(crate) fn validate_lut_path(path_str: &str) -> anyhow::Result<()> {
     let normalized_path_str = path_str.strip_prefix(r"\\?\").unwrap_or(path_str);
 
     if normalized_path_str.starts_with(r"\\") || normalized_path_str.starts_with("//") {
@@ -370,6 +436,27 @@ pub fn parse_lut_file(path_str: &str) -> anyhow::Result<Lut> {
             _ => {}
         }
     }
+    Ok(())
+}
+
+/// Parse the same supported formats from the bytes bound to a render recipe.
+pub(crate) fn parse_lut_bytes(path_str: &str, bytes: &[u8]) -> anyhow::Result<Lut> {
+    validate_lut_path(path_str)?;
+    let extension = Path::new(path_str)
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    match extension.as_str() {
+        "cube" => parse_cube(BufReader::new(Cursor::new(bytes))),
+        "3dl" => parse_3dl(BufReader::new(Cursor::new(bytes))),
+        "png" | "jpg" | "jpeg" | "tiff" => parse_hald(image::load_from_memory(bytes)?),
+        _ => Err(anyhow!("Unsupported LUT file format: {}", extension)),
+    }
+}
+
+pub fn parse_lut_file(path_str: &str) -> anyhow::Result<Lut> {
+    validate_lut_path(path_str)?;
 
     let (extension, bytes): (String, Option<Vec<u8>>) =
         if cfg!(target_os = "android") && is_android_content_uri(path_str) {
@@ -639,8 +726,10 @@ fn render_lut_swatch(
         RenderRequest {
             adjustments,
             mask_bitmaps: &[],
+            mask_cache_key: None,
             lut: Some(lut),
             roi: None,
+            hsl_probe: false,
         },
         "generate_lut_previews",
     )
@@ -659,56 +748,70 @@ fn render_lut_swatch(
 }
 
 #[tauri::command]
-pub fn generate_lut_previews(
+pub async fn generate_lut_previews(
     luts: Vec<LutPreviewRequest>,
     size: u32,
-    state: State<AppState>,
+    js_adjustments: Option<serde_json::Value>,
     app_handle: AppHandle,
 ) -> Result<Vec<LutPreview>, String> {
-    let context = crate::image_processing::get_or_init_gpu_context(&state, &app_handle)?;
-    let loaded_image = state
-        .original_image
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or("No original image loaded for LUT previews")?;
-    let is_raw = loaded_image.is_raw;
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let context = crate::image_processing::get_or_init_gpu_context(&state, &app_handle)?;
+        let loaded_image = state
+            .original_image
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or("No original image loaded for LUT previews")?;
+        let is_raw = loaded_image.is_raw;
+        let source_adjustments = js_adjustments.unwrap_or_else(|| {
+            let (_, sidecar) = crate::file_management::parse_virtual_path(&loaded_image.path);
+            crate::exif_processing::load_sidecar(&sidecar).adjustments
+        });
 
-    let base_json = serde_json::json!({});
-    let (base_image, _scale, _offset) =
-        crate::generate_transformed_preview(&state, &loaded_image, &base_json, size)?;
+        let base_json = serde_json::json!({});
+        let (base_image, _scale, _offset) =
+            crate::generate_transformed_preview(&state, &loaded_image, &base_json, size)?;
 
-    let tm_override = resolve_tonemapper_override_from_handle(&app_handle, is_raw);
-    let transform_hash = calculate_transform_hash(&base_json);
+        let render = resolve_render_options_from_handle(&app_handle, is_raw);
+        let transform_hash = calculate_transform_hash(&base_json);
 
-    let previews = luts
-        .into_iter()
-        .map(|request| {
-            let swatch_lut_json = serde_json::json!({
-                "lutPath": "preview",
-                "lutIntensity": 100,
-                "lutIsSceneReferred": request.is_built_in,
-                "sectionVisibility": { "effects": true }
-            });
-            let swatch_adjustments =
-                get_all_adjustments_from_json(&swatch_lut_json, is_raw, tm_override);
+        let previews = luts
+            .into_iter()
+            .map(|request| {
+                let mut swatch_lut_json = serde_json::json!({
+                    "lutPath": "preview",
+                    "lutIntensity": 100,
+                    "lutIsSceneReferred": request.is_built_in,
+                    "sectionVisibility": { "effects": true }
+                });
+                copy_exposure_policy(&source_adjustments, &mut swatch_lut_json);
+                let swatch_adjustments = get_all_adjustments_from_json(
+                    &swatch_lut_json,
+                    is_raw,
+                    loaded_image.as_shot,
+                    render,
+                );
 
-            let thumb = render_lut_swatch(
-                &context,
-                &state,
-                &base_image,
-                transform_hash,
-                swatch_adjustments,
-                &request.path,
-            );
-            LutPreview {
-                path: request.path,
-                thumb,
-            }
-        })
-        .collect();
+                let thumb = render_lut_swatch(
+                    &context,
+                    &state,
+                    &base_image,
+                    transform_hash,
+                    swatch_adjustments,
+                    &request.path,
+                );
+                LutPreview {
+                    path: request.path,
+                    thumb,
+                }
+            })
+            .collect();
 
-    Ok(previews)
+        Ok(previews)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -721,3 +824,68 @@ pub fn load_and_parse_lut(path: String, state: State<AppState>) -> Result<LutPar
 
     Ok(LutParseResult { size: lut_size })
 }
+
+#[cfg(test)]
+mod domain_tests {
+    use super::*;
+    fn cube(headers: &str) -> String {
+        format!(
+            "{headers}\nLUT_3D_SIZE 2\n0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1\n"
+        )
+    }
+    #[test]
+    fn cube_domains_default_and_parse_asymmetric_bounds() {
+        let unit = parse_cube(Cursor::new(cube(""))).unwrap();
+        assert_eq!(unit.domain_min, [0.0; 3]);
+        assert_eq!(unit.domain_max, [1.0; 3]);
+        let lut = parse_cube(Cursor::new(cube(
+            "DOMAIN_MIN -1 0 2\nDOMAIN_MAX 1 4 6 # domain comment",
+        )))
+        .unwrap();
+        assert_eq!(lut.domain_min, [-1.0, 0.0, 2.0]);
+        assert_eq!(lut.domain_max, [1.0, 4.0, 6.0]);
+        assert_eq!(unit.data, lut.data, "Do not normalize LUT output samples");
+        let max_only = parse_cube(Cursor::new(cube("DOMAIN_MAX 2 3 4"))).unwrap();
+        assert_eq!(max_only.domain_min, [0.0; 3]);
+        assert_eq!(max_only.domain_max, [2.0, 3.0, 4.0]);
+        let min_only = parse_cube(Cursor::new(cube("DOMAIN_MIN -1 -2 -3"))).unwrap();
+        assert_eq!(min_only.domain_max, [1.0; 3]);
+    }
+    #[test]
+    fn rejects_invalid_or_ambiguous_domain_headers() {
+        for headers in [
+            "DOMAIN_MIN 0 0",
+            "DOMAIN_MAX 1 1 1 2",
+            "DOMAIN_MIN nan 0 0",
+            "DOMAIN_MAX inf 1 1",
+            "DOMAIN_MIN 1 0 0",
+            "DOMAIN_MIN 2 0 0",
+            "DOMAIN_MAX 0 1 1",
+            "DOMAIN_MAX -1 1 1",
+            "DOMAIN_MIN 0 0 0\nDOMAIN_MIN 0 0 0",
+            "DOMAIN_MAX 1 1 1\nDOMAIN_MAX 2 2 2",
+            "DOMAIN_MIN -3.4e38 0 0\nDOMAIN_MAX 3.4e38 1 1",
+            "DOMAIN_MAX 1e-40 1 1",
+        ] {
+            assert!(parse_cube(Cursor::new(cube(headers))).is_err(), "{headers}");
+        }
+        assert!(parse_cube(Cursor::new("LUT_3D_SIZE 0")).is_err());
+        assert!(parse_cube(Cursor::new("LUT_3D_SIZE 4294967295")).is_err());
+    }
+    #[test]
+    fn hald_and_3dl_keep_unit_domains() {
+        let hald = parse_hald(DynamicImage::new_rgb8(8, 8)).unwrap();
+        assert_eq!(hald.domain_min, [0.0; 3]);
+        assert_eq!(hald.domain_max, [1.0; 3]);
+        let lut = parse_3dl(Cursor::new(
+            "0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1",
+        ))
+        .unwrap();
+        assert_eq!(lut.domain_min, [0.0; 3]);
+        assert_eq!(lut.domain_max, [1.0; 3]);
+    }
+}
+
+#[cfg(test)]
+#[path = "lut_shader_tests.rs"]
+mod lut_shader_tests;

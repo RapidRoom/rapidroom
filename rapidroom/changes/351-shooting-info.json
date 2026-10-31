@@ -1,0 +1,13 @@
+{
+  "id": "shooting-info",
+  "title": "Show shooting information above photos in Editor and Culling",
+  "category": "feature",
+  "landed": "2026-10-16",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "A single line shows lens, recorded focal length and differing 35 mm equivalent, aperture, shutter and ISO. Settings \u2192 View offers Always (default), On hover and Off. Lens names truncate first; photo adjustments are unchanged."
+}

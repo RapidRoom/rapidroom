@@ -1,0 +1,14 @@
+{
+  "id": "jpeg-culling-metadata",
+  "title": "Write ratings, labels and reject flags into original JPEG metadata",
+  "category": "feature",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original JPEG metadata writer and native validation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "highlight": "Optionally save culling decisions inside JPEGs without re-encoding pixels, with batch reports and Undo.",
+  "notes": "Off by default. Writes XMP ratings and explicit colour-label changes, preserves existing external labels on rating-only writes, and updates existing EXIF rating fields using atomic metadata-only replacement; preserves scans, foreign metadata and file properties. Library manual write works independently of automatic embedding. Extended XMP is refused. MPF/APP11 auxiliary previews, trailing data or fixed EXIF positions can require existing XMP padding; otherwise the original is left unchanged and the report directs the user to sidecar metadata. Other formats retain existing sidecar behavior. Windows/macOS are untested; locked replacement may be refused on Windows.",
+  "landed": "2026-10-14"
+}

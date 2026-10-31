@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Plus, Settings, X, ChevronDown } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -10,20 +11,24 @@ import { closeTerminal, mountTerminal } from '../../utils/terminalRuntime';
 import { normalizeTerminalSettings } from '../../utils/terminalSettings';
 import { useUIStore } from '../../store/useUIStore';
 import { Panel, type PanelRegion } from '../ui/AppProperties';
-import PanelSwitcher from './PanelSwitcher';
 import AgentLauncher from './AgentLauncher';
+import { DockHeaderContext } from './DockHeaderContext';
 
 export default function TerminalPanel() {
   const { t } = useTranslation();
   const host = useRef<HTMLDivElement>(null);
+  const intro = useRef<HTMLDivElement>(null);
+  const dockHeader = useContext(DockHeaderContext);
   const [showPreferences, setShowPreferences] = useState(false);
   const settings = useSettingsStore((state) => state.appSettings?.terminalSettings);
   const preferences = normalizeTerminalSettings(settings);
-  const { tabs, activeTab, errors, hydrate, addTab, selectTab } = useTerminalStore(
+  const { tabs, activeTab, errors, introTabs, dismissIntro, hydrate, addTab, selectTab } = useTerminalStore(
     useShallow((state) => ({
       tabs: state.tabs,
       activeTab: state.activeTab,
       errors: state.errors,
+      introTabs: state.introTabs,
+      dismissIntro: state.dismissIntro,
       hydrate: state.hydrate,
       addTab: state.addTab,
       selectTab: state.selectTab,
@@ -45,11 +50,13 @@ export default function TerminalPanel() {
     );
   const path = useLibraryStore((state) => state.currentFolderPath ?? state.rootPaths[0]);
   const active = tabs.find((tab) => tab.id === activeTab);
+  const showIntro = !!active && !!introTabs[active.id];
 
   useEffect(hydrate, [hydrate]);
   useEffect(() => {
-    if (active && host.current) return mountTerminal(active, host.current);
-  }, [active?.id, preferences.fontSize, preferences.fontFamily]);
+    if (showIntro) intro.current?.focus();
+    else if (active && host.current) return mountTerminal(active, host.current);
+  }, [active?.id, showIntro, preferences.fontSize, preferences.fontFamily]);
 
   const add = () => {
     if (!path) return;
@@ -60,63 +67,77 @@ export default function TerminalPanel() {
     }
   };
 
+  const header = (
+    <div
+      data-terminal-header
+      className={`flex items-center gap-1 px-1 shrink-0 ${region === 'bottom' ? 'h-full' : 'h-8 border-b border-border-color'}`}
+      onClick={(event) => {
+        if (region === 'bottom') {
+          event.stopPropagation();
+          if (!(event.target as HTMLElement).closest('button, input, select')) dockHeader?.onToggle();
+        }
+      }}
+    >
+      <div role="tablist" aria-label={t('terminal.tabs')} className="flex flex-1 min-w-0 overflow-x-auto">
+        {tabs.map((tab) => (
+          <div key={tab.id} className="group/tab flex shrink-0 items-center">
+            <button
+              role="tab"
+              aria-selected={tab.id === activeTab}
+              title={tab.path}
+              className={`max-w-56 truncate px-1 h-7 text-xs rounded ${tab.id === activeTab ? 'bg-surface' : ''}`}
+              onClick={() => selectTab(tab.id)}
+            >
+              {tab.title}
+            </button>
+            <button
+              aria-label={t('terminal.closeTab', { title: tab.title })}
+              className="min-h-7 min-w-7 p-1 opacity-0 group-hover/tab:opacity-100 focus:opacity-100"
+              onClick={() => {
+                void closeTerminal(tab.id).catch((error) => toast.error(String(error)));
+              }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button
+        aria-label={t('terminal.newTab')}
+        disabled={!path || tabs.length >= 16}
+        onClick={add}
+        className="h-7 w-7 p-1 shrink-0 disabled:opacity-40"
+      >
+        <Plus size={16} />
+      </button>
+      {region !== 'bottom' && <AgentLauncher compact showDestination={false} />}
+      <button
+        aria-label={t('terminal.preferences')}
+        aria-expanded={showPreferences}
+        onClick={() => setShowPreferences((value) => !value)}
+        className="h-7 w-7 p-1"
+      >
+        <Settings size={16} />
+      </button>
+      {region !== 'bottom' && (
+        <button
+          aria-label={t('terminal.collapsePanel')}
+          data-terminal-collapse
+          className="h-7 w-7 p-1 shrink-0"
+          onClick={collapse}
+        >
+          <ChevronDown size={16} />
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <section
       data-terminal-panel
       className="@container/terminal flex flex-col h-full min-h-0 w-full bg-bg-secondary text-text-primary rounded-lg overflow-hidden"
     >
-      <div data-terminal-header className="flex items-center gap-1 h-8 px-1 border-b border-border-color shrink-0">
-        {region === 'bottom' && <PanelSwitcher region="bottom" side="bottom" placement="top" compact />}
-        <div role="tablist" aria-label={t('terminal.tabs')} className="flex flex-1 min-w-0 overflow-x-auto">
-          {tabs.map((tab) => (
-            <div key={tab.id} className="group/tab flex shrink-0 items-center">
-              <button
-                role="tab"
-                aria-selected={tab.id === activeTab}
-                title={tab.path}
-                className={`max-w-56 truncate px-1 h-6 text-xs rounded ${tab.id === activeTab ? 'bg-surface' : ''}`}
-                onClick={() => selectTab(tab.id)}
-              >
-                {tab.title}
-              </button>
-              <button
-                aria-label={t('terminal.closeTab', { title: tab.title })}
-                className="p-1 opacity-0 group-hover/tab:opacity-100 focus:opacity-100"
-                onClick={() => {
-                  void closeTerminal(tab.id).catch((error) => toast.error(String(error)));
-                }}
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-        <button
-          aria-label={t('terminal.newTab')}
-          disabled={!path || tabs.length >= 16}
-          onClick={add}
-          className="p-1 shrink-0 disabled:opacity-40"
-        >
-          <Plus size={16} />
-        </button>
-        <AgentLauncher compact showDestination={false} />
-        <button
-          aria-label={t('terminal.preferences')}
-          aria-expanded={showPreferences}
-          onClick={() => setShowPreferences((value) => !value)}
-          className="p-1"
-        >
-          <Settings size={16} />
-        </button>
-        <button
-          aria-label={t(region === 'bottom' ? 'terminal.collapseDock' : 'terminal.collapsePanel')}
-          data-terminal-collapse
-          className="p-1 shrink-0"
-          onClick={collapse}
-        >
-          <ChevronDown size={16} />
-        </button>
-      </div>
+      {region === 'bottom' && dockHeader?.element ? createPortal(header, dockHeader.element) : header}
       {showPreferences && (
         <div className="p-2 text-sm flex flex-wrap gap-3 border-b border-border-color shrink-0">
           <label>
@@ -178,7 +199,36 @@ export default function TerminalPanel() {
           {errors[active.id]}
         </p>
       )}
-      {active ? (
+      {active && showIntro ? (
+        <div
+          ref={intro}
+          data-terminal-intro
+          tabIndex={0}
+          role="region"
+          aria-label={t('terminal.introTitle')}
+          className="flex-1 min-h-0 overflow-y-auto p-3 text-sm focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent"
+          onKeyDown={(event) => {
+            if (
+              event.ctrlKey ||
+              event.metaKey ||
+              event.altKey ||
+              ['Tab', 'Shift', 'Control', 'Meta', 'Alt'].includes(event.key)
+            )
+              return;
+            event.preventDefault();
+            event.stopPropagation();
+            dismissIntro(active.id);
+          }}
+        >
+          <p className="font-medium">{t('terminal.introTitle')}</p>
+          <p className="mt-1 text-text-secondary">{t('terminal.introConnection')}</p>
+          <p className="mt-1 text-text-secondary">{t('terminal.introShell')}</p>
+          <p className="mt-1 text-text-secondary">{t('terminal.introFont')}</p>
+          <button className="mt-2 min-h-7 rounded bg-surface px-2" onClick={() => dismissIntro(active.id)}>
+            {t('terminal.plainShell')}
+          </button>
+        </div>
+      ) : active ? (
         <div ref={host} data-terminal-screen className="flex-1 min-h-0 p-1 bg-[#181818]" />
       ) : (
         <div className="flex-1 flex items-center justify-center p-3">

@@ -1,0 +1,13 @@
+{
+  "id": "percent-crop-render",
+  "title": "Render saved percentage crops at image scale",
+  "category": "fix",
+  "landed": "2026-10-19",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Resolve explicit percentage crop coordinates against the oriented render image before cropping or scaling. Existing pixel and absent-unit recipes retain their interpretation; stored metadata is unchanged. Percentage inputs previously exported as tiny pixel strips. Canonical default renders must remain exact."
+}

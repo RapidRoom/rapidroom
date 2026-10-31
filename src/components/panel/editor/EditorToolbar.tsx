@@ -1,17 +1,99 @@
 import { memo, useState, useEffect, useRef, useMemo } from 'react';
-import { Eye, EyeOff, ArrowLeft, Maximize, Loader2, Undo, Redo, Columns2 } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  ArrowLeft,
+  Maximize,
+  Loader2,
+  Undo,
+  Redo,
+  Columns2,
+  Frame,
+  SquareSplitHorizontal,
+  SquareSplitVertical,
+  type LucideIcon,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
-import { SelectedImage, GroupingMode } from '../../ui/AppProperties';
-import { IconAperture, IconCalendar, IconClock, IconFocalLength, IconIso, IconShutter } from './ExifIcons';
+import { type CompareMode, SelectedImage, GroupingMode } from '../../ui/AppProperties';
+import { ToolbarMenu, ToolbarMenuItem, useMenuDismiss } from './ToolbarMenu';
+import ShootingInfo from '../../ui/ShootingInfo';
 import Text from '../../ui/Text';
+import AppliedPresetBadge from '../../ui/AppliedPresetBadge';
 import { TextColors, TextVariants, TextWeights } from '../../../types/typography';
 import { useEditorStore } from '../../../store/useEditorStore';
 import { useLibraryStore } from '../../../store/useLibraryStore';
 import { useSettingsStore } from '../../../store/useSettingsStore';
 import { findGroupVariants, getVariantLabel } from '../../../utils/imageGrouping';
-import type { Adjustments, AiPatch, MaskContainer } from '../../../utils/adjustments';
+import type { Adjustments } from '../../../utils/adjustments';
+import { describeHistoryChange, historyMenuPlacement } from '../../../utils/editHistory';
+
+const COMPARE_MODES = [
+  { mode: 'toggle', icon: Eye, label: 'editor.compare.toggle' },
+  { mode: 'vertical', icon: SquareSplitHorizontal, label: 'editor.compare.vertical' },
+  { mode: 'horizontal', icon: SquareSplitVertical, label: 'editor.compare.horizontal' },
+  { mode: 'sideBySide', icon: Columns2, label: 'editor.compare.sideBySide' },
+] as const satisfies ReadonlyArray<{ mode: CompareMode; icon: LucideIcon; label: string }>;
+
+interface CompareButtonProps {
+  compareMode: CompareMode;
+  isComparing: boolean;
+  onKeyDown(e: React.KeyboardEvent<HTMLButtonElement>): void;
+  onSelectMode(mode: CompareMode): void;
+  onToggle(): void;
+}
+
+function CompareButton({ compareMode, isComparing, onKeyDown, onSelectMode, onToggle }: CompareButtonProps) {
+  const { t } = useTranslation();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useMenuDismiss(containerRef, isMenuOpen, setIsMenuOpen);
+
+  const ModeIcon =
+    compareMode === 'toggle' && isComparing ? EyeOff : COMPARE_MODES.find((m) => m.mode === compareMode)!.icon;
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        className={clsx(
+          'p-2 rounded-full transition-colors',
+          isComparing
+            ? 'bg-accent text-button-text hover:bg-accent/90 hover:text-button-text'
+            : 'bg-surface hover:bg-card-active text-text-primary',
+        )}
+        onClick={onToggle}
+        onKeyDown={onKeyDown}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setIsMenuOpen((prev) => !prev);
+        }}
+        data-testid="editor-compare-toggle"
+        aria-label={t('editor.toolbar.tooltips.compare')}
+        aria-pressed={isComparing}
+        data-tooltip={t('editor.toolbar.tooltips.compare')}
+      >
+        <ModeIcon size={20} />
+      </button>
+
+      <ToolbarMenu isOpen={isMenuOpen} title={t('editor.compare.title')}>
+        {COMPARE_MODES.map(({ mode, icon, label }) => (
+          <ToolbarMenuItem
+            key={mode}
+            icon={icon}
+            isSelected={mode === compareMode}
+            label={t(label)}
+            onClick={() => {
+              onSelectMode(mode);
+              setIsMenuOpen(false);
+            }}
+            onKeyDown={onKeyDown}
+          />
+        ))}
+      </ToolbarMenu>
+    </div>
+  );
+}
 
 interface EditorToolbarProps {
   canRedo: boolean;
@@ -22,14 +104,14 @@ interface EditorToolbarProps {
   onImageSelect?(path: string, event?: React.MouseEvent<HTMLButtonElement>): void;
   onRedo(): void;
   onToggleFullScreen(): void;
-  onToggleShowOriginal(): void;
+  onToggleCompare(): void;
+  onSelectCompareMode(mode: CompareMode): void;
   isReferenceViewActive?: boolean;
   onToggleReferenceView?(): void;
   onUndo(): void;
   selectedImage: SelectedImage;
-  showOriginal: boolean;
-  showDateView: boolean;
-  onToggleDateView(): void;
+  isComparing: boolean;
+  compareMode: CompareMode;
   adjustmentsHistory: Adjustments[];
   adjustmentsHistoryIndex: number;
   goToAdjustmentsHistoryIndex(index: number): void;
@@ -45,14 +127,14 @@ const EditorToolbar = memo(
     onImageSelect,
     onRedo,
     onToggleFullScreen,
-    onToggleShowOriginal,
+    onToggleCompare,
+    onSelectCompareMode,
     isReferenceViewActive = false,
     onToggleReferenceView,
     onUndo,
     selectedImage,
-    showOriginal,
-    showDateView,
-    onToggleDateView,
+    isComparing,
+    compareMode,
     adjustmentsHistory,
     adjustmentsHistoryIndex,
     goToAdjustmentsHistoryIndex,
@@ -65,15 +147,15 @@ const EditorToolbar = memo(
     const hideTimeoutRef = useRef<number | null>(null);
     const prevIsLoadingRef = useRef(isLoading);
     const [isVcHovered, setIsVcHovered] = useState(false);
-    const [isInfoHovered, setIsInfoHovered] = useState(false);
     const [isHistoryVisible, setIsHistoryVisible] = useState(false);
     const historyContainerRef = useRef<HTMLDivElement>(null);
     const historyButtonRef = useRef<HTMLDivElement>(null);
 
     const showResolution = !isAndroid && selectedImage.width > 0 && selectedImage.height > 0;
-    const [displayedResolution, setDisplayedResolution] = useState('');
 
     const imageList = useLibraryStore((s) => s.imageList);
+    const appSettings = useSettingsStore((s) => s.appSettings);
+    const handleSettingsChange = useSettingsStore((s) => s.handleSettingsChange);
     const groupingMode: GroupingMode = useSettingsStore((s) => s.appSettings?.grouping) ?? 'off';
 
     const variantOptions = useMemo(() => {
@@ -85,56 +167,14 @@ const EditorToolbar = memo(
       return variants.map((v) => ({ path: v.path, label: getVariantLabel(v.path) }));
     }, [groupingMode, selectedImage.path, imageList, onImageSelect]);
 
-    const { baseName, isVirtualCopy, vcId, exifData, hasExif } = useMemo(() => {
-      const path = selectedImage.path;
-      const parts = path.split('?vc=');
-      const fullFileName = parts[0].split(/[\\/]/).pop() || '';
-
-      const exif = selectedImage.exif || {};
-
-      let fNum = exif.FNumber;
-      if (fNum) {
-        const fStr = String(fNum);
-        fNum = fStr.toLowerCase().startsWith('f') ? fStr : `f/${fStr}`;
-      }
-
-      let captureDate = null;
-      let captureTime = null;
-
-      if (exif.DateTimeOriginal) {
-        const dateTimeParts = exif.DateTimeOriginal.split(' ');
-        captureDate = dateTimeParts[0]?.replace(/:/g, '-') || null;
-        if (dateTimeParts[1]) {
-          const timeParts = dateTimeParts[1].split(':');
-          captureTime = `${timeParts[0]}:${timeParts[1]}`;
-        }
-      }
-
-      const data = {
-        iso: exif.PhotographicSensitivity || exif.ISO,
-        fNumber: fNum,
-        shutter: exif.ExposureTime,
-        focal: exif.FocalLengthIn35mmFilm,
-        captureDate: captureDate,
-        captureTime: captureTime,
-      };
-
-      const hasData = !!(data.iso || data.fNumber || data.shutter || data.focal || data.captureDate);
-
+    const { baseName, isVirtualCopy, vcId } = useMemo(() => {
+      const parts = selectedImage.path.split('?vc=');
       return {
-        baseName: fullFileName,
+        baseName: parts[0].split(/[\\/]/).pop() || '',
         isVirtualCopy: parts.length > 1,
         vcId: parts.length > 1 ? parts[1] : null,
-        exifData: data,
-        hasExif: hasData,
       };
-    }, [selectedImage.path, selectedImage.exif]);
-
-    useEffect(() => {
-      if (showResolution) {
-        setDisplayedResolution(` - ${selectedImage.width} × ${selectedImage.height}`);
-      }
-    }, [showResolution, selectedImage.width, selectedImage.height]);
+    }, [selectedImage.path]);
 
     useEffect(() => {
       const wasLoadingResolution = prevIsLoadingRef.current && !isLoading;
@@ -186,167 +226,33 @@ const EditorToolbar = memo(
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isHistoryVisible]);
 
-    const prevNamesRef = useRef<string[]>(['Initial State']);
-    const prevSnapshotsRef = useRef<unknown[]>([]);
-
     const explicitHistoryDetails = useEditorStore((state) => state.historyDetails);
-    const historyNames = useMemo(() => {
-      if (!adjustmentsHistory || adjustmentsHistory.length === 0) return [];
-
-      const formatKey = (k: string) => {
-        const special: Record<string, string> = {
-          aiPatches: 'AI Patches',
-          aspectRatio: 'Aspect Ratio',
-          flipHorizontal: 'Flip Horizontal',
-          flipVertical: 'Flip Vertical',
-          orientationSteps: 'Rotation',
-          lutPath: 'LUT',
-          lutIntensity: 'LUT Intensity',
-          lutData: 'LUT Data',
-          lutName: 'LUT Name',
-          lutSize: 'LUT Size',
-          chromaticAberrationBlueYellow: 'Chromatic Aberration Blue/Yellow',
-          chromaticAberrationRedCyan: 'Chromatic Aberration Red/Cyan',
-          centré: 'Centré',
-          lumaNoiseReduction: 'Luma Noise Reduction',
-          colorNoiseReduction: 'Color Noise Reduction',
-          lensMaker: 'Lens Maker',
-          lensModel: 'Lens Model',
-          lensDistortionAmount: 'Lens Distortion',
-          lensVignetteAmount: 'Lens Vignette',
-          lensTcaAmount: 'Lens TCA',
-          lensDistortionEnabled: 'Enable Lens Distortion',
-          lensTcaEnabled: 'Enable Lens TCA',
-          lensVignetteEnabled: 'Enable Lens Vignette',
-          transformDistortion: 'Transform Distortion',
-          transformVertical: 'Transform Vertical',
-          transformHorizontal: 'Transform Horizontal',
-          transformRotate: 'Transform Rotate',
-          transformAspect: 'Transform Aspect',
-          transformScale: 'Transform Scale',
-          transformXOffset: 'Transform X Offset',
-          transformYOffset: 'Transform Y Offset',
-          colorGrading: 'Color Grading',
-          colorCalibration: 'Color Calibration',
-          toneMapper: 'Tone Mapper',
-          showClipping: 'Show Clipping',
-          sectionVisibility: 'Section Visibility',
-          flareAmount: 'Flare Amount',
-          glowAmount: 'Glow Amount',
-          halationAmount: 'Halation Amount',
-          grainAmount: 'Grain Amount',
-          grainRoughness: 'Grain Roughness',
-          grainSize: 'Grain Size',
-          vignetteAmount: 'Vignette Amount',
-          vignetteFeather: 'Vignette Feather',
-          vignetteMidpoint: 'Vignette Midpoint',
-          vignetteRoundness: 'Vignette Roundness',
-          dehaze: 'Dehaze',
-          exposure: 'Exposure',
-          blacks: 'Blacks',
-          whites: 'Whites',
-          shadows: 'Shadows',
-          highlights: 'Highlights',
-          contrast: 'Contrast',
-          brightness: 'Brightness',
-          clarity: 'Clarity',
-          structure: 'Structure',
-          sharpness: 'Sharpness',
-          saturation: 'Saturation',
-          temperature: 'Temperature',
-          tint: 'Tint',
-          vibrance: 'Vibrance',
-          hsl: 'HSL',
-          curves: 'Curves',
-          crop: 'Crop',
-          masks: 'Masks',
-          rating: 'Rating',
-        };
-        if (special[k]) return special[k];
-        return k.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
+    const historyNames = useMemo(
+      () =>
+        adjustmentsHistory.map(
+          (snapshot, index) =>
+            explicitHistoryDetails[index]?.label ??
+            (index === 0
+              ? 'Initial State'
+              : describeHistoryChange(adjustmentsHistory[index - 1], snapshot, 'user').label),
+        ),
+      [adjustmentsHistory, explicitHistoryDetails],
+    );
+    const [historyPosition, setHistoryPosition] = useState<React.CSSProperties>({});
+    useEffect(() => {
+      if (!isHistoryVisible) return;
+      const place = () => {
+        const rect = historyButtonRef.current?.getBoundingClientRect();
+        if (rect) setHistoryPosition(historyMenuPlacement(rect, window.innerWidth, window.innerHeight));
       };
-
-      const cachedNames = prevNamesRef.current;
-      const newNames = [...cachedNames];
-
-      const replaced = adjustmentsHistory.findIndex((snapshot, index) => prevSnapshotsRef.current[index] !== snapshot);
-      if (replaced >= 0) newNames.length = Math.min(newNames.length, replaced);
-      if (newNames.length > adjustmentsHistory.length) {
-        newNames.length = adjustmentsHistory.length;
-      }
-
-      for (let i = newNames.length; i < adjustmentsHistory.length; i++) {
-        if (i === 0) {
-          newNames[i] = 'Initial State';
-          continue;
-        }
-
-        const curr = adjustmentsHistory[i];
-        const prev = adjustmentsHistory[i - 1];
-        const changed: string[] = [];
-
-        for (const key of Object.keys(curr)) {
-          if (prev[key] === curr[key]) continue;
-
-          if (key === 'masks') {
-            const prevMasks = prev.masks || [];
-            const currMasks = curr.masks || [];
-
-            if (currMasks.length > prevMasks.length) changed.push('Added Mask');
-            else if (currMasks.length < prevMasks.length) changed.push('Deleted Mask');
-            else {
-              currMasks.forEach((cMask: MaskContainer) => {
-                const pMask = prevMasks.find((m) => m.id === cMask.id);
-                if (pMask) {
-                  if (pMask.opacity !== cMask.opacity) changed.push('Mask Opacity');
-                  if (pMask.invert !== cMask.invert) changed.push('Mask Invert');
-                  if (pMask.visible !== cMask.visible) changed.push('Mask Visibility');
-                  if (pMask.subMasks !== cMask.subMasks) changed.push('Mask Area / Brush');
-
-                  if (pMask.adjustments !== cMask.adjustments) {
-                    for (const adjKey of Object.keys(cMask.adjustments || {})) {
-                      if (pMask.adjustments[adjKey] !== cMask.adjustments[adjKey]) {
-                        changed.push(`Mask ${formatKey(adjKey)}`);
-                      }
-                    }
-                  }
-                }
-              });
-            }
-          } else if (key === 'aiPatches') {
-            const prevPatches = prev.aiPatches || [];
-            const currPatches = curr.aiPatches || [];
-
-            if (currPatches.length > prevPatches.length) changed.push('Added AI Patch');
-            else if (currPatches.length < prevPatches.length) changed.push('Deleted AI Patch');
-            else {
-              currPatches.forEach((cPatch: AiPatch) => {
-                const pPatch = prevPatches.find((p) => p.id === cPatch.id);
-                if (pPatch) {
-                  if (pPatch.visible !== cPatch.visible) changed.push('AI Patch Visibility');
-                  if (pPatch.subMasks !== cPatch.subMasks) changed.push('AI Patch Area');
-                  if (pPatch.patchData !== cPatch.patchData || pPatch.prompt !== cPatch.prompt) {
-                    changed.push('AI Generation');
-                  }
-                }
-              });
-            }
-          } else {
-            changed.push(formatKey(key));
-          }
-        }
-
-        const uniqueChanged = Array.from(new Set(changed));
-
-        if (uniqueChanged.length === 0) newNames[i] = 'Adjustment';
-        else if (uniqueChanged.length > 2) newNames[i] = `${uniqueChanged.slice(0, 2).join(', ')}...`;
-        else newNames[i] = uniqueChanged.join(', ');
-      }
-
-      prevNamesRef.current = newNames;
-      prevSnapshotsRef.current = adjustmentsHistory;
-      return newNames.map((name, index) => explicitHistoryDetails[index]?.label ?? name);
-    }, [adjustmentsHistory, explicitHistoryDetails]);
+      place();
+      window.addEventListener('resize', place);
+      window.addEventListener('scroll', place, true);
+      return () => {
+        window.removeEventListener('resize', place);
+        window.removeEventListener('scroll', place, true);
+      };
+    }, [isHistoryVisible]);
 
     useEffect(() => {
       if (isHistoryVisible && historyContainerRef.current) {
@@ -365,13 +271,11 @@ const EditorToolbar = memo(
       e.currentTarget.blur();
     };
 
-    const isExpanded = isInfoHovered && (hasExif || isLoading);
-
     return (
-      <div className="relative shrink-0 flex items-center justify-between px-3 h-12 gap-3 z-40">
-        <div className="flex items-center gap-2 shrink-0 z-40">
+      <div className="@container/editor-toolbar group/shooting-info relative shrink-0 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center px-3 min-h-10 py-1 gap-x-3 z-40">
+        <div className="flex items-center gap-2 shrink-0 z-40 @max-[32rem]/editor-toolbar:gap-1">
           <button
-            className="bg-surface text-text-primary p-2 rounded-full hover:bg-card-active transition-colors shrink-0"
+            className="bg-surface text-text-primary p-1 rounded-full hover:bg-card-active transition-colors shrink-0"
             onClick={onBackToLibrary}
             onKeyDown={handleButtonKeyDown}
             data-tooltip={t('editor.toolbar.tooltips.backToLibrary')}
@@ -381,48 +285,35 @@ const EditorToolbar = memo(
           </button>
 
           <div className="hidden 2xl:flex items-center gap-2" aria-hidden="true">
-            <div className="p-2 invisible pointer-events-none">
+            <div className="p-1 invisible pointer-events-none">
               <Undo size={20} />
             </div>
-            <div className="p-2 invisible pointer-events-none">
+            <div className="p-1 invisible pointer-events-none">
               <Undo size={20} />
             </div>
-            <div className="p-2 invisible pointer-events-none">
+            <div className="p-1 invisible pointer-events-none">
               <Undo size={20} />
             </div>
-            <div className="p-2 invisible pointer-events-none">
+            <div className="p-1 invisible pointer-events-none">
               <Undo size={20} />
             </div>
           </div>
         </div>
 
-        <div className="flex-1 flex justify-center min-w-0 relative h-full">
-          <div
-            className={clsx(
-              'bg-surface flex flex-col items-center overflow-hidden transition-all duration-200 ease-out pt-2',
-              isExpanded
-                ? 'h-18 px-8 rounded-2xl absolute min-w-85 whitespace-nowrap shadow-2xl shadow-black/50'
-                : 'h-9 px-4 rounded-[18px] absolute min-w-0 w-auto max-w-full shadow-none',
-            )}
-            onMouseEnter={() => setIsInfoHovered(true)}
-            onMouseLeave={() => setIsInfoHovered(false)}
-            style={{
-              top: '6px',
-              transform: 'translateX(-50%)',
-              left: '50%',
-              zIndex: isExpanded ? 50 : 0,
-            }}
-          >
-            <div className="flex items-center justify-center max-w-full h-5 shrink-0">
+        <div className="@container/editor-info flex-1 flex justify-center min-w-0 relative">
+          <div className="bg-surface flex items-center overflow-hidden min-w-0 max-w-full rounded-2xl px-3 py-1 @max-[14rem]/editor-info:px-1">
+            <div className="flex items-center justify-center min-w-0 max-w-full h-5" data-editor-info-line>
               <Text
                 as="span"
                 variant={TextVariants.small}
                 color={TextColors.primary}
                 weight={TextWeights.medium}
                 className="truncate min-w-0 shrink"
+                title={showResolution ? `${baseName} - ${selectedImage.width} × ${selectedImage.height}` : baseName}
               >
                 {baseName}
               </Text>
+              <AppliedPresetBadge compact />
 
               {isVirtualCopy && (
                 <Text
@@ -430,14 +321,14 @@ const EditorToolbar = memo(
                   variant={TextVariants.small}
                   color={TextColors.accent}
                   weight={TextWeights.bold}
-                  className="ml-2 shrink-0 bg-accent/20 px-2 py-0.5 rounded-full flex items-center overflow-hidden cursor-default"
+                  className="ml-2 shrink-0 bg-accent/20 px-2 py-0.5 rounded-full flex items-center overflow-hidden cursor-default @max-[14rem]/editor-info:ml-1 @max-[14rem]/editor-info:px-1"
                   onMouseEnter={() => setIsVcHovered(true)}
                   onMouseLeave={() => setIsVcHovered(false)}
                 >
                   <span>{t('editor.toolbar.vc')}</span>
                   <div
                     className={clsx(
-                      'transition-all duration-300 ease-out overflow-hidden whitespace-nowrap',
+                      'transition-all duration-300 ease-out overflow-hidden whitespace-nowrap @max-[14rem]/editor-info:hidden',
                       isVcHovered ? 'max-w-20 opacity-100' : 'max-w-0 opacity-0',
                     )}
                   >
@@ -469,23 +360,7 @@ const EditorToolbar = memo(
                 </div>
               )}
 
-              <div
-                className={clsx(
-                  'transition-all duration-300 ease-out overflow-hidden whitespace-nowrap shrink-0',
-                  showResolution ? 'max-w-40 opacity-100 ml-2' : 'max-w-0 opacity-0 ml-0',
-                )}
-              >
-                <Text
-                  as="span"
-                  variant={TextVariants.small}
-                  className={clsx(
-                    'block transition-transform duration-200 delay-100',
-                    showResolution ? 'scale-100' : 'scale-95',
-                  )}
-                >
-                  {displayedResolution}
-                </Text>
-              </div>
+              <ShootingInfo exif={selectedImage.exif} inline />
 
               <div
                 className={clsx(
@@ -502,98 +377,13 @@ const EditorToolbar = memo(
                 {isLoaderMounted && <Loader2 size={12} className="text-text-secondary animate-spin" />}
               </div>
             </div>
-
-            <div
-              className={clsx(
-                'relative mt-2 w-full grow justify-center border-t border-text-secondary/10 pt-2 transition-opacity duration-200',
-                isExpanded ? 'opacity-100 delay-75' : 'opacity-0 hidden',
-                hasExif && 'cursor-pointer',
-              )}
-              onClick={() => hasExif && onToggleDateView()}
-            >
-              <div
-                className={clsx(
-                  'absolute inset-0 flex items-center justify-center gap-6 transition-opacity duration-200',
-                  showDateView ? 'opacity-0 pointer-events-none' : 'opacity-100',
-                )}
-              >
-                {exifData.shutter && (
-                  <div className="flex items-center gap-1.5" data-tooltip={t('editor.toolbar.tooltips.shutterSpeed')}>
-                    <Text as="span">
-                      <IconShutter />
-                    </Text>
-                    <Text as="span" variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
-                      {exifData.shutter}
-                    </Text>
-                  </div>
-                )}
-                {exifData.fNumber && (
-                  <div className="flex items-center gap-1.5" data-tooltip={t('editor.toolbar.tooltips.aperture')}>
-                    <Text as="span">
-                      <IconAperture />
-                    </Text>
-                    <Text as="span" variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
-                      {exifData.fNumber}
-                    </Text>
-                  </div>
-                )}
-                {exifData.iso && (
-                  <div className="flex items-center gap-1.5" data-tooltip={t('editor.toolbar.tooltips.iso')}>
-                    <Text as="span">
-                      <IconIso />
-                    </Text>
-                    <Text as="span" variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
-                      {exifData.iso}
-                    </Text>
-                  </div>
-                )}
-                {exifData.focal && (
-                  <div className="flex items-center gap-1.5" data-tooltip={t('editor.toolbar.tooltips.focalLength')}>
-                    <Text as="span">
-                      <IconFocalLength />
-                    </Text>
-                    <Text as="span" variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
-                      {String(exifData.focal).endsWith('mm') ? exifData.focal : `${exifData.focal}mm`}
-                    </Text>
-                  </div>
-                )}
-              </div>
-
-              <div
-                className={clsx(
-                  'absolute inset-0 flex items-center justify-center gap-6 transition-opacity duration-200',
-                  showDateView ? 'opacity-100' : 'opacity-0 pointer-events-none',
-                )}
-              >
-                {exifData.captureDate && (
-                  <div className="flex items-center gap-2">
-                    <Text as="span">
-                      <IconCalendar />
-                    </Text>
-                    <Text as="span" variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
-                      {exifData.captureDate}
-                    </Text>
-                  </div>
-                )}
-                {exifData.captureTime && (
-                  <div className="flex items-center gap-2">
-                    <Text as="span">
-                      <IconClock />
-                    </Text>
-                    <Text as="span" variant={TextVariants.small} color={TextColors.primary} weight={TextWeights.medium}>
-                      {exifData.captureTime}
-                    </Text>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 z-40">
-          <div className="relative flex items-center gap-2" ref={historyButtonRef}>
+        <div className="flex items-center gap-2 shrink-0 z-40 @max-[32rem]/editor-toolbar:gap-1">
+          <div className="relative flex items-center gap-2 @max-[32rem]/editor-toolbar:gap-1" ref={historyButtonRef}>
             <button
-              className="bg-surface text-text-primary p-2 rounded-full hover:bg-card-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-surface text-text-primary p-1 rounded-full hover:bg-card-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!canUndo}
               onClick={onUndo}
               onKeyDown={handleButtonKeyDown}
@@ -607,7 +397,7 @@ const EditorToolbar = memo(
               <Undo size={20} />
             </button>
             <button
-              className="bg-surface text-text-primary p-2 rounded-full hover:bg-card-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-surface text-text-primary p-1 rounded-full hover:bg-card-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!canRedo}
               onClick={onRedo}
               onKeyDown={handleButtonKeyDown}
@@ -628,7 +418,10 @@ const EditorToolbar = memo(
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.15, ease: 'easeOut' }}
-                  className="absolute top-full right-0 mt-3 w-56 max-h-80 bg-surface/90 backdrop-blur-md border border-text-secondary/10 shadow-xl rounded-lg overflow-y-auto custom-scrollbar z-50 flex flex-col py-1.5 px-0.5"
+                  style={historyPosition}
+                  role="menu"
+                  aria-label="Edit history"
+                  className="fixed w-96 max-w-[90vw] max-h-80 bg-surface/90 backdrop-blur-md border border-text-secondary/10 shadow-xl rounded-lg overflow-y-auto custom-scrollbar z-50 flex flex-col py-1.5 px-0.5"
                 >
                   {historyNames.map((name, i) => {
                     const isCurrent = i === adjustmentsHistoryIndex;
@@ -645,7 +438,13 @@ const EditorToolbar = memo(
                       <button
                         key={i}
                         data-active={isCurrent}
-                        onClick={() => goToAdjustmentsHistoryIndex(i)}
+                        role="menuitem"
+                        aria-current={isCurrent ? 'step' : undefined}
+                        title={name}
+                        onClick={() => {
+                          goToAdjustmentsHistoryIndex(i);
+                          setIsHistoryVisible(false);
+                        }}
                         onKeyDown={handleButtonKeyDown}
                         className={clsx(
                           'text-left px-3 py-2 transition-colors mx-1 my-0.5 rounded-md',
@@ -656,8 +455,13 @@ const EditorToolbar = memo(
                               : 'hover:bg-bg-primary',
                         )}
                       >
-                        <div className="flex justify-between items-center gap-2">
-                          <Text as="span" color={textColor} weight={textWeight} className="truncate">
+                        <div className="flex justify-between items-start gap-3">
+                          <Text
+                            as="span"
+                            color={textColor}
+                            weight={textWeight}
+                            className="whitespace-normal break-words min-w-0 line-clamp-2"
+                          >
                             {name}
                           </Text>
                           <Text
@@ -667,7 +471,7 @@ const EditorToolbar = memo(
                             weight={textWeight}
                             className="opacity-50 shrink-0"
                           >
-                            {i === 0 ? '' : i}
+                            {i}
                           </Text>
                         </div>
                       </button>
@@ -678,25 +482,36 @@ const EditorToolbar = memo(
             </AnimatePresence>
           </div>
 
+          <CompareButton
+            compareMode={compareMode}
+            isComparing={isComparing}
+            onToggle={onToggleCompare}
+            onSelectMode={onSelectCompareMode}
+            onKeyDown={handleButtonKeyDown}
+          />
           <button
+            type="button"
+            aria-label={t('export.instagram.guide')}
+            aria-pressed={appSettings?.showInstagramGuide ?? false}
+            data-instagram-guide-toggle
+            data-tooltip={t('export.instagram.guide')}
             className={clsx(
-              'p-2 rounded-full transition-colors',
-              showOriginal
-                ? 'bg-accent text-button-text hover:bg-accent/90 hover:text-button-text'
+              'p-1 rounded-full transition-colors',
+              appSettings?.showInstagramGuide
+                ? 'bg-accent text-button-text'
                 : 'bg-surface hover:bg-card-active text-text-primary',
             )}
-            onClick={onToggleShowOriginal}
-            onKeyDown={handleButtonKeyDown}
-            data-tooltip={
-              showOriginal ? t('editor.toolbar.tooltips.showEdited') : t('editor.toolbar.tooltips.showOriginal')
+            onClick={() =>
+              appSettings &&
+              void handleSettingsChange({ ...appSettings, showInstagramGuide: !appSettings.showInstagramGuide })
             }
           >
-            {showOriginal ? <EyeOff size={20} /> : <Eye size={20} />}
+            <Frame size={20} />
           </button>
           {onToggleReferenceView && (
             <button
               className={clsx(
-                'p-2 rounded-full transition-colors',
+                'p-1 rounded-full transition-colors',
                 isReferenceViewActive
                   ? 'bg-accent text-button-text hover:bg-accent/90 hover:text-button-text'
                   : 'bg-surface hover:bg-card-active text-text-primary',
@@ -711,7 +526,7 @@ const EditorToolbar = memo(
             </button>
           )}
           <button
-            className="bg-surface text-text-primary p-2 rounded-full hover:bg-card-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative"
+            className="bg-surface text-text-primary p-1 rounded-full hover:bg-card-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative"
             onClick={onToggleFullScreen}
             onKeyDown={handleButtonKeyDown}
             data-tooltip={t('editor.toolbar.tooltips.fullscreen')}

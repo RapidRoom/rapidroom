@@ -5,6 +5,7 @@
 // adjustmentReference.test.ts fails when the committed file differs from what this builds.
 import {
   ADJUSTMENT_GROUPS,
+  createRelightLight,
   INITIAL_ADJUSTMENTS,
   INITIAL_MASK_ADJUSTMENTS,
   INITIAL_MASK_CONTAINER,
@@ -14,6 +15,7 @@ import { createSubMask } from './maskUtils';
 import { Mask, SubMaskMode } from '../components/panel/right/Masks';
 import type { Curves, ParametricCurve } from './adjustments';
 import type { ImageDimensions } from '../hooks/useImageRenderSize';
+import { RELATIVE_RANGE } from './whiteBalance';
 
 interface MaskPanelConfig {
   parameters?: Array<{
@@ -37,10 +39,12 @@ export interface SliderRange {
   maskMin?: number;
 }
 
-// A slider's `value` prop, mapped to the adjustment path it shows. `<band>`, `<channel>` and
-// `<primary>` stand for each HSL band, curve channel and calibration primary.
+// A slider's `value` prop, mapped to the adjustment path it shows. `<band>`, `<channel>`,
+// `<primary>` and `<tone>` stand for each HSL band, curve channel, calibration primary and toning tone.
 const VALUE_PATHS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^adjustments\.([\wé]+)$/, (m) => m[1]],
+  [/^activeLight\.(\w+)$/, (m) => `relightLights.<light>.${m[1]}`],
+  [/^displayedWhiteBalance\.(temperature|tint)$/, (m) => m[1]],
   [/^colorGrading\.(\w+)$/, (m) => `colorGrading.${m[1]}`],
   [/^colorCalibration\.(\w+)$/, (m) => `colorCalibration.${m[1]}`],
   [/^currentHsl\.(\w+)$/, (m) => `hsl.<band>.${m[1]}`],
@@ -50,6 +54,12 @@ const VALUE_PATHS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^exposureValue$/, () => 'exposure'],
   [/^displayRotation$/, () => 'rotation'],
   [/^lutIntensity$/, () => 'lutIntensity'],
+  [/^filterHue$/, () => 'monochromeFilterHue'],
+  [/^filterStrength$/, () => 'monochromeFilterStrength'],
+  [/^values\[name\]$/, () => 'monochromeMix.<band>'],
+  [/^toning\[hueKey\]$/, () => 'monochromeToning.<tone>Hue'],
+  [/^toning\[saturationKey\]$/, () => 'monochromeToning.<tone>Saturation'],
+  [/^toning\.balance$/, () => 'monochromeToning.balance'],
 ];
 
 const readBalanced = (source: string, start: number): number => {
@@ -104,7 +114,14 @@ export const parseSliderProps = (source: string): Array<Record<string, string>> 
 const parseBound = (expression: string): { value: number; maskValue?: number } => {
   const forMask = /^isForMask\s*\?\s*(-?[\d.]+)\s*:\s*(-?[\d.]+)$/.exec(expression);
   if (forMask) return { value: Number(forMask[2]), maskValue: Number(forMask[1]) };
-  const value = Number(expression);
+  // These sliders display both modes; relative scalar keys keep their relative range.
+  const relative = /^kelvinAsShot\s*\?[^:]+:\s*(.+)$/.exec(expression)?.[1] ?? expression;
+  const value =
+    relative === 'tintRange' || relative === 'RELATIVE_RANGE'
+      ? RELATIVE_RANGE
+      : relative === '-RELATIVE_RANGE' || relative === '-tintRange'
+        ? -RELATIVE_RANGE
+        : Number(relative);
   if (Number.isNaN(value)) throw new Error(`Can't read slider bound "${expression}"`);
   return { value };
 };
@@ -143,7 +160,11 @@ export const collectSliderRanges = (sources: Record<string, string>) => {
       const paths =
         path === 'hsl.<band>.<property>'
           ? ['hue', 'saturation', 'luminance'].map((property) => `hsl.<band>.${property}`)
-          : [path];
+          : path === 'monochromeMix.<band>'
+            ? Object.keys(INITIAL_ADJUSTMENTS.monochromeMix).map((band) => `monochromeMix.${band}`)
+            : path.includes('<tone>')
+              ? ['highlight', 'shadow'].map((tone) => path.replace('<tone>', tone))
+              : [path];
       for (const key of paths) {
         const existing = ranges[key];
         if (existing && JSON.stringify(existing) !== JSON.stringify(range)) {
@@ -176,9 +197,10 @@ interface Row {
 }
 
 const typeOf = (value: unknown, path: string): string => {
+  if (path === 'aspectRatio') return 'number | null';
   if (value === null) {
-    if (/^(lutPath|lutName|lutData|lensMaker|lensModel|lensBlurDepthMap)$/.test(path)) return 'string | null';
-    if (path === 'aspectRatio') return 'number | null';
+    if (/^(lutPath|lutName|lutData|lensMaker|lensModel|lensBlurDepthMap|relightNormalMap|fogDepthMap)$/.test(path))
+      return 'string | null';
     return 'object | null';
   }
   if (Array.isArray(value)) return 'array';
@@ -187,6 +209,11 @@ const typeOf = (value: unknown, path: string): string => {
 
 const rowsFor = (path: string, value: unknown, inMasks: boolean): Row[] => {
   const row = (p: string, v: unknown): Row => ({ path: p, type: typeOf(v, p), defaultValue: v, inMasks });
+  if (path === 'activeTools') return [row(path, value)];
+  if (path === 'relightLights') {
+    const light = { ...createRelightLight(0.5, 0.5), id: '<uuid>' };
+    return [row(path, value), ...Object.entries(light).map(([key, item]) => row(`relightLights.<light>.${key}`, item))];
+  }
   if (path === 'hsl') {
     return ['hue', 'saturation', 'luminance'].map((k) => row(`hsl.<band>.${k}`, 0));
   }
@@ -275,9 +302,11 @@ const maskSection = (maskConfig: Record<string, MaskPanelConfig>): string[] => {
     '',
     '- Sub-masks are combined in order: each is inverted if set and scaled by its opacity, then `additive` takes the maximum, `subtractive` subtracts and `intersect` takes the minimum. The container’s `invert` and `opacity` apply last.',
     '- Positions and sizes are in full-resolution pixels of the image after rotation and flips, before the crop.',
+    '- `generate_ai_mask` runs the existing local subject/foreground/sky models, preserving sibling components and committing one labelled history step only if the edit remains unchanged. Subject point/box defaults to `coordinateSpace: "view"`; fractions describe the cropped, lens-corrected view. First use may download the same verified weights as the GUI.',
+    '- `render_mask` returns the actual grayscale composite matte without changing history. `convert_coordinates` maps view fractions to mask pixels before crop on the same corrected/oriented canvas (not uncorrected sensor pixels). Use its returned revision for placement. `upsert_masks` validates every entry before one atomic history step; `sample_region` can measure a labelled `regions` array from one shared render.',
     '- Discovery validates each container/component and local adjustment. `upsert_mask` creates or deep-updates one id while preserving siblings; `remove_mask` removes only that id. A supplied `subMasks` replaces only its container’s component array. Full `masks` arrays in set/update replace every container. Read the latest revision before each mutation.',
     '- IDs contain 1–128 ASCII letters, digits, underscore, colon, dot or hyphen. Sparse local settings receive defaults, including nested HSL/grading channels. Parametric `split1 < split2 < split3` is checked after existing-value merge or defaults 25/50/75. Echoed display names retain stored names; intentional new names use the existing bounded text policy.',
-    '- Radial/brush feather is 0–1; colour/luminance/AI feather is 0–100. Coordinates are full-resolution image pixels before crop, independent of display/preview size. `crop` is `{x,y,width,height,unit:"px"}`, or null; set `aspectRatio` separately to width ÷ height. Last-preview coordinate conversion and AI generation remain #120 follow-ups. Editing a stored AI bitmap does not run a model.',
+    '- Radial/brush feather is 0–1; colour/luminance/AI feather is 0–100. Coordinates are full-resolution image pixels before crop, independent of display/preview size. `crop` is `{x,y,width,height,unit:"px"}`, or null; set `aspectRatio` separately to `0` for Original, `null` for Free, or a positive fixed width ÷ height. Use `convert_coordinates` for view fractions or `generate_ai_mask` to run a model. Editing existing bitmap parameters with upsert_mask does not run inference.',
     '',
     'A new container looks like this (`id` can be a UUID):',
     '',
@@ -331,6 +360,7 @@ export const buildAdjustmentReference = (inputs: {
     '',
     '- **Slider range** is what the editor slider shows. The MCP server validates against its own schema (`tools/list`), which is sometimes wider; stay inside the slider range so the user can see and adjust your value. Blank means there is no slider for it.',
     `- \`<band>\` is one of ${HSL_BANDS.map((b) => `\`${b}\``).join(', ')}. \`<channel>\` is one of ${CURVE_CHANNELS.map((c) => `\`${c}\``).join(', ')}. \`<primary>\` is one of ${CALIBRATION_PRIMARIES.map((p) => `\`${p}\``).join(', ')} (for example \`colorCalibration.redHue\`).`,
+    '- `relightLights.<light>` describes one item in the `relightLights` array; its defaults apply to a newly placed light, while the array itself defaults to empty. Preserve other lights when replacing the array.',
     '- **Masks: yes** means a mask container has the key too, under `masks[i].adjustments`.',
     '- `update_adjustments` merges nested objects, so `{"hsl": {"blues": {"saturation": -20}}}` changes one value.',
     '',

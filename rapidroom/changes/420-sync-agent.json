@@ -1,0 +1,16 @@
+{
+  "id": "sync-agent",
+  "title": "A scheduled sync agent resolves upstream conflicts and merges gated syncs",
+  "category": "ci",
+  "landed": "2026-10-25",
+  "authors": [
+    "yojen7"
+  ],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "rapidroom_only": true,
+  "notes": "Documents the Claude Code routine that keeps main merged with upstream: it resolves conflicts in a PR, gets an independent review, re-records the CI reference only for upstream render changes under the maintainer's standing approval, and merges only at an exact head with every hosted check green. RapidRoom-caused render changes stay held for the maintainer."
+}

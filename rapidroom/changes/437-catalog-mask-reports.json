@@ -1,0 +1,12 @@
+{
+  "id": "catalog-mask-import-reports",
+  "title": "Report only unsupported catalog brush settings and label mask refusals",
+  "category": "fix",
+  "landed": "2026-10-27",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Grouped brush dabs already retain radius, flow and hardness changes. Warn only for stand-alone strokes, and provide readable catalog preview labels for brush tables, local adjustments and AI denoise."
+}

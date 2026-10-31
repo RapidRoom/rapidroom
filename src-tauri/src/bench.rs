@@ -253,12 +253,15 @@ pub async fn run_headless_bench(
             &handle,
             state,
             adj,
+            crate::gpu_processing::DisplayLayer::Edited,
             interactive,
             Some(preview_dim),
             None,
             false,
             false,
             None,
+            None,
+            crate::PreviewTarget::Editor,
         )
     };
 
@@ -328,7 +331,7 @@ pub async fn run_headless_bench(
             let h = app_handle.clone();
             let _ = perf_trace::take();
             let start = Instant::now();
-            let resp = crate::generate_preview_for_path(path, adj, h).await?;
+            let resp = crate::generate_preview_for_path(path, adj, None, h).await?;
             let total = start.elapsed();
             let mut stages = BTreeMap::new();
             for (name, d) in perf_trace::take() {

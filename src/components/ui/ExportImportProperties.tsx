@@ -22,6 +22,7 @@ export const FILE_FORMATS: Array<FileFormat> = [
 
 export const FILENAME_VARIABLES: Array<string> = [
   '{original_filename}',
+  '{original_filename_number}',
   '{sequence}',
   '{title}',
   '{author}',
@@ -44,6 +45,10 @@ export const FILENAME_VARIABLES: Array<string> = [
 
 // Rename numbers bursts and brackets as groups; export and import have no groups.
 export const RENAME_VARIABLES: Array<string> = [...FILENAME_VARIABLES, '{group}', '{member}'];
+const UNIQUE_FILENAME_VARIABLES: Array<string> = ['{original_filename}', '{original_filename_number}', '{sequence}'];
+
+export const isUniqueFilenameTemplate = (template: string): boolean =>
+  UNIQUE_FILENAME_VARIABLES.some((variable) => template.includes(variable));
 
 export type TiffBitDepth = 8 | 16;
 
@@ -79,10 +84,19 @@ export function sanitizeFilenameTemplate(template: string | null | undefined): s
   const hasUnknownToken = usedTokens.some((token) => !knownTokens.has(token));
   return hasUnknownToken ? DEFAULT_FILENAME_TEMPLATE : template;
 }
-export const DEFAULT_EXPORT_DPI = 300;
+export const DEFAULT_EXPORT_DPI = 96;
 export const MAX_EXPORT_DPI = 65535;
 
+export type InstagramRatio = '4:5' | '3:4' | '9:16' | '1.91:1';
+export interface InstagramFrame {
+  version: 1;
+  ratio: InstagramRatio;
+  geometrySignature: string;
+  frame: { x: number; y: number; width: number; height: number };
+}
+
 export interface ExportSettings {
+  instagram?: { ratio: InstagramRatio; framesByPath: Record<string, InstagramFrame> } | null;
   overwriteExisting?: boolean;
   filenameTemplate: string | null;
   jpegQuality: number;
@@ -142,6 +156,7 @@ interface WatermarkSettings {
 }
 
 export interface ExportState {
+  destination?: string | null;
   errorMessage: string;
   progress: Progress;
   status: Status;
@@ -154,6 +169,7 @@ export interface FileFormat {
 }
 
 export interface ImportState {
+  destination?: string | null;
   errorMessage: string;
   path?: string;
   progress?: Progress;
@@ -171,6 +187,7 @@ export enum Status {
 }
 
 export interface ExportPreset {
+  instagramRatio?: InstagramRatio | null;
   id: string;
   name: string;
   fileFormat: string;

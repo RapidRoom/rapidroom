@@ -1,0 +1,12 @@
+{
+  "editor": {
+    "metadata": {
+      "camera": {
+        "focusDistance": "Дистанція фокусування"
+      }
+    },
+    "viewer": {
+      "windowTitle": "Переглядач RapidRoom"
+    }
+  }
+}

@@ -27,6 +27,8 @@ const PAIR_ONLY_EXTENSIONS: &[&str] = &["hif", "heic", "heif"];
 pub enum GroupMode {
     /// The whole selection is one group.
     Selection,
+    /// Persisted photo stacks; unstacked photos are individual groups.
+    Stack,
     /// Shots within `group_seconds` of the previous one share a group.
     #[default]
     Auto,
@@ -406,8 +408,11 @@ fn classify(name: &str, stem: &str, path: &Path) -> Option<UnitFile> {
         [image, ext] if is_image_ext(image) && is_one_of(ext, IMAGE_SIDECAR_EXTENSIONS) => {
             (EntryKind::Sidecar, None)
         }
+        // Exact virtual copy ids only: `IMG.CR2.jpg.rrdata` belongs to IMG.CR2.jpg.
         [image, id, ext]
-            if is_image_ext(image) && !id.is_empty() && ext.eq_ignore_ascii_case("rrdata") =>
+            if is_image_ext(image)
+                && ext.eq_ignore_ascii_case("rrdata")
+                && crate::file_management::is_virtual_copy_id(id) =>
         {
             (EntryKind::Sidecar, Some(id.to_string()))
         }
@@ -459,12 +464,34 @@ fn capture_time(path: &Path, facts: &PhotoFacts) -> DateTime<Utc> {
 
 /// `(group, member)` for each unit, both 1-based. Units must be in capture order.
 fn assign_groups(units: &[PhotoUnit], options: &RenameOptions) -> Vec<(usize, usize)> {
+    if options.group_mode == GroupMode::Stack {
+        let mut numbers = HashMap::new();
+        let mut next = 0;
+        return units
+            .iter()
+            .map(|unit| {
+                let stack = unit.facts.stack();
+                let key = (
+                    unit.dir.clone(),
+                    stack
+                        .map(|s| s.id.clone())
+                        .unwrap_or_else(|| format!("unstacked:{}", unit.stem)),
+                );
+                let number = *numbers.entry(key).or_insert_with(|| {
+                    next += 1;
+                    next
+                });
+                (number, stack.map(|s| s.position as usize + 1).unwrap_or(1))
+            })
+            .collect();
+    }
     let max_gap_ms = (options.group_seconds.unwrap_or(1.0).max(0.0) * 1000.0).round() as i64;
     let mut groups = Vec::with_capacity(units.len());
     let (mut group, mut member) = (0, 0);
     for (index, unit) in units.iter().enumerate() {
         let new_group = match options.group_mode {
             GroupMode::Selection => index == 0,
+            GroupMode::Stack => unreachable!(),
             GroupMode::Auto => {
                 index == 0
                     || (unit.captured - units[index - 1].captured).num_milliseconds() > max_gap_ms
@@ -966,6 +993,46 @@ mod tests {
                 "Lofoten_4star_4_green_X-T5_XF33mmF1.4_200_33mm.jpg.rrdata"
             ]
         );
+    }
+
+    #[test]
+    fn stack_group_tokens_use_persisted_members_even_when_capture_order_differs() {
+        let _card = CardMode::off();
+        let dir = tempfile::tempdir().unwrap();
+        let a = touch(dir.path(), "a.jpg");
+        let b = touch(dir.path(), "b.jpg");
+        for (name, position) in [("a.jpg", 1), ("b.jpg", 0)] {
+            let meta = serde_json::json!({"version":1,"rating":0,"adjustments":null,"stack":{"id":"burst","position":position}});
+            fs::write(
+                dir.path().join(format!("{name}.rrdata")),
+                serde_json::to_vec(&meta).unwrap(),
+            )
+            .unwrap();
+        }
+        let plan = plan_rename(
+            &[p(&a), p(&b)],
+            "{group}_{member}",
+            &RenameOptions {
+                group_mode: GroupMode::Stack,
+                group_seconds: None,
+            },
+        )
+        .unwrap();
+        assert!(plan.is_ready(), "{}", plan.refusal());
+        let image_targets: Vec<_> = plan
+            .preview
+            .entries
+            .iter()
+            .filter(|e| e.kind == EntryKind::Image)
+            .map(|e| {
+                Path::new(&e.to)
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        assert_eq!(image_targets, vec!["0001_02.jpg", "0001_01.jpg"]);
     }
 
     #[test]

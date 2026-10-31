@@ -1,0 +1,70 @@
+# Merge an agent-resolved sync PR (sync/upstream-*) once the sync agent's
+# `Sync review: FINAL ACCEPT` covers its exact head and every required check
+# passed there. The agent's own merge call is refused by its tool permissions,
+# so the merge happens here. See rapidroom/UPSTREAM-SYNC.md ("Sync agent").
+name: Upstream sync merge
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_run:
+    workflows:
+      [CI Build, Production CSP, Lint, Frontend Tests, Regression check, RapidRoom change list, MCP stdio client]
+    types: [completed]
+  schedule:
+    - cron: '37 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: upstream-sync-merge
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
+  GH_REPO: ${{ github.repository }}
+
+jobs:
+  merge:
+    if: >-
+      (github.event_name != 'issue_comment' ||
+        (github.event.issue.pull_request && github.event.comment.user.login == 'yojen7' &&
+         startsWith(github.event.comment.body, 'Sync review: FINAL ACCEPT at '))) &&
+      (github.event_name != 'workflow_run' ||
+        (github.event.workflow_run.event == 'pull_request' &&
+         startsWith(github.event.workflow_run.head_branch, 'sync/upstream-')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Token present
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::The UPSTREAM_SYNC_TOKEN secret is missing; see rapidroom/UPSTREAM-SYNC.md."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
+
+      # Every run checks every open sync PR, so a queued run that concurrency replaces loses nothing.
+      # A hard error holds that PR once (needs-human + comment) instead of failing again every hour.
+      - name: Merge reviewed sync PRs
+        run: |
+          set -uo pipefail
+          prs=$(gh pr list --state open --json number,headRefName --jq '.[] | select(.headRefName | startswith("sync/upstream-")) | .number') || exit 1
+          for pr in $prs; do
+            rc=0
+            bash rapidroom/upstream-sync/merge-reviewed.sh "$pr" || rc=$?
+            if [ "$rc" = 3 ]; then
+              echo "::error::PR #$pr merged, but main moved during the merge; a needs-human issue was opened."
+            elif [ "$rc" != 0 ]; then
+              echo "::error::merge-reviewed.sh failed for PR #$pr"
+              gh pr edit "$pr" --add-label needs-human || true
+              gh pr comment "$pr" --body "Upstream sync merge workflow: an unexpected error stopped the merge check, so this PR is held (\`needs-human\`) until someone looks. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || true
+            fi
+          done

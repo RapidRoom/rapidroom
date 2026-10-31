@@ -1,0 +1,16 @@
+{
+  "id": "original-crop-ratio",
+  "title": "Keep the Original crop ratio distinct from Free and fixed Instagram ratios",
+  "category": "fix",
+  "landed": "2026-10-19",
+  "authors": ["apweisskopf", "CyberTimon", "yojen7"],
+  "source": "Adapted from RapidRAW Original-ratio sentinel and tooltip changes",
+  "commits": [
+    "https://github.com/CyberTimon/RapidRAW/commit/2fb1ce0dccdba88de5923e41056928925615d3b4",
+    "https://github.com/CyberTimon/RapidRAW/commit/e7ca92e8a81838efe2e2a29966d19bc17895b4a3"
+  ],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Original stores 0 and follows the oriented image; null remains Free and positive legacy/Instagram ratios stay fixed. Preserves lens-aware reset, X flip, camera crop metadata and typed MCP crop updates. Does not delete sidecars or alter framing/denoise/stack metadata."
+}

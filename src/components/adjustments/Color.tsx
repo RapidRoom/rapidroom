@@ -1,24 +1,41 @@
-import { useEffect, useState, useMemo, CSSProperties, ReactNode } from 'react';
+import { useEffect, useState, useMemo, memo, CSSProperties, ReactNode } from 'react';
 import { Pipette, Sliders } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import Slider from '../ui/Slider';
+import Slider, { SliderChangeEvent } from '../ui/Slider';
 import ColorWheel from '../ui/ColorWheel';
 import {
   ColorAdjustment,
   ColorCalibration,
   HueSatLum,
   INITIAL_ADJUSTMENTS,
-  SectionVisibility,
+  MonochromeFilm,
+  MonochromeToning,
 } from '../../utils/adjustments';
 import { Adjustments, ColorGrading, getAdjustmentToolOrder, getHiddenAdjustmentTools } from '../../utils/adjustments';
 import { AppSettings } from '../ui/AppProperties';
 import Text from '../ui/Text';
 import AdjustmentSubSection from './AdjustmentSubSection';
+import { useSettingsStore } from '../../store/useSettingsStore';
+import { canvasToolState, useEditorStore } from '../../store/useEditorStore';
+import {
+  getRelativeWhiteBalance,
+  getWhiteBalanceMode,
+  kelvinSliderScale,
+  MAX_TEMPERATURE,
+  MAX_TINT,
+  MIN_TEMPERATURE,
+  RELATIVE_RANGE,
+  resolveWhiteBalance,
+  WhiteBalance,
+  WhiteBalanceMode,
+  withKelvinWhiteBalance,
+  withRelativeWhiteBalance,
+} from '../../utils/whiteBalance';
 import { TextColors, TextWeights } from '../../types/typography';
-import { useEditorStore } from '../../store/useEditorStore';
 import { useUIStore } from '../../store/useUIStore';
 import { HSL_MIXER_BANDS, HslMixerBand, HslMixerProperty } from '../../utils/hslMixer';
+import { areSectionPropsEqual, withToolCollapsed } from '../../utils/adjustments';
 
 interface ColorProps {
   color: string;
@@ -30,15 +47,14 @@ interface ColorPanelProps {
   adjustments: Adjustments;
   setAdjustments(adjustments: Partial<Adjustments> | ((prev: Adjustments) => Adjustments)): void;
   appSettings: AppSettings | null;
+  asShotWhiteBalance?: WhiteBalance;
   isForMask?: boolean;
   isWbPickerActive?: boolean;
-  onToggleVisibility?: (key: string) => void;
-  sectionVisibility?: SectionVisibility;
   toggleWbPicker?: () => void;
   onDragStateChange?: (isDragging: boolean) => void;
 }
 
-interface ToggleIconButtonProps {
+interface HeaderToggleButtonProps {
   isActive: boolean;
   onClick: () => void;
   tooltip: string;
@@ -58,10 +74,23 @@ const MIXER_SWATCHES: Record<HslMixerBand, { color: string; hue: number }> = {
 
 const MIXER_TRACK_PREFIX: Record<HslMixerProperty, string> = { hue: 'hue', saturation: 'sat', luminance: 'lum' };
 
-const ToggleIconButton = ({ isActive, onClick, tooltip, children }: ToggleIconButtonProps) => (
+const MIXER_TAB_ICONS: Record<HslMixerProperty, string> = {
+  hue: 'conic-gradient(#f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
+  saturation: 'linear-gradient(135deg, #f43f5e 50%, #777 50%)',
+  luminance: 'linear-gradient(135deg, #fff 50%, #111 50%)',
+};
+
+const tabPillClassName = (isActive: boolean) =>
+  `w-7 h-7 rounded-full flex items-center justify-center transition-all focus:outline-none ${
+    isActive
+      ? 'ring-2 ring-offset-2 ring-offset-surface ring-accent text-text-primary'
+      : 'bg-bg-secondary text-text-secondary hover:text-text-primary hover:bg-bg-secondary/80'
+  }`;
+
+const HeaderToggleButton = ({ isActive, onClick, tooltip, children }: HeaderToggleButtonProps) => (
   <button
     onClick={onClick}
-    className={`p-1.5 rounded-md transition-colors ${
+    className={`min-w-6 h-6 px-1 flex items-center justify-center rounded-md text-xs font-semibold whitespace-nowrap transition-colors ${
       isActive ? 'bg-accent text-button-text' : 'hover:bg-bg-secondary text-text-secondary'
     }`}
     data-tooltip={tooltip}
@@ -75,10 +104,11 @@ interface ColorSwatchProps {
   isActive: boolean;
   name: string;
   ariaLabel: string;
+  tooltip?: string;
   onClick: (name: string) => void;
 }
 
-const ColorSwatch = ({ color, name, isActive, ariaLabel, onClick }: ColorSwatchProps) => {
+export const ColorSwatch = ({ color, name, isActive, ariaLabel, tooltip, onClick }: ColorSwatchProps) => {
   const [isPressed, setIsPressed] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -113,6 +143,7 @@ const ColorSwatch = ({ color, name, isActive, ariaLabel, onClick }: ColorSwatchP
   return (
     <button
       aria-label={ariaLabel}
+      data-tooltip={tooltip}
       className="relative w-6 h-6 focus:outline-hidden group"
       onClick={handleClick}
       onMouseDown={handleMouseDown}
@@ -139,7 +170,7 @@ const ColorSwatch = ({ color, name, isActive, ariaLabel, onClick }: ColorSwatchP
           isActive ? 'shadow-lg' : 'shadow-md'
         }`}
         style={{
-          backgroundColor: color,
+          background: color,
           transform: getTransform(),
           transition: isPressed
             ? 'transform 100ms cubic-bezier(0.4, 0, 0.2, 1)'
@@ -153,7 +184,7 @@ const ColorSwatch = ({ color, name, isActive, ariaLabel, onClick }: ColorSwatchP
 const ColorGradingPanel = ({ adjustments, setAdjustments, onDragStateChange }: ColorPanelProps) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'3way' | 'global'>('3way');
-  const [isExpanded, setIsExpanded] = useState(false);
+  const isExpanded = useUIStore((state) => state.isColorGradingExpanded);
   const colorGrading = adjustments.colorGrading || INITIAL_ADJUSTMENTS.colorGrading;
 
   const handleChange = (grading: ColorGrading, newValue: HueSatLum) => {
@@ -207,32 +238,12 @@ const ColorGradingPanel = ({ adjustments, setAdjustments, onDragStateChange }: C
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as '3way' | 'global')}
-              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all focus:outline-none
-                ${
-                  isActive
-                    ? 'ring-2 ring-offset-2 ring-offset-surface ring-accent text-text-primary'
-                    : 'bg-bg-secondary text-text-secondary hover:text-text-primary hover:bg-bg-secondary/80'
-                }`}
+              className={tabPillClassName(isActive)}
             >
               {tab.icon}
             </button>
           );
         })}
-
-        <div className="w-px h-5 bg-text-secondary/20 mx-1" />
-
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all focus:outline-none
-            ${
-              isExpanded
-                ? 'bg-accent text-button-text'
-                : 'bg-bg-secondary text-text-secondary hover:text-text-primary hover:bg-bg-secondary/80'
-            }`}
-          data-tooltip={t('adjustments.color.toggleSliders')}
-        >
-          <Sliders size={14} />
-        </button>
       </div>
 
       <div className="relative w-full mb-4">
@@ -437,7 +448,274 @@ const ColorCalibrationPanel = ({ adjustments, setAdjustments, onDragStateChange 
   );
 };
 
-export default function ColorPanel({
+const MONOCHROME_FILTERS = [
+  { name: 'none', color: '#8a8a8a', hue: 0, strength: 0 },
+  { name: 'red', color: '#f87171', hue: 0, strength: 100 },
+  { name: 'orange', color: '#fb923c', hue: 30, strength: 85 },
+  { name: 'yellow', color: '#facc15', hue: 55, strength: 60 },
+  { name: 'green', color: '#4ade80', hue: 120, strength: 70 },
+  { name: 'blue', color: '#60a5fa', hue: 225, strength: 80 },
+] as const;
+
+const MONOCHROME_TONINGS = [
+  { name: 'none', color: '#8a8a8a', toning: { highlightSaturation: 0, shadowSaturation: 0 } },
+  {
+    name: 'sepia',
+    color: '#a9825a',
+    toning: { highlightHue: 40, highlightSaturation: 30, shadowHue: 30, shadowSaturation: 35, balance: 0 },
+  },
+  {
+    name: 'selenium',
+    color: '#7d6a78',
+    toning: { highlightHue: 40, highlightSaturation: 0, shadowHue: 310, shadowSaturation: 22, balance: 0 },
+  },
+  {
+    name: 'platinum',
+    color: '#b4a58f',
+    toning: { highlightHue: 42, highlightSaturation: 12, shadowHue: 32, shadowSaturation: 16, balance: 0 },
+  },
+  {
+    name: 'gold',
+    color: '#7f93a8',
+    toning: { highlightHue: 215, highlightSaturation: 14, shadowHue: 215, shadowSaturation: 20, balance: 0 },
+  },
+  {
+    name: 'cyanotype',
+    color: '#3f6f9e',
+    toning: { highlightHue: 210, highlightSaturation: 50, shadowHue: 210, shadowSaturation: 60, balance: 0 },
+  },
+  {
+    name: 'split',
+    color: 'linear-gradient(135deg, #d0a060 50%, #5a7fa8 50%)',
+    toning: { highlightHue: 45, highlightSaturation: 25, shadowHue: 215, shadowSaturation: 25, balance: 0 },
+  },
+] as const satisfies ReadonlyArray<{ name: string; color: string; toning: Partial<MonochromeToning> }>;
+
+const MonochromePanel = ({ adjustments, setAdjustments, onDragStateChange }: ColorPanelProps) => {
+  const { t } = useTranslation();
+  const filterHue = adjustments.monochromeFilterHue ?? 0;
+  const filterStrength = adjustments.monochromeFilterStrength ?? 0;
+
+  const activeFilm = adjustments.monochromeFilm ?? MonochromeFilm.Neutral;
+
+  const handleChange = (key: keyof Adjustments, value: number | string) => {
+    setAdjustments((prev: Adjustments) => ({ ...prev, [key]: value }));
+  };
+
+  const handleFilterSelect = (name: string) => {
+    const filter = MONOCHROME_FILTERS.find((f) => f.name === name);
+    if (!filter) {
+      return;
+    }
+    setAdjustments((prev: Adjustments) => ({
+      ...prev,
+      monochromeFilterHue: filter.strength > 0 ? filter.hue : prev.monochromeFilterHue,
+      monochromeFilterStrength: filter.strength,
+    }));
+  };
+
+  const isFilterActive = (filter: (typeof MONOCHROME_FILTERS)[number]) =>
+    filter.strength === 0 ? filterStrength === 0 : filterHue === filter.hue && filterStrength === filter.strength;
+
+  return (
+    <div>
+      <Text color={TextColors.primary} weight={TextWeights.medium} className="mb-2">
+        {t('adjustments.color.monochrome.film')}
+      </Text>
+      <div className="grid grid-cols-2 gap-1.5">
+        {Object.values(MonochromeFilm).map((film) => (
+          <button
+            key={film}
+            onClick={() => handleChange('monochromeFilm', film)}
+            className={`px-2 py-1.5 rounded-md text-xs text-left truncate transition-colors ${
+              activeFilm === film
+                ? 'bg-accent text-button-text font-semibold'
+                : 'bg-bg-secondary text-text-secondary hover:text-text-primary hover:bg-bg-secondary/80'
+            }`}
+            data-tooltip={t(`adjustments.color.monochrome.filmDescriptions.${film}`)}
+          >
+            {t(`adjustments.color.monochrome.films.${film}`)}
+          </button>
+        ))}
+      </div>
+      <div className="mt-4">
+        <Text color={TextColors.primary} weight={TextWeights.medium} className="mb-3">
+          {t('adjustments.color.monochrome.filter')}
+        </Text>
+        <div className="flex justify-between mb-4 px-1">
+          {MONOCHROME_FILTERS.map((filter) => (
+            <ColorSwatch
+              color={filter.color}
+              isActive={isFilterActive(filter)}
+              key={filter.name}
+              name={filter.name}
+              onClick={handleFilterSelect}
+              ariaLabel={t(`adjustments.color.monochrome.filters.${filter.name}`)}
+              tooltip={t(`adjustments.color.monochrome.filters.${filter.name}`)}
+            />
+          ))}
+        </div>
+        <Slider
+          label={t('adjustments.color.monochrome.hue')}
+          max={360}
+          min={0}
+          step={1}
+          defaultValue={0}
+          value={filterHue}
+          data-adjustment-key="monochromeFilterHue"
+          onChange={(e: SliderChangeEvent) => handleChange('monochromeFilterHue', Number(e.target.value))}
+          onDragStateChange={onDragStateChange}
+          trackClassName="hue-range-track"
+        />
+        <Slider
+          label={t('adjustments.color.monochrome.strength')}
+          max={100}
+          min={0}
+          step={1}
+          defaultValue={0}
+          value={filterStrength}
+          data-adjustment-key="monochromeFilterStrength"
+          onChange={(e: SliderChangeEvent) => handleChange('monochromeFilterStrength', Number(e.target.value))}
+          onDragStateChange={onDragStateChange}
+          fillOrigin="min"
+        />
+      </div>
+    </div>
+  );
+};
+
+interface MonochromeMixPanelProps {
+  colors: Array<ColorProps>;
+  values: Record<string, number>;
+  onChange(name: string, value: number | string): void;
+  onDragStateChange?: (isDragging: boolean) => void;
+}
+
+const MonochromeMixPanel = ({ colors, values, onChange, onDragStateChange }: MonochromeMixPanelProps) => {
+  const trackStyle = Object.fromEntries(colors.map(({ name }) => [`--hsl-mixer-sat-${name}`, '60%'])) as CSSProperties;
+
+  return (
+    <div style={trackStyle}>
+      {colors.map(({ name, label }) => (
+        <Slider
+          key={name}
+          label={label}
+          max={100}
+          min={-100}
+          step={1}
+          defaultValue={0}
+          data-adjustment-key="monochromeMix.*"
+          value={values[name] ?? 0}
+          onChange={(e: SliderChangeEvent) => onChange(name, e.target.value)}
+          onDragStateChange={onDragStateChange}
+          trackClassName={`lum-slider-${name}`}
+        />
+      ))}
+    </div>
+  );
+};
+
+const MonochromeToningPanel = ({ adjustments, setAdjustments, onDragStateChange }: ColorPanelProps) => {
+  const { t } = useTranslation();
+  const toning = adjustments.monochromeToning || INITIAL_ADJUSTMENTS.monochromeToning;
+
+  const handleToningChange = (key: keyof MonochromeToning, value: number | string) => {
+    setAdjustments((prev: Adjustments) => ({
+      ...prev,
+      monochromeToning: {
+        ...(prev.monochromeToning || INITIAL_ADJUSTMENTS.monochromeToning),
+        [key]: Number(value),
+      },
+    }));
+  };
+
+  const handlePresetSelect = (name: string) => {
+    const preset = MONOCHROME_TONINGS.find((p) => p.name === name);
+    if (!preset) {
+      return;
+    }
+    setAdjustments((prev: Adjustments) => ({
+      ...prev,
+      monochromeToning: {
+        ...(prev.monochromeToning || INITIAL_ADJUSTMENTS.monochromeToning),
+        ...preset.toning,
+      },
+    }));
+  };
+
+  const isPresetActive = (preset: (typeof MONOCHROME_TONINGS)[number]) =>
+    Object.entries(preset.toning).every(([key, value]) => toning[key as keyof MonochromeToning] === value);
+
+  const renderTone = (tone: 'highlight' | 'shadow') => {
+    const hueKey = `${tone}Hue` as const;
+    const saturationKey = `${tone}Saturation` as const;
+    return (
+      <div style={{ '--toning-hue': toning[hueKey] } as CSSProperties}>
+        <Text color={TextColors.primary} weight={TextWeights.medium} className="mb-1">
+          {t(`adjustments.color.monochrome.${tone}s`)}
+        </Text>
+        <Slider
+          label={t('adjustments.color.monochrome.hue')}
+          max={360}
+          min={0}
+          step={1}
+          defaultValue={INITIAL_ADJUSTMENTS.monochromeToning[hueKey]}
+          value={toning[hueKey]}
+          data-adjustment-key="monochromeToning.*Hue"
+          onChange={(e: SliderChangeEvent) => handleToningChange(hueKey, e.target.value)}
+          onDragStateChange={onDragStateChange}
+          trackClassName="hue-range-track"
+        />
+        <Slider
+          label={t('adjustments.color.monochrome.saturation')}
+          max={100}
+          min={0}
+          step={1}
+          defaultValue={0}
+          value={toning[saturationKey]}
+          data-adjustment-key="monochromeToning.*Saturation"
+          onChange={(e: SliderChangeEvent) => handleToningChange(saturationKey, e.target.value)}
+          onDragStateChange={onDragStateChange}
+          trackClassName="toning-saturation-track"
+          fillOrigin="min"
+        />
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between mb-4 px-1">
+        {MONOCHROME_TONINGS.map((preset) => (
+          <ColorSwatch
+            color={preset.color}
+            isActive={isPresetActive(preset)}
+            key={preset.name}
+            name={preset.name}
+            onClick={handlePresetSelect}
+            ariaLabel={t(`adjustments.color.monochrome.tonings.${preset.name}`)}
+            tooltip={t(`adjustments.color.monochrome.tonings.${preset.name}`)}
+          />
+        ))}
+      </div>
+      {renderTone('highlight')}
+      <Slider
+        label={t('adjustments.color.monochrome.balance')}
+        max={100}
+        min={-100}
+        step={1}
+        defaultValue={0}
+        data-adjustment-key="monochromeToning.balance"
+        value={toning.balance}
+        onChange={(e: SliderChangeEvent) => handleToningChange('balance', e.target.value)}
+        onDragStateChange={onDragStateChange}
+      />
+      <div className="mt-3">{renderTone('shadow')}</div>
+    </div>
+  );
+};
+
+function ColorPanel({
   adjustments,
   setAdjustments,
   appSettings,
@@ -445,10 +723,10 @@ export default function ColorPanel({
   isWbPickerActive = false,
   toggleWbPicker,
   onDragStateChange,
-  onToggleVisibility,
-  sectionVisibility,
+  asShotWhiteBalance,
 }: ColorPanelProps) {
   const { t } = useTranslation();
+  const handleSettingsChange = useSettingsStore((state) => state.handleSettingsChange);
   const [activeColor, setActiveColor] = useState('reds');
   const hiddenTools = getHiddenAdjustmentTools(appSettings?.adjustmentLayout);
   const toolOrder = getAdjustmentToolOrder('color', appSettings?.adjustmentLayout?.toolOrder);
@@ -476,10 +754,12 @@ export default function ColorPanel({
     [hsl],
   );
 
+  const isGradingExpanded = useUIStore((state) => state.isColorGradingExpanded);
   const isMixerExpanded = useUIStore((state) => state.isColorMixerExpanded);
   const setUI = useUIStore((state) => state.setUI);
-  const [mixerTab, setMixerTab] = useState<HslMixerProperty>('hue');
-  const mixerPickerProperty = useEditorStore((state) => (isForMask ? null : state.mixerPickerProperty));
+  const [localMixerTab, setLocalMixerTab] = useState<HslMixerProperty>('hue');
+  const mixerPickerProperty = useEditorStore((state) => state.mixerPickerProperty);
+  const mixerTab = mixerPickerProperty ?? localMixerTab;
   const isMixerPickerDragging = useEditorStore((state) => mixerPickerProperty !== null && state.isSliderDragging);
   const setEditor = useEditorStore((state) => state.setEditor);
 
@@ -492,36 +772,101 @@ export default function ColorPanel({
     [t],
   );
 
-  useEffect(() => {
-    if (!isForMask) return () => setEditor({ mixerPickerProperty: null });
-  }, [isForMask, setEditor]);
-
   const toggleMixerExpanded = () => {
     if (isMixerExpanded && mixerPickerProperty) setEditor({ mixerPickerProperty: null });
     setUI({ isColorMixerExpanded: !isMixerExpanded });
   };
 
   const toggleMixerPicker = () => {
-    setEditor({ mixerPickerProperty: mixerPickerProperty ? null : mixerTab, isWbPickerActive: false });
+    if (!mixerPickerProperty && appSettings?.adjustmentLayout?.collapsedTools?.includes('colorMixer')) {
+      handleSettingsChange(withToolCollapsed(appSettings, 'colorMixer', false));
+    }
+    setEditor(canvasToolState({ mixerPickerProperty: mixerPickerProperty ? null : mixerTab }));
   };
 
   const selectMixerTab = (tab: HslMixerProperty) => {
-    setMixerTab(tab);
+    setLocalMixerTab(tab);
     if (mixerPickerProperty) setEditor({ mixerPickerProperty: tab });
   };
+
+  const isMonochromeImage = useEditorStore((state) => !!state.adjustments.monochromeEnabled);
+  const isMonochrome = !isForMask && !!adjustments.monochromeEnabled;
+  const isMonochromeMask = isForMask && isMonochromeImage;
+  const showMonochromeMix = isMonochrome || isMonochromeMask;
+  const gradingOrder = toolOrder.indexOf('colorGrading');
+  const mixerOrder = toolOrder.indexOf('colorMixer');
 
   const handleAdjustmentChange = (key: ColorAdjustment, value: string | number) => {
     setAdjustments((prev: Adjustments) => ({ ...prev, [key]: parseFloat(String(value)) }));
   };
 
-  const handleHslChange = (color: string, key: HslMixerProperty, value: string | number) => {
+  useEffect(() => () => setEditor({ mixerPickerProperty: null }), [setEditor]);
+
+  useEffect(() => {
+    if (showMonochromeMix && mixerPickerProperty) setEditor({ mixerPickerProperty: null });
+  }, [showMonochromeMix, mixerPickerProperty, setEditor]);
+
+  const toggleMonochrome = () => {
+    setAdjustments((prev: Adjustments) => ({ ...prev, monochromeEnabled: !prev.monochromeEnabled }));
+  };
+
+  const monochromeMixValues = isMonochrome
+    ? adjustments.monochromeMix || INITIAL_ADJUSTMENTS.monochromeMix
+    : Object.fromEntries(HSL_COLORS.map(({ name }) => [name, adjustments.hsl?.[name]?.luminance ?? 0]));
+
+  const handleMonochromeMixChange = (name: string, value: number | string) => {
+    setAdjustments((prev: Adjustments) =>
+      isMonochrome
+        ? {
+            ...prev,
+            monochromeMix: { ...(prev.monochromeMix || INITIAL_ADJUSTMENTS.monochromeMix), [name]: Number(value) },
+          }
+        : {
+            ...prev,
+            hsl: { ...(prev.hsl || {}), [name]: { ...(prev.hsl?.[name] || {}), luminance: Number(value) } },
+          },
+    );
+  };
+
+  const kelvinAsShot =
+    !isForMask && getWhiteBalanceMode(appSettings) === WhiteBalanceMode.Kelvin ? asShotWhiteBalance : undefined;
+  const isKelvinMode = !!kelvinAsShot;
+  const displayedWhiteBalance = kelvinAsShot
+    ? resolveWhiteBalance(kelvinAsShot, adjustments)
+    : getRelativeWhiteBalance(asShotWhiteBalance, adjustments);
+  const tintRange = kelvinAsShot ? MAX_TINT : RELATIVE_RANGE;
+
+  const toggleWhiteBalanceMode = () => {
+    if (appSettings) {
+      handleSettingsChange({
+        ...appSettings,
+        whiteBalanceMode: isKelvinMode ? WhiteBalanceMode.Relative : WhiteBalanceMode.Kelvin,
+      });
+    }
+  };
+
+  const handleWhiteBalanceChange = (key: keyof WhiteBalance, value: number | string) => {
+    setAdjustments((prev: Adjustments) => {
+      if (kelvinAsShot) {
+        return withKelvinWhiteBalance(prev, { ...resolveWhiteBalance(kelvinAsShot, prev), [key]: Number(value) });
+      }
+      return prev.whiteBalance
+        ? withRelativeWhiteBalance(prev, {
+            ...getRelativeWhiteBalance(asShotWhiteBalance, prev),
+            [key]: Number(value),
+          })
+        : { ...prev, [key]: Number(value) };
+    });
+  };
+
+  const handleHslChange = (color: string, key: HslMixerProperty, value: number | string) => {
     setAdjustments((prev: Adjustments) => ({
       ...prev,
       hsl: {
         ...(prev.hsl || {}),
         [color]: {
           ...(prev.hsl?.[color] || {}),
-          [key]: parseFloat(String(value)),
+          [key]: Number(value),
         },
       },
     }));
@@ -534,7 +879,7 @@ export default function ColorPanel({
       label={label}
       max={100}
       min={-100}
-      onChange={(e) => handleHslChange(color, property, e.target.value)}
+      onChange={(e: SliderChangeEvent) => handleHslChange(color, property, e.target.value)}
       step={1}
       value={hsl[color][property]}
       trackClassName={`${MIXER_TRACK_PREFIX[property]}-slider-${color}`}
@@ -547,15 +892,25 @@ export default function ColorPanel({
       {!hiddenTools.includes('whiteBalance') && (
         <AdjustmentSubSection
           actions={
-            !isForMask &&
-            toggleWbPicker && (
-              <ToggleIconButton
-                isActive={isWbPickerActive}
-                onClick={toggleWbPicker}
-                tooltip={t('adjustments.color.wbPickerTooltip')}
-              >
-                <Pipette size={16} />
-              </ToggleIconButton>
+            !isForMask && (
+              <div className="flex items-center gap-1">
+                <HeaderToggleButton
+                  isActive={isKelvinMode}
+                  onClick={toggleWhiteBalanceMode}
+                  tooltip={t('adjustments.color.kelvinModeTooltip')}
+                >
+                  K
+                </HeaderToggleButton>
+                {toggleWbPicker && (
+                  <HeaderToggleButton
+                    isActive={isWbPickerActive}
+                    onClick={toggleWbPicker}
+                    tooltip={t('adjustments.color.wbPickerTooltip')}
+                  >
+                    <Pipette size={16} />
+                  </HeaderToggleButton>
+                )}
+              </div>
             )
           }
           id="whiteBalance"
@@ -563,56 +918,88 @@ export default function ColorPanel({
           title={t('adjustments.color.whiteBalance')}
         >
           <Slider
+            key={isKelvinMode ? 'kelvinTemperature' : 'temperature'}
+            defaultValue={kelvinAsShot?.temperature}
             label={t('adjustments.color.temperature')}
-            max={100}
-            min={-100}
-            onChange={(e) => handleAdjustmentChange(ColorAdjustment.Temperature, e.target.value)}
-            step={1}
-            value={adjustments.temperature || 0}
+            max={kelvinAsShot ? MAX_TEMPERATURE : RELATIVE_RANGE}
+            min={kelvinAsShot ? MIN_TEMPERATURE : -RELATIVE_RANGE}
+            onChange={(e: SliderChangeEvent) => handleWhiteBalanceChange('temperature', e.target.value)}
+            scale={kelvinAsShot ? kelvinSliderScale : undefined}
+            speedEditId={ColorAdjustment.Temperature}
+            step={kelvinAsShot ? 50 : 1}
+            suffix={kelvinAsShot ? 'K' : undefined}
+            value={displayedWhiteBalance.temperature}
             trackClassName="temperature-gradient-track"
             onDragStateChange={onDragStateChange}
           />
           <Slider
+            key={isKelvinMode ? 'kelvinTint' : 'tint'}
+            defaultValue={kelvinAsShot?.tint}
             label={t('adjustments.color.tint')}
-            max={100}
-            min={-100}
-            onChange={(e) => handleAdjustmentChange(ColorAdjustment.Tint, e.target.value)}
+            max={tintRange}
+            min={-tintRange}
+            onChange={(e: SliderChangeEvent) => handleWhiteBalanceChange('tint', e.target.value)}
+            speedEditId={ColorAdjustment.Tint}
             step={1}
-            value={adjustments.tint || 0}
+            value={displayedWhiteBalance.tint}
             trackClassName="tint-gradient-track"
             onDragStateChange={onDragStateChange}
           />
         </AdjustmentSubSection>
       )}
 
-      {!hiddenTools.includes('colorPresence') && (
+      {!isMonochromeMask && !hiddenTools.includes('colorPresence') && (
         <AdjustmentSubSection
+          actions={
+            !isForMask && (
+              <HeaderToggleButton
+                isActive={isMonochrome}
+                onClick={toggleMonochrome}
+                tooltip={t('adjustments.color.monochrome.blackWhite')}
+              >
+                {t('adjustments.color.monochrome.badge')}
+              </HeaderToggleButton>
+            )
+          }
           id="colorPresence"
           order={toolOrder.indexOf('colorPresence')}
-          title={t('adjustments.color.presence')}
+          title={isMonochrome ? t('adjustments.color.monochrome.blackWhite') : t('adjustments.color.presence')}
         >
-          <Slider
-            label={t('adjustments.color.vibrance')}
-            max={100}
-            min={-100}
-            onChange={(e) => handleAdjustmentChange(ColorAdjustment.Vibrance, e.target.value)}
-            step={1}
-            value={adjustments.vibrance || 0}
-            onDragStateChange={onDragStateChange}
-          />
-          <Slider
-            label={t('adjustments.color.saturation')}
-            max={100}
-            min={-100}
-            onChange={(e) => handleAdjustmentChange(ColorAdjustment.Saturation, e.target.value)}
-            step={1}
-            value={adjustments.saturation || 0}
-            onDragStateChange={onDragStateChange}
-          />
+          {isMonochrome ? (
+            <MonochromePanel
+              adjustments={adjustments}
+              setAdjustments={setAdjustments}
+              appSettings={appSettings}
+              onDragStateChange={onDragStateChange}
+            />
+          ) : (
+            <>
+              <Slider
+                label={t('adjustments.color.vibrance')}
+                max={100}
+                min={-100}
+                onChange={(e) => handleAdjustmentChange(ColorAdjustment.Vibrance, e.target.value)}
+                speedEditId={ColorAdjustment.Vibrance}
+                step={1}
+                value={adjustments.vibrance || 0}
+                onDragStateChange={onDragStateChange}
+              />
+              <Slider
+                label={t('adjustments.color.saturation')}
+                max={100}
+                min={-100}
+                onChange={(e) => handleAdjustmentChange(ColorAdjustment.Saturation, e.target.value)}
+                speedEditId={ColorAdjustment.Saturation}
+                step={1}
+                value={adjustments.saturation || 0}
+                onDragStateChange={onDragStateChange}
+              />
+            </>
+          )}
         </AdjustmentSubSection>
       )}
 
-      {!hiddenTools.includes('hue') && (
+      {!showMonochromeMix && !hiddenTools.includes('hue') && (
         <AdjustmentSubSection
           id="hue"
           order={toolOrder.indexOf('hue')}
@@ -631,92 +1018,127 @@ export default function ColorPanel({
         </AdjustmentSubSection>
       )}
 
-      {!hiddenTools.includes('colorGrading') && (
+      {!isMonochromeMask && !hiddenTools.includes('colorGrading') && (
         <AdjustmentSubSection
+          actions={
+            !isMonochrome && (
+              <HeaderToggleButton
+                isActive={isGradingExpanded}
+                onClick={() => setUI({ isColorGradingExpanded: !isGradingExpanded })}
+                tooltip={t('adjustments.color.toggleSliders')}
+              >
+                <Sliders size={16} />
+              </HeaderToggleButton>
+            )
+          }
           id="colorGrading"
-          isContentVisible={sectionVisibility?.colorGrading}
-          onToggleVisibility={onToggleVisibility && (() => onToggleVisibility('colorGrading'))}
-          order={toolOrder.indexOf('colorGrading')}
-          title={t('adjustments.color.colorGrading')}
+          order={isMonochrome ? Math.max(gradingOrder, mixerOrder) : gradingOrder}
+          title={isMonochrome ? t('adjustments.color.monochrome.toning') : t('adjustments.color.colorGrading')}
         >
-          <ColorGradingPanel
-            adjustments={adjustments}
-            setAdjustments={setAdjustments}
-            appSettings={appSettings}
-            onDragStateChange={onDragStateChange}
-          />
+          {isMonochrome ? (
+            <MonochromeToningPanel
+              adjustments={adjustments}
+              setAdjustments={setAdjustments}
+              appSettings={appSettings}
+              onDragStateChange={onDragStateChange}
+            />
+          ) : (
+            <ColorGradingPanel
+              adjustments={adjustments}
+              setAdjustments={setAdjustments}
+              appSettings={appSettings}
+              onDragStateChange={onDragStateChange}
+            />
+          )}
         </AdjustmentSubSection>
       )}
 
       {!hiddenTools.includes('colorMixer') && (
         <AdjustmentSubSection
           actions={
-            <div className="flex items-center gap-1">
-              {isMixerExpanded && !isForMask && (
-                <ToggleIconButton
-                  isActive={mixerPickerProperty !== null}
-                  onClick={toggleMixerPicker}
-                  tooltip={t('adjustments.color.mixerPickerTooltip')}
+            !showMonochromeMix && (
+              <div className="flex items-center gap-1">
+                {isMixerExpanded && (
+                  <HeaderToggleButton
+                    isActive={mixerPickerProperty !== null}
+                    onClick={toggleMixerPicker}
+                    tooltip={t('adjustments.color.mixerPickerTooltip')}
+                  >
+                    <Pipette size={16} />
+                  </HeaderToggleButton>
+                )}
+                <HeaderToggleButton
+                  isActive={isMixerExpanded}
+                  onClick={toggleMixerExpanded}
+                  tooltip={t('adjustments.color.toggleSliders')}
                 >
-                  <Pipette size={16} />
-                </ToggleIconButton>
-              )}
-              <ToggleIconButton
-                isActive={isMixerExpanded}
-                onClick={toggleMixerExpanded}
-                tooltip={t('adjustments.color.toggleMixerExpanded')}
-              >
-                <Sliders size={16} />
-              </ToggleIconButton>
-            </div>
+                  <Sliders size={16} />
+                </HeaderToggleButton>
+              </div>
+            )
           }
           id="colorMixer"
-          isContentVisible={sectionVisibility?.colorMixer}
-          onToggleVisibility={onToggleVisibility && (() => onToggleVisibility('colorMixer'))}
-          order={toolOrder.indexOf('colorMixer')}
-          title={t('adjustments.color.colorMixer')}
+          order={isMonochrome ? Math.min(gradingOrder, mixerOrder) : mixerOrder}
+          title={showMonochromeMix ? t('adjustments.color.monochrome.mix') : t('adjustments.color.colorMixer')}
         >
-          <div style={mixerTrackStyle}>
-            {isMixerExpanded ? (
-              <>
-                <div className="flex items-center gap-1 p-1 mb-3 rounded-lg bg-surface-secondary">
-                  {mixerTabs.map(({ id, label }) => (
-                    <button
-                      key={id}
-                      className={`flex-1 h-7 rounded-md text-xs transition-all ${
-                        mixerTab === id ? 'bg-surface text-text-primary' : 'text-text-secondary hover:text-text-primary'
-                      }`}
-                      onClick={() => selectMixerTab(id)}
-                      type="button"
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                {HSL_COLORS.map(({ name, label }) => renderMixerSlider(name, mixerTab, label))}
-              </>
-            ) : (
-              <>
-                <div className="flex justify-between mb-4 px-1">
-                  {HSL_COLORS.map(({ name, color, label }) => (
-                    <ColorSwatch
-                      color={color}
-                      isActive={activeColor === name}
-                      key={name}
-                      name={name}
-                      onClick={setActiveColor}
-                      ariaLabel={t('adjustments.color.ariaSelectColor', { name: label })}
-                    />
-                  ))}
-                </div>
-                {mixerTabs.map(({ id, label }) => renderMixerSlider(activeColor, id, label))}
-              </>
-            )}
-          </div>
+          {showMonochromeMix ? (
+            <MonochromeMixPanel
+              colors={HSL_COLORS}
+              values={monochromeMixValues}
+              onChange={handleMonochromeMixChange}
+              onDragStateChange={onDragStateChange}
+            />
+          ) : (
+            <div style={mixerTrackStyle}>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={isMixerExpanded ? 'expanded' : 'swatches'}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  {isMixerExpanded ? (
+                    <>
+                      <div className="flex items-center h-6 gap-2 mb-4 px-1">
+                        {mixerTabs.map(({ id, label }) => (
+                          <button
+                            key={id}
+                            onClick={() => selectMixerTab(id)}
+                            className={tabPillClassName(mixerTab === id)}
+                            data-tooltip={label}
+                          >
+                            <div className="w-3.5 h-3.5 rounded-full" style={{ background: MIXER_TAB_ICONS[id] }} />
+                          </button>
+                        ))}
+                      </div>
+                      {HSL_COLORS.map(({ name, label }) => renderMixerSlider(name, mixerTab, label))}
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between mb-4 px-1">
+                        {HSL_COLORS.map(({ name, color, label }) => (
+                          <ColorSwatch
+                            color={color}
+                            isActive={activeColor === name}
+                            key={name}
+                            name={name}
+                            onClick={setActiveColor}
+                            ariaLabel={t('adjustments.color.ariaSelectColor', { name: label })}
+                          />
+                        ))}
+                      </div>
+                      {mixerTabs.map(({ id, label }) => renderMixerSlider(activeColor, id, label))}
+                    </>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          )}
         </AdjustmentSubSection>
       )}
 
-      {!isForMask && !hiddenTools.includes('colorCalibration') && (
+      {!isForMask && !isMonochrome && !hiddenTools.includes('colorCalibration') && (
         <AdjustmentSubSection
           id="colorCalibration"
           order={toolOrder.indexOf('colorCalibration')}
@@ -733,3 +1155,5 @@ export default function ColorPanel({
     </div>
   );
 }
+
+export default memo(ColorPanel, areSectionPropsEqual('color'));

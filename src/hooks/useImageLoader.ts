@@ -12,6 +12,8 @@ interface LoadedMetadata {
 }
 
 interface LoadedImageData {
+  load_generation: number;
+  as_shot_white_balance: { temperature: number; tint: number };
   exif: SelectedImage['exif'];
   height: number;
   is_raw: boolean;
@@ -32,7 +34,7 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
   const hasRenderedFirstFrame = useEditorStore((s) => s.hasRenderedFirstFrame);
 
   const setEditor = useEditorStore((s) => s.setEditor);
-  const resetHistory = useEditorStore((s) => s.resetHistory);
+  const restoreHistory = useEditorStore((s) => s.restoreHistory);
   const setLibrary = useLibraryStore((s) => s.setLibrary);
   const appSettings = useSettingsStore((s) => s.appSettings);
 
@@ -58,7 +60,7 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
           }
 
           setEditor({ adjustments: initialAdjusts });
-          resetHistory(initialAdjusts);
+          restoreHistory(initialAdjusts);
         } catch (err) {
           console.error('Failed to load metadata early:', err);
         }
@@ -94,6 +96,8 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
               return {
                 selectedImage: {
                   ...state.selectedImage,
+                  loadGeneration: loadImageResult.load_generation,
+                  asShotWhiteBalance: loadImageResult.as_shot_white_balance,
                   exif: loadImageResult.exif,
                   height: loadImageResult.height,
                   isRaw: loadImageResult.is_raw,
@@ -102,15 +106,6 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
                   metadata: loadImageResult.metadata,
                   width: loadImageResult.width,
                 },
-              };
-            }
-            return state;
-          });
-
-          setEditor((state) => {
-            if (!state.adjustments.aspectRatio && !state.adjustments.crop) {
-              return {
-                adjustments: { ...state.adjustments, aspectRatio: loadImageResult.width / loadImageResult.height },
               };
             }
             return state;
@@ -145,7 +140,7 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
     selectedImage?.path,
     selectedImage?.isReady,
     appSettings?.editorPreviewResolution,
-    resetHistory,
+    restoreHistory,
     setEditor,
     setLibrary,
   ]);

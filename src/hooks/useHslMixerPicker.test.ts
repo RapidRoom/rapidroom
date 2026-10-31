@@ -7,7 +7,7 @@ import { mockCommand } from '../test/tauriMock';
 import { useHslMixerPicker } from './useHslMixerPicker';
 import { useEditorStore } from '../store/useEditorStore';
 import { Invokes, SelectedImage } from '../components/ui/AppProperties';
-import { Adjustments, INITIAL_ADJUSTMENTS } from '../utils/adjustments';
+import { Adjustments, getActiveTools, INITIAL_ADJUSTMENTS, setToolActive } from '../utils/adjustments';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -21,7 +21,7 @@ const RENDER_SIZE = {
   scale: 1,
   width: 100,
 };
-const RED_PIXELS = Array.from({ length: 16 }, () => [255, 0, 0, 255]).flat();
+const RED_PROBE = Uint8Array.from(Array.from({ length: 16 }, () => [0, 255, 128, 255]).flat()).buffer;
 
 const image = (path: string) => ({ path, isReady: true }) as SelectedImage;
 
@@ -53,10 +53,10 @@ async function mountPicker() {
   let picker!: ReturnType<typeof useHslMixerPicker>;
   function Harness() {
     picker = useHslMixerPicker({
+      activeMaskContainerId: null,
       getCanvasPointer: () => ({ x: 50, y: 50 }),
       imageRenderSize: RENDER_SIZE,
-      previewUrl: null,
-      useDisplayTexture: true,
+      isMasking: false,
       zoomScale: 1,
       setAdjustments,
     });
@@ -76,7 +76,7 @@ async function mountPicker() {
 const redSaturation = () => useEditorStore.getState().adjustments.hsl.reds.saturation;
 
 beforeEach(() => {
-  mockCommand(Invokes.SampleDisplayArea, () => RED_PIXELS);
+  mockCommand(Invokes.SampleHslMixerArea, () => RED_PROBE);
   useEditorStore.setState({
     selectedImage: image('/photos/a.raw'),
     adjustments: withRedSaturation(10),
@@ -89,7 +89,7 @@ afterEach(() => {
 });
 
 describe('useHslMixerPicker', () => {
-  it('records a whole drag as one undo step', async () => {
+  it('applies each drag move through setAdjustments, which merges them into one history step', async () => {
     const { setAdjustments, press, unmount } = await mountPicker();
 
     await press(100);
@@ -97,10 +97,9 @@ describe('useHslMixerPicker', () => {
     await move(80);
     await move(60);
     expect(redSaturation()).toBe(30);
-    expect(setAdjustments).not.toHaveBeenCalled();
+    expect(setAdjustments).toHaveBeenCalledTimes(2);
 
     await release();
-    expect(setAdjustments).toHaveBeenCalledTimes(1);
     expect(redSaturation()).toBe(30);
     expect(useEditorStore.getState().isSliderDragging).toBe(false);
     await unmount();
@@ -139,7 +138,7 @@ describe('useHslMixerPicker', () => {
     await release();
 
     expect(useEditorStore.getState().adjustments).toBe(other);
-    expect(setAdjustments).not.toHaveBeenCalled();
+    expect(setAdjustments).toHaveBeenCalledTimes(1);
     expect(useEditorStore.getState().isSliderDragging).toBe(false);
     await unmount();
   });
@@ -167,7 +166,7 @@ describe('useHslMixerPicker', () => {
       useEditorStore.setState((state) => ({
         adjustments: {
           ...state.adjustments,
-          sectionVisibility: { ...state.adjustments.sectionVisibility, [section]: false },
+          activeTools: setToolActive(getActiveTools(state.adjustments), section, false),
         },
       }));
     });
