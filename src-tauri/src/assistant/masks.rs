@@ -2,7 +2,7 @@ use serde_json::{Map, Value, json};
 
 use super::adjustments;
 
-pub(super) const LOCAL_ADJUSTMENTS: &[&str] = &[
+pub(crate) const LOCAL_ADJUSTMENTS: &[&str] = &[
     "blacks",
     "brightness",
     "clarity",
@@ -63,11 +63,11 @@ fn coordinate() -> Value {
         "Original-image pixels before crop; may lie outside the image.",
     )
 }
-pub(super) fn identifier_schema() -> Value {
+pub(crate) fn identifier_schema() -> Value {
     json!({"type":"string","minLength":1,"maxLength":128,"pattern":"^[A-Za-z0-9_:.-]+$",
         "description":"Opaque ID: 1–128 ASCII letters, digits, underscore, colon, dot or hyphen."})
 }
-pub(super) fn validate_id(value: &str) -> Result<(), String> {
+pub(crate) fn validate_id(value: &str) -> Result<(), String> {
     if value.is_empty() || !crate::assistant_text::valid_opaque_id(value) {
         return Err(
             "Mask id must contain 1–128 ASCII letters, digits, underscore, colon, dot or hyphen"
@@ -80,7 +80,7 @@ fn object(properties: Value, required: &[&str]) -> Value {
     json!({"type":"object","additionalProperties":false,"properties":properties,"required":required})
 }
 
-pub(super) fn local_schema(global_properties: &Map<String, Value>) -> Value {
+pub(crate) fn local_schema(global_properties: &Map<String, Value>) -> Value {
     let mut properties: Map<_, _> = LOCAL_ADJUSTMENTS
         .iter()
         .map(|key| (key.to_string(), global_properties[*key].clone()))
@@ -96,7 +96,7 @@ pub(super) fn local_schema(global_properties: &Map<String, Value>) -> Value {
     schema
 }
 
-pub(super) fn crop_schema() -> Value {
+pub(crate) fn crop_schema() -> Value {
     let mut schema = object(
         json!({
             "x":number(0.0,1e9,"Crop left in original-image pixels."),
@@ -247,7 +247,8 @@ fn parameters_schema(kind: &str) -> Value {
 
 // Tool schemas are independent JSON Schema documents. Share repeated component
 // fields within each document; external refs cannot be assumed to resolve in a client.
-pub(super) fn compact_components(full: &Value, definitions: &mut Value) -> Value {
+#[cfg(feature = "mcp")]
+pub(crate) fn compact_components(full: &Value, definitions: &mut Value) -> Value {
     let variants = full["oneOf"].as_array().expect("static sub-mask variants");
     let mut common = variants[0].clone();
     common["properties"]["type"] = json!({"type":"string"});
@@ -309,7 +310,7 @@ fn sub_mask_schema(kind: &str) -> Value {
     )
 }
 
-pub(super) fn mask_schema(local_adjustments: Value, partial: bool) -> Value {
+pub(crate) fn mask_schema(local_adjustments: Value, partial: bool) -> Value {
     let variants: Vec<_> = TYPES.iter().map(|kind| sub_mask_schema(kind)).collect();
     let mut schema = object(
         json!({
@@ -440,7 +441,7 @@ fn validate(value: &Value, schema: &Value, path: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub(super) fn validate_crop(value: &Value) -> Result<(), String> {
+pub(crate) fn validate_crop(value: &Value) -> Result<(), String> {
     validate(value, &crop_schema(), "crop")
 }
 fn local_adjustments_schema() -> Value {
@@ -451,7 +452,7 @@ fn local_adjustments_schema() -> Value {
             .expect("static adjustment properties"),
     )
 }
-pub(super) fn validate_mask(value: &Value, partial: bool) -> Result<(), String> {
+pub(crate) fn validate_mask(value: &Value, partial: bool) -> Result<(), String> {
     validate(
         value,
         &mask_schema(local_adjustments_schema(), partial),
@@ -503,7 +504,7 @@ fn unique_ids(values: &[Value], kind: &str) -> Result<(), String> {
     }
     Ok(())
 }
-pub(super) fn validate_masks(value: &Value) -> Result<(), String> {
+pub(crate) fn validate_masks(value: &Value) -> Result<(), String> {
     let masks = value.as_array().ok_or("masks must be an array")?;
     if masks.len() > 256 {
         return Err("MCP edits support at most 256 masks".into());
@@ -515,7 +516,7 @@ pub(super) fn validate_masks(value: &Value) -> Result<(), String> {
     Ok(())
 }
 
-pub(super) fn change_masks(
+pub(crate) fn change_masks(
     current: &Value,
     mask: Option<&Value>,
     remove: Option<&str>,

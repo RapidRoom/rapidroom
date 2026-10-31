@@ -27,6 +27,10 @@ From the in-app MCP server (issue #5). Every editing tool works on the image ope
 | `calculate_guided_perspective`      | Perspective transform and crop for guide lines (normalized 0–1 points). Doesn't change the edit; apply with `update_adjustments` and `guidedPerspective`.                                                          |
 | `export_images`                     | `imagePaths`, `outputDirectory`, `outputFormat` (`jpg`, `png`, `tiff`, `webp`, `jxl`, `avif`), `exportSettings` (quality, resize, metadata, GPS, filename template, watermark). Waits until the files are written. |
 
+## Full-edit photo XMP export
+
+`export_xmp_sidecar(imagePath, filePath, write, expectedRevision)` reviews the active draft by default (`write: false`), returning named Lightroom projection losses without writing a file or changing the editor. Show these losses and the destination to the user. Only a user-approved export calls `write: true`, which requires the current revision, refuses Card mode destinations, and accepts only the active image's original or virtual-copy sidecar name. The payload keeps native-only settings, AI prompts and patch/mask pixels, capped at 12 MiB of JSON and 6 MiB of decoded rasters. LUT paths become basenames and external LUT files are not embedded. Restore requires the identical source image; changed Lightroom fields win while the payload restores the rest. Adobe rendering is not guaranteed to match. Actual Lightroom Classic payload preservation requires human acceptance.
+
 ## History, context and preview options
 
 - `get_active_image_state` defaults to `nonDefaultOnly: true`: default global/container/component values and default nested local adjustments are omitted; geometry, IDs and meaningful values remain. It is a read projection, not a full replacement recipe. Use `nonDefaultOnly: false` or `get_image_state(imagePath)` when saving a complete edit to restore.

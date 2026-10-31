@@ -34,7 +34,7 @@ mod app_settings;
 mod app_state;
 mod apple_raw;
 mod as_shot;
-#[cfg(any(feature = "mcp", feature = "terminal", test))]
+mod assistant;
 mod assistant_text;
 mod atomic_export;
 mod auto_straighten;
@@ -131,6 +131,8 @@ mod viewer_window;
 mod white_balance;
 mod window_customizer;
 mod xmp;
+mod xmp_payload;
+mod xmp_roundtrip;
 
 use std::collections::{HashMap, hash_map::DefaultHasher};
 use std::fs;
@@ -3548,6 +3550,7 @@ pub fn run() {
             file_management::delete_files_with_associated,
             file_management::save_metadata_and_update_thumbnail,
             file_management::import_xmp_adjustments_for_image,
+            xmp_roundtrip::export_xmp_round_trip,
             file_management::import_matching_xmp_sidecars_in_folder,
             file_management::apply_adjustments_to_paths,
             file_management::load_metadata,
