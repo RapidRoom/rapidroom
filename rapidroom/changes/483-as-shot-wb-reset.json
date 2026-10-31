@@ -9,5 +9,5 @@
   "upstream_issues": [],
   "upstream_prs": [],
   "rendering_change": true,
-  "notes": "RAW Lightroom sidecars with As Shot white balance now reset relative temperature and tint to zero and clear any absolute white-balance target, preventing stale edits from surviving re-import. Reusable presets and rendered-source imports are unchanged."
+  "notes": "Lightroom RAW and rendered-source photo imports with As Shot white balance now reset relative temperature and tint to zero and clear any absolute white-balance target, preventing stale edits from surviving re-import. An As Shot-only sidecar now counts as having adjustments, and Lightroom catalog imports use the same reset. Reusable presets remain unchanged."
 }

@@ -1550,7 +1550,7 @@ fn convert_xmp_to_preset_with_crop(
         adjustments.insert("whiteBalance".to_string(), Value::Null);
     }
 
-    if can_convert_white_balance && white_balance_is_as_shot && include_crop_transform {
+    if white_balance_is_as_shot && include_crop_transform {
         adjustments.insert("temperature".to_string(), json!(0.0));
         adjustments.insert("tint".to_string(), json!(0.0));
         adjustments.insert("whiteBalance".to_string(), Value::Null);

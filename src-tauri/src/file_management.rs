@@ -8471,6 +8471,39 @@ mod tests {
     }
 
     #[test]
+    fn rendered_as_shot_reimport_replaces_stale_white_balance() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("photo.jpg");
+        let sidecar = dir.path().join("photo.jpg.rrdata");
+        let xmp = dir.path().join("photo.xmp");
+        fs::write(&source, b"untouched jpeg").unwrap();
+        let existing = ImageMetadata {
+            adjustments: serde_json::json!({
+                "exposure": 0.5,
+                "temperature": 15,
+                "tint": -12,
+                "whiteBalance": {"temperature": 4400, "tint": 7},
+            }),
+            ..ImageMetadata::default()
+        };
+        fs::write(&sidecar, serde_json::to_string(&existing).unwrap()).unwrap();
+        fs::write(
+            &xmp,
+            r#"<rdf:Description crs:WhiteBalance="As Shot"
+                crs:Temperature="6800" crs:Tint="+38" />"#,
+        )
+        .unwrap();
+
+        let imported =
+            import_xmp_adjustments_to_sidecar(source.to_str().unwrap(), &xmp, None).unwrap();
+        assert_eq!(imported.metadata.adjustments["temperature"], 0.0);
+        assert_eq!(imported.metadata.adjustments["tint"], 0.0);
+        assert_eq!(imported.metadata.adjustments["whiteBalance"], Value::Null);
+        assert_eq!(imported.metadata.adjustments["exposure"], 0.5);
+        assert!(!imported.not_transferred.contains(&"whiteBalance"));
+    }
+
+    #[test]
     fn treats_default_only_lightroom_xmp_as_unchanged() {
         let test_directory =
             std::env::temp_dir().join(format!("rapidraw-xmp-unchanged-{}", Uuid::new_v4()));
