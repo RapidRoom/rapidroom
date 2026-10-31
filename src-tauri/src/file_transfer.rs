@@ -175,9 +175,10 @@ fn members(source: &Path) -> Result<Vec<Member>, String> {
                 .or_else(|| s.strip_suffix(".rrhistory"))
         }) && crate::file_management::is_virtual_copy_id(id)
         {
+            let suffix = format!(".{id}.{extension}").into();
             result.push(Member {
                 source: path,
-                suffix: format!(".{id}.{extension}").into(),
+                suffix,
                 stem_sidecar: false,
             });
         }

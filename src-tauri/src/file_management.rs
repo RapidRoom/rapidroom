@@ -11140,9 +11140,13 @@ mod history_companion_reference_checks {
     #[test]
     fn history_pairs_survive_duplicate_virtual_copy_rename_move_and_deletion_plans() {
         let dir = tempfile::tempdir().unwrap();
-        let source = dir.path().join("photo.ARW");
+        let source = dir.path().join("photo.jpg");
         let path = source.to_string_lossy().into_owned();
-        fs::write(&source, b"photo fixture").unwrap();
+        fs::write(
+            &source,
+            include_bytes!("../tests/fixtures/jpeg-metadata/progressive.jpg"),
+        )
+        .unwrap();
         let (_, sidecar) = parse_virtual_path(&path);
         fs::write(
             &sidecar,
@@ -11195,18 +11199,22 @@ mod history_companion_reference_checks {
         let copy_id = copy_sidecar.file_stem().unwrap().to_string_lossy();
         let copy_id = copy_id.rsplit('.').next().unwrap();
         assert_eq!(
-            fs::read(dir.path().join(format!("renamed.ARW.{copy_id}.rrhistory"))).unwrap(),
+            fs::read(dir.path().join(format!("renamed.jpg.{copy_id}.rrhistory"))).unwrap(),
             copy_bytes
         );
         let destination = dir.path().join("moved");
         fs::create_dir(&destination).unwrap();
-        move_files_on_disk(&[new_path.clone()], destination.to_str().unwrap()).unwrap();
-        let moved = destination.join("renamed.ARW");
+        move_files_on_disk(
+            std::slice::from_ref(&new_path),
+            destination.to_str().unwrap(),
+        )
+        .unwrap();
+        let moved = destination.join("renamed.jpg");
         let (delete, _) = plan_file_deletions(vec![moved.to_string_lossy().into_owned()]).unwrap();
-        assert!(delete.contains(&destination.join("renamed.ARW.rrhistory")));
-        assert!(delete.contains(&destination.join(format!("renamed.ARW.{copy_id}.rrhistory"))));
+        assert!(delete.contains(&destination.join("renamed.jpg.rrhistory")));
+        assert!(delete.contains(&destination.join(format!("renamed.jpg.{copy_id}.rrhistory"))));
         assert_eq!(
-            deletion_stem_for(&format!("renamed.ARW.{copy_id}.rrhistory")),
+            deletion_stem_for(&format!("renamed.jpg.{copy_id}.rrhistory")),
             Some("renamed")
         );
         assert_eq!(
@@ -11214,6 +11222,6 @@ mod history_companion_reference_checks {
             4
         );
         assert!(moved.exists());
-        assert!(!destination.join("renamed.ARW.rrhistory").exists());
+        assert!(!destination.join("renamed.jpg.rrhistory").exists());
     }
 }

@@ -27,6 +27,11 @@ export default function HistoryPanel() {
 
   function navigate(event: KeyboardEvent<HTMLDivElement>) {
     if (!(event.target instanceof HTMLButtonElement) || !event.target.hasAttribute('data-history-row')) return;
+    if (event.key === 'Delete' || event.key === 'Enter') {
+      event.stopPropagation();
+      if (event.key === 'Delete') event.preventDefault();
+      return;
+    }
     const buttons = [...(rows.current?.querySelectorAll<HTMLButtonElement>('[data-history-row]') ?? [])];
     const index = buttons.indexOf(event.target);
     const destination =
