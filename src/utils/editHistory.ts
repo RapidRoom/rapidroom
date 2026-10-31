@@ -35,6 +35,17 @@ const transition = (before: unknown, after: number) =>
   `${typeof before === 'number' ? number(before) : '—'} → ${number(after)}`;
 const channelName = (key: string) => title(key === 'luma' ? 'luma' : key.replace(/s$/, ''));
 
+function numericDisplay(before: unknown, after: unknown, name: string): HistoryDetails['display'] {
+  if (typeof before === 'number' && typeof after === 'number')
+    return { name, delta: number(after - before), value: String(Number(after.toFixed(4))) };
+  if (!after || typeof after !== 'object' || Array.isArray(after)) return undefined;
+  const old = (before ?? {}) as Record<string, unknown>;
+  const changes = Object.entries(after).filter(([key, value]) => !sameAdjustmentValue(old[key], value));
+  if (changes.length !== 1) return undefined;
+  const [key, value] = changes[0];
+  return numericDisplay(old[key], value, `${name}: ${name === 'HSL' ? channelName(key) : title(key)}`);
+}
+
 function nestedChanges(before: unknown, after: unknown, prefix: string): string[] {
   if (!after || typeof after !== 'object' || Array.isArray(after)) return [prefix];
   const old = (before ?? {}) as Record<string, unknown>;
@@ -168,19 +179,14 @@ export function describeHistoryChange(
   });
   const distinct = [...new Set(changes)];
   const numericKey = changedKeys.length === 1 ? changedKeys[0] : undefined;
-  const numericBefore = numericKey ? before[numericKey] : undefined;
-  const numericAfter = numericKey ? after[numericKey] : undefined;
+  const display =
+    numericKey &&
+    (typeof after[numericKey] === 'number' || ['hsl', 'colorGrading', 'colorCalibration'].includes(numericKey))
+      ? numericDisplay(before[numericKey], after[numericKey], numericKey === 'hsl' ? 'HSL' : title(numericKey))
+      : undefined;
   return {
     actor,
-    ...(numericKey && typeof numericBefore === 'number' && typeof numericAfter === 'number'
-      ? {
-          display: {
-            name: title(numericKey),
-            delta: number(numericAfter - numericBefore),
-            value: number(numericAfter),
-          },
-        }
-      : {}),
+    ...(display ? { display } : {}),
     label: `${actor === 'assistant' ? 'AI: ' : ''}${distinct.slice(0, 6).join(', ') || 'Adjustment'}${distinct.length > 6 ? ` (+${distinct.length - 6} more)` : ''}`,
     changedKeys,
     timestamp: Date.now(),

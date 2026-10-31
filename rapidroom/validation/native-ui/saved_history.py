@@ -56,9 +56,11 @@ def run_saved_history(smoke, wait_for):
     smoke.execute("""const buttons=[...document.querySelectorAll('[aria-label=History] button[data-history-row]')];
       const e=buttons.find(e=>e.title.includes('Exposure 0 → +0.4'));if(!e)throw Error('Numeric transition absent');e.click();return true;""")
     wait_for(lambda: document() and document()['currentStepId'] != contrast_id, 'jump saved current ID')
-    smoke.execute("""const e=document.querySelector('[aria-label=History] [aria-current=step]');e.focus();
+    focused = smoke.execute("""const e=document.querySelector('[aria-label=History] [aria-current=step]');e.focus();
       e.dispatchEvent(new KeyboardEvent('keydown',{key:'Home',bubbles:true,cancelable:true}));
-      return document.activeElement.hasAttribute('data-history-row');""")
+      return document.activeElement===document.querySelector('[aria-label=History] [data-history-row]');""")
+    if not focused:
+        raise RuntimeError('History Home key did not focus the first visual row')
     branch_capture = smoke.capture('history-earlier-step')
     tab('adjustments')
     smoke.drag('Contrast', -10)
