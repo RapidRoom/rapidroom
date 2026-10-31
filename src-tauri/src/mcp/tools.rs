@@ -395,7 +395,7 @@ fn allowed_xmp_destination(image_path: &str, file_path: &str) -> bool {
     let requested = requested
         .canonicalize()
         .unwrap_or_else(|_| requested.to_path_buf());
-    let mut candidates = if let Some((_, copy)) = image_path.split_once("?vc=") {
+    let candidates = if let Some((_, copy)) = image_path.split_once("?vc=") {
         let copy: String = copy
             .chars()
             .map(|character| {
