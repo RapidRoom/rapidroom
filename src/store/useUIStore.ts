@@ -14,6 +14,7 @@ import {
 } from '../components/ui/AppProperties';
 import { useEditorStore } from './useEditorStore';
 import { clampDockHeight, DEFAULT_DOCK_HEIGHT } from '../utils/dockHeight';
+import { pickCropGeometry } from '../utils/adjustments';
 
 const DOCK_LOAD_VIEWPORT = 1000;
 
@@ -305,6 +306,7 @@ export interface UIState {
   renderedPanel: Panel | null;
   slideDirection: number;
   collapsibleSectionsState: CollapsibleSectionsState;
+  isColorGradingExpanded: boolean;
   isColorMixerExpanded: boolean;
   cropSectionsState: CropSectionsState;
 
@@ -411,6 +413,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   renderedPanel: Panel.Adjustments,
   slideDirection: 1,
   collapsibleSectionsState: { basic: true, color: false, curves: true, details: false, effects: false },
+  isColorGradingExpanded: false,
   isColorMixerExpanded: false,
   cropSectionsState: { transform: false, lens: false },
 
@@ -715,3 +718,15 @@ export function isActiveDenoiseEvent(payload: unknown): payload is ActiveDenoise
     (payload as { jobId?: unknown }).jobId === jobId
   );
 }
+
+useUIStore.subscribe((state, prev) => {
+  if (state.activePanel === prev.activePanel) return;
+  const { selectedImage, adjustments, setEditor } = useEditorStore.getState();
+  if (state.activePanel === Panel.Crop) {
+    setEditor({
+      cropSessionSnapshot: { path: selectedImage?.path ?? null, geometry: pickCropGeometry(adjustments) },
+    });
+  } else if (prev.activePanel === Panel.Crop) {
+    setEditor({ cropSessionSnapshot: null });
+  }
+});

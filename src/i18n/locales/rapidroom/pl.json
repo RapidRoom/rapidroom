@@ -123,6 +123,11 @@
     }
   },
   "editor": {
+    "metadata": {
+      "camera": {
+        "focusDistance": "Odległość ostrzenia"
+      }
+    },
     "presets": {
       "favorites": "Ulubione",
       "tooltips": {

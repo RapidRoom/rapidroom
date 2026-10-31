@@ -9,7 +9,7 @@ import { useLibraryStore } from '../store/useLibraryStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { getReopenedPanelWidth, useUIStore } from '../store/useUIStore';
 import { useProcessStore } from '../store/useProcessStore';
-import { debouncedSetHistory, useEditorActions } from './useEditorActions';
+import { applyCrop, cancelCrop, debouncedSetHistory, useEditorActions } from './useEditorActions';
 import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
 import { rememberAppliedStyleStack } from '../utils/appliedPreset';
 import { editStack } from '../utils/photoStacks';
@@ -23,6 +23,8 @@ const getCurrentZoomPercent = (editor: { baseRenderSize?: { renderScale: number 
   const renderScale = editor.baseRenderSize?.renderScale;
   return renderScale && renderScale > 0 ? percentFromTransform(renderScale, editor.zoom, getDpr()) : 1;
 };
+
+const SPEED_EDIT_IMAGE_DIRECTIONS: Record<string, number> = { KeyQ: -1, KeyE: 1 };
 
 const getParentFolder = (path: string) => {
   const physicalPath = path.split('?vc=')[0];
@@ -56,7 +58,7 @@ export const useKeyboardShortcuts = ({
     handleAutoStraighten,
     handleCopyAdjustments,
     handlePasteAdjustments,
-    toggleShowOriginal,
+    toggleCompare,
     handleAutoAdjustments,
     setAdjustments,
     handleCropOrientationToggle,
@@ -103,6 +105,13 @@ export const useKeyboardShortcuts = ({
     }
     const { appSettings, osPlatform } = useSettingsStore.getState();
     const comboMap = resolveKeybindMap(appSettings?.keybinds, osPlatform);
+
+    const selectAdjacentImage = (s: StoreState, direction: number) => {
+      const currentIndex = getPreviewIndex(s);
+      if (currentIndex === -1) return;
+      const list = sortedListRef.current;
+      handleImageSelect(list[(currentIndex + direction + list.length) % list.length].path, true);
+    };
 
     const getImagePathsForCopy = (s: StoreState): Array<string> => {
       if (s.editor.selectedImage) {
@@ -262,20 +271,14 @@ export const useKeyboardShortcuts = ({
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          const currentIndex = getPreviewIndex(s);
-          if (currentIndex === -1) return;
-          const nextIndex = currentIndex - 1 < 0 ? sortedListRef.current.length - 1 : currentIndex - 1;
-          handleImageSelect(sortedListRef.current[nextIndex].path, true);
+          selectAdjacentImage(s, -1);
         },
       },
       preview_next: {
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
-          const currentIndex = getPreviewIndex(s);
-          if (currentIndex === -1) return;
-          const nextIndex = currentIndex + 1 >= sortedListRef.current.length ? 0 : currentIndex + 1;
-          handleImageSelect(sortedListRef.current[nextIndex].path, true);
+          selectAdjacentImage(s, 1);
         },
       },
       zoom_in_step: {
@@ -414,7 +417,7 @@ export const useKeyboardShortcuts = ({
         shouldFire: (s: StoreState) => s.ui.activeView === 'editor' && !!s.editor.selectedImage,
         execute: (e: KeyboardEvent) => {
           e.preventDefault();
-          toggleShowOriginal();
+          toggleCompare();
         },
       },
       toggle_reference_view: {
@@ -817,6 +820,16 @@ export const useKeyboardShortcuts = ({
         },
       },
       {
+        match: (e: KeyboardEvent, s: StoreState) =>
+          s.editor.isSpeedEditHeld &&
+          !!s.editor.selectedImage &&
+          (normalizeCombo(e, s.settings.osPlatform).at(-1) ?? '') in SPEED_EDIT_IMAGE_DIRECTIONS,
+        execute: (e: KeyboardEvent, s: StoreState) => {
+          e.preventDefault();
+          selectAdjacentImage(s, SPEED_EDIT_IMAGE_DIRECTIONS[normalizeCombo(e, s.settings.osPlatform).at(-1)!]);
+        },
+      },
+      {
         match: (e: KeyboardEvent) => e.code === 'Escape',
         execute: (e: KeyboardEvent, s: StoreState) => {
           e.preventDefault();
@@ -829,7 +842,7 @@ export const useKeyboardShortcuts = ({
           else if (s.editor.activeAiPatchContainerId) s.editor.setEditor({ activeAiPatchContainerId: null });
           else if (s.editor.activeMaskId) s.editor.setEditor({ activeMaskId: null });
           else if (s.editor.activeMaskContainerId) s.editor.setEditor({ activeMaskContainerId: null });
-          else if (s.ui.activePanel === Panel.Crop) s.ui.setPanel(Panel.Adjustments);
+          else if (s.ui.activePanel === Panel.Crop) cancelCrop();
           else if (s.ui.isFullScreen) s.ui.toggleFullScreen();
           else if (s.ui.activeView === 'editor') handleBackToLibrary();
           else if (s.ui.activeView === 'library' && s.library.rootPaths?.length > 0) handleGoHome();
@@ -861,6 +874,19 @@ export const useKeyboardShortcuts = ({
               activeAiSubMaskId: null,
             }));
           }
+        },
+      },
+      {
+        match: (e: KeyboardEvent, s: StoreState) =>
+          (e.code === 'Enter' || e.code === 'NumpadEnter') &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          !e.altKey &&
+          s.ui.activeView === 'editor' &&
+          s.ui.activePanel === Panel.Crop,
+        execute: (e: KeyboardEvent) => {
+          e.preventDefault();
+          applyCrop();
         },
       },
       {
@@ -990,6 +1016,6 @@ export const useKeyboardShortcuts = ({
     handleSetFlag,
     handleToggleFlag,
     handleSetColorLabel,
-    toggleShowOriginal,
+    toggleCompare,
   ]);
 };

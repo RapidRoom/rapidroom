@@ -51,6 +51,7 @@ mod dcp;
 mod denoise_quality;
 mod denoise_selective;
 mod denoising;
+mod edit_in;
 mod effect_maps;
 mod exif_processing;
 mod export_framing;
@@ -107,8 +108,10 @@ mod photo_stacks;
 mod preset_application;
 mod preset_converter;
 mod preset_xmp;
+mod preview_jpeg;
 mod raw_processing;
 mod relight;
+mod sony_focus;
 mod starter_presets;
 mod storage;
 mod tagging;
@@ -271,6 +274,8 @@ pub fn generate_transformed_preview(
     let adjustments = resolved.as_ref();
     let mut hasher = DefaultHasher::new();
     loaded_image.path.hash(&mut hasher);
+    loaded_image.generation.hash(&mut hasher);
+    loaded_image.source_epoch.hash(&mut hasher);
     calculate_transform_hash(adjustments).hash(&mut hasher);
     preview_dim.hash(&mut hasher);
     let cache_key = hasher.finish();
@@ -324,7 +329,7 @@ fn compute_transformed_preview(
     adjustments: &serde_json::Value,
     preview_dim: u32,
 ) -> Result<TransformedPreview, String> {
-    let patched_key = patched_cache_key(&loaded_image.path, adjustments);
+    let patched_key = patched_cache_key(loaded_image, adjustments);
 
     let patched = get_or_compute_stage(&state.patched_cache, patched_key, || {
         compute_patched(loaded_image, adjustments)
@@ -384,6 +389,8 @@ fn compute_transformed_preview(
 
     let mut hasher = DefaultHasher::new();
     loaded_image.path.hash(&mut hasher);
+    loaded_image.generation.hash(&mut hasher);
+    loaded_image.source_epoch.hash(&mut hasher);
     calculate_geometry_hash(adjustments).hash(&mut hasher);
     working.dimensions().hash(&mut hasher);
     (target_w, target_h).hash(&mut hasher);
@@ -453,9 +460,11 @@ fn compute_transformed_preview(
     Ok((preview, scale_for_gpu, unscaled_crop_offset))
 }
 
-fn patched_cache_key(path: &str, adjustments: &serde_json::Value) -> u64 {
+fn patched_cache_key(image: &LoadedImage, adjustments: &serde_json::Value) -> u64 {
     let mut hasher = DefaultHasher::new();
-    path.hash(&mut hasher);
+    image.path.hash(&mut hasher);
+    image.source_epoch.hash(&mut hasher);
+    image.generation.hash(&mut hasher);
     crate::cache_utils::calculate_patch_hash(adjustments).hash(&mut hasher);
     hasher.finish()
 }
@@ -474,7 +483,7 @@ pub fn cached_patched_image(
         return None;
     }
 
-    let key = patched_cache_key(&loaded_image.path, adjustments);
+    let key = patched_cache_key(&loaded_image, adjustments);
     let cache = state
         .patched_cache
         .lock()
@@ -565,10 +574,17 @@ pub fn get_cached_full_warped_image_for_path(
         return Err(format!("'{}' is not the loaded image", path));
     }
 
+    get_cached_full_warped_image_for_loaded(state, &loaded_image, js_adjustments)
+}
+
+pub(crate) fn get_cached_full_warped_image_for_loaded(
+    state: &tauri::State<AppState>,
+    loaded_image: &LoadedImage,
+    js_adjustments: &serde_json::Value,
+) -> Result<Arc<DynamicImage>, String> {
     let resolved = crate::camera_lens::resolved_snapshot(js_adjustments, &loaded_image.path, state);
     let js_adjustments = resolved.as_ref();
-    let cache_key =
-        calculate_image_cache_hash(&loaded_image.path, calculate_geometry_hash(js_adjustments));
+    let cache_key = loaded_image_cache_hash(loaded_image, calculate_geometry_hash(js_adjustments));
 
     let cached = || {
         let mut cache_lock = state
@@ -650,25 +666,11 @@ async fn update_wgpu_transform(
     Ok(())
 }
 
-#[tauri::command]
-async fn sample_display_area(
-    x: f32,
-    y: f32,
-    radius: f32,
-    app_handle: tauri::AppHandle,
-) -> Result<Vec<u8>, String> {
-    tokio::task::spawn_blocking(move || {
-        let state = app_handle.state::<AppState>();
-        let context = state
-            .gpu_context
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
-            .ok_or("GPU context is not initialized")?;
-        crate::gpu_processing::read_display_area(&context, &state, (x, y), radius)
-    })
-    .await
-    .map_err(|e| format!("Task panicked: {}", e))?
+fn loaded_image_cache_hash(image: &LoadedImage, adjustments_hash: u64) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    calculate_image_cache_hash(&image.path, adjustments_hash, image.source_epoch).hash(&mut hasher);
+    image.generation.hash(&mut hasher);
+    hasher.finish()
 }
 
 #[tauri::command]
@@ -697,6 +699,151 @@ async fn release_original_preview(state: tauri::State<'_, AppState>) -> Result<(
     .map_err(|e| format!("Task panicked: {}", e))
 }
 
+struct EditorRender {
+    adjustments: image_processing::AllAdjustments,
+    masks: mask_generation::GeneratedMasks,
+    mask_cache_key: u64,
+    lut: Option<Arc<lut_processing::Lut>>,
+}
+
+impl EditorRender {
+    #[allow(clippy::too_many_arguments)]
+    fn prepare(
+        state: &tauri::State<AppState>,
+        loaded_image: &LoadedImage,
+        adjustments: &serde_json::Value,
+        (width, height): (u32, u32),
+        scale: f32,
+        unscaled_crop_offset: (f32, f32),
+        render: image_processing::RenderOptions,
+        image_generation: usize,
+    ) -> Self {
+        let mask_definitions: Vec<MaskDefinition> =
+            mask_generation::parse_mask_definitions(adjustments);
+        let mask_span = perf_trace::span("job.masks");
+        let masks = mask_generation::get_cached_or_generate_masks_for_loaded(
+            state,
+            loaded_image,
+            &mask_definitions,
+            width,
+            height,
+            scale,
+            (
+                unscaled_crop_offset.0 * scale,
+                unscaled_crop_offset.1 * scale,
+            ),
+            adjustments,
+        );
+        drop(mask_span);
+        let parse_span = perf_trace::span("job.parse_adjustments");
+        let parsed = get_all_adjustments_from_json(
+            adjustments,
+            loaded_image.is_raw,
+            loaded_image.as_shot,
+            render,
+        );
+        drop(parse_span);
+        Self {
+            adjustments: parsed,
+            mask_cache_key: masks.cache_key ^ image_generation as u64,
+            masks,
+            lut: adjustments["lutPath"]
+                .as_str()
+                .and_then(|p| lut_processing::get_or_load_lut(state, p).ok()),
+        }
+    }
+
+    fn request(&self, roi: Option<gpu_processing::Roi>, hsl_probe: bool) -> RenderRequest<'_> {
+        RenderRequest {
+            adjustments: self.adjustments,
+            mask_bitmaps: &self.masks.bitmaps,
+            mask_cache_key: Some(self.mask_cache_key),
+            lut: self.lut.clone(),
+            roi,
+            hsl_probe,
+        }
+    }
+}
+
+#[tauri::command]
+async fn sample_hsl_mixer_area(
+    js_adjustments: serde_json::Value,
+    x: f32,
+    y: f32,
+    radius: f32,
+    app_handle: tauri::AppHandle,
+) -> Result<Response, String> {
+    tokio::task::spawn_blocking(move || {
+        let state = app_handle.state::<AppState>();
+        let context = get_or_init_gpu_context(&state, &app_handle)?;
+        let loaded_image = state
+            .original_image
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or("No original image loaded")?;
+        let mut adjustments = js_adjustments;
+        hydrate_adjustments(&state, &mut adjustments);
+        crate::camera_lens::resolve_snapshot_read_only(
+            &mut adjustments,
+            &loaded_image.path,
+            &state,
+        );
+
+        let transform_hash =
+            loaded_image_cache_hash(&loaded_image, calculate_transform_hash(&adjustments));
+        let (image, scale, crop_offset) = state
+            .cached_preview_for(PreviewTarget::Editor)
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .filter(|cached| cached.transform_hash == transform_hash)
+            .map(|cached| {
+                (
+                    Arc::clone(&cached.image),
+                    cached.scale,
+                    cached.unscaled_crop_offset,
+                )
+            })
+            .ok_or("Editor preview is not ready")?;
+
+        let (width, height) = image.dimensions();
+        let half = (radius * width as f32).max(1.0);
+        let x0 = (x * width as f32 - half).clamp(0.0, width as f32 - 1.0) as u32;
+        let y0 = (y * height as f32 - half).clamp(0.0, height as f32 - 1.0) as u32;
+        let x1 = ((x * width as f32 + half).ceil() as u32).clamp(x0 + 1, width);
+        let y1 = ((y * height as f32 + half).ceil() as u32).clamp(y0 + 1, height);
+
+        let editor_render = EditorRender::prepare(
+            &state,
+            &loaded_image,
+            &adjustments,
+            (width, height),
+            scale,
+            crop_offset,
+            resolve_render_options_from_handle(&app_handle, loaded_image.is_raw),
+            state.load_image_generation.load(Ordering::SeqCst),
+        );
+        let roi = gpu_processing::Roi {
+            x: x0,
+            y: y0,
+            width: x1 - x0,
+            height: y1 - y0,
+        };
+        let probe = process_and_get_dynamic_image(
+            &context,
+            &state,
+            &image,
+            transform_hash,
+            editor_render.request(Some(roi), true),
+            "sample_hsl_mixer_area",
+        )?;
+        Ok(Response::new(probe.into_bytes()))
+    })
+    .await
+    .map_err(|e| format!("Task panicked: {}", e))?
+}
+
 #[allow(clippy::too_many_arguments)]
 fn process_preview_job(
     app_handle: &tauri::AppHandle,
@@ -709,19 +856,32 @@ fn process_preview_job(
     request_analytics: bool,
     compute_waveform: bool,
     active_waveform_channel: Option<&str>,
+    source: Option<&PreviewSource>,
     target: PreviewTarget,
 ) -> Result<Vec<u8>, String> {
     let fn_start = std::time::Instant::now();
+    let loaded_image = {
+        // Pair identity and generation while load_image cannot invalidate the source.
+        let image = state
+            .original_image
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if source.is_some_and(|source| {
+            !source.matches(
+                state.load_image_generation.load(Ordering::SeqCst),
+                image.as_ref(),
+            )
+        }) {
+            return Ok(Vec::new());
+        }
+        let loaded = image.as_ref().ok_or("No original image loaded")?.clone();
+        let hydrate_span = perf_trace::span("job.hydrate_adjustments");
+        hydrate_adjustments(&state, &mut adjustments_json);
+        drop(hydrate_span);
+        loaded
+    };
     let context = get_or_init_gpu_context(&state, app_handle)?;
-
-    let image_generation = state.load_image_generation.load(Ordering::SeqCst);
-    let loaded_image_guard = state.original_image.lock().unwrap();
-    let loaded_image = loaded_image_guard
-        .as_ref()
-        .ok_or("No original image loaded")?
-        .clone();
-    drop(loaded_image_guard);
-
+    let image_generation = loaded_image.generation;
     let settings_span = perf_trace::span("job.load_settings");
     let settings = load_settings(app_handle.clone()).unwrap_or_default();
     drop(settings_span);
@@ -743,18 +903,16 @@ fn process_preview_job(
         );
     }
 
-    let hydrate_span = perf_trace::span("job.hydrate_adjustments");
-    hydrate_adjustments(&state, &mut adjustments_json);
-    drop(hydrate_span);
     let mut adjustments_clone = adjustments_json;
-    crate::camera_lens::resolve_snapshot(&mut adjustments_clone, &loaded_image.path, &state);
-
+    crate::camera_lens::resolve_snapshot_read_only(
+        &mut adjustments_clone,
+        &loaded_image.path,
+        &state,
+    );
     crate::ai_denoise::ensure_generated(app_handle, &loaded_image, &adjustments_clone);
 
-    let new_transform_hash = calculate_image_cache_hash(
-        &loaded_image.path,
-        calculate_transform_hash(&adjustments_clone),
-    );
+    let new_transform_hash =
+        loaded_image_cache_hash(&loaded_image, calculate_transform_hash(&adjustments_clone));
     let live_quality = settings.live_preview_quality.as_deref().unwrap_or("high");
 
     let default_preview_dim = settings.editor_preview_resolution.unwrap_or(1920);
@@ -885,34 +1043,16 @@ fn process_preview_job(
         None
     };
 
-    let mask_definitions: Vec<MaskDefinition> =
-        mask_generation::parse_mask_definitions(&adjustments_clone);
-
-    let scaled_crop_offset = (
-        unscaled_crop_offset.0 * effective_scale,
-        unscaled_crop_offset.1 * effective_scale,
-    );
-
-    let mask_span = perf_trace::span("job.masks");
-    let masks = get_cached_or_generate_masks(
+    let editor_render = EditorRender::prepare(
         &state,
-        &loaded_image.path,
-        &mask_definitions,
-        preview_width,
-        preview_height,
-        effective_scale,
-        scaled_crop_offset,
+        &loaded_image,
         &adjustments_clone,
+        (preview_width, preview_height),
+        effective_scale,
+        unscaled_crop_offset,
+        render,
+        image_generation,
     );
-
-    drop(mask_span);
-
-    let parse_span = perf_trace::span("job.parse_adjustments");
-    let final_adjustments =
-        get_all_adjustments_from_json(&adjustments_clone, is_raw, loaded_image.as_shot, render);
-    drop(parse_span);
-    let lut_path = adjustments_clone["lutPath"].as_str();
-    let lut = lut_path.and_then(|p| lut_processing::get_or_load_lut(&state, p).ok());
 
     let wants_analytics = !(is_interactive && pixel_roi.is_some()) && request_analytics;
     let channel_filter = if is_interactive {
@@ -928,6 +1068,7 @@ fn process_preview_job(
             .unwrap()
             .clone()
             .map(|tx| crate::AnalyticsConfig {
+                generation: loaded_image.generation,
                 path: loaded_image.path.clone(),
                 compute_waveform,
                 active_waveform_channel: channel_filter,
@@ -937,6 +1078,9 @@ fn process_preview_job(
         None
     };
 
+    if source.is_some_and(|source| !source.is_current(&state)) {
+        return Ok(Vec::new());
+    }
     if use_wgpu_renderer {
         let _ = context.device.poll(wgpu::PollType::Wait {
             submission_index: None,
@@ -963,13 +1107,7 @@ fn process_preview_job(
             &state,
             &processing_image,
             new_transform_hash,
-            RenderRequest {
-                adjustments: final_adjustments,
-                mask_bitmaps: &masks.bitmaps,
-                mask_cache_key: Some(masks.cache_key ^ image_generation as u64),
-                lut,
-                roi: pixel_roi,
-            },
+            editor_render.request(pixel_roi, false),
             caller_id,
             use_wgpu_renderer.then_some(gpu_processing::DisplayOutput {
                 target,
@@ -979,6 +1117,9 @@ fn process_preview_job(
             analytics_config,
         );
 
+    if source.is_some_and(|source| !source.is_current(&state)) {
+        return Ok(Vec::new());
+    }
     let deliver_to_viewer = |jpeg_bytes: Option<&[u8]>| {
         if to_viewer {
             viewer_window::record_viewer_frame(app_handle, content, frame_resolution, jpeg_bytes);
@@ -1006,7 +1147,7 @@ fn process_preview_job(
             }
             let _ = app_handle.emit(
                 "wgpu-frame-ready",
-                serde_json::json!({ "path": loaded_image.path }),
+                serde_json::json!({ "path": loaded_image.path, "loadGeneration": loaded_image.generation }),
             );
             return Ok(b"WGPU_RENDER".to_vec());
         }
@@ -1029,10 +1170,7 @@ fn process_preview_job(
         let step_start = std::time::Instant::now();
 
         let _encode_span = perf_trace::span("job.jpeg_encode");
-        let encode_result = Encoder::new(Preset::BaselineFastest)
-            .quality(jpeg_quality)
-            .fast_color(true)
-            .encode_imgref(img_ref);
+        let encode_result = preview_jpeg::encode_rgba(img_ref, jpeg_quality, true);
 
         match encode_result {
             Ok(jpeg_bytes) => {
@@ -1108,6 +1246,14 @@ fn start_analytics_worker(app_handle: tauri::AppHandle) {
             }
             last_run = Some(std::time::Instant::now());
 
+            let source = PreviewSource {
+                path: job.path.clone(),
+                generation: job.generation,
+            };
+            if !source.is_current(&app_handle.state::<AppState>()) {
+                continue;
+            }
+
             let histogram_data = image_processing::calculate_histogram(&job.frame).ok();
 
             let waveform_data = if job.compute_waveform {
@@ -1120,12 +1266,15 @@ fn start_analytics_worker(app_handle: tauri::AppHandle) {
                 None
             };
 
-            if histogram_data.is_some() || waveform_data.is_some() {
+            if (histogram_data.is_some() || waveform_data.is_some())
+                && source.is_current(&app_handle.state::<AppState>())
+            {
                 let state = app_handle.state::<AppState>();
                 let channel = state.analytics_channel.lock().unwrap().clone();
                 if let Some(channel) = channel {
                     let packet = image_processing::encode_analytics_packet(
                         &job.path,
+                        job.generation,
                         histogram_data.as_ref(),
                         waveform_data.as_ref(),
                     );
@@ -1149,6 +1298,10 @@ fn catch_render_panic(render: impl FnOnce() -> Result<Vec<u8>, String>) -> Resul
 fn run_editor_job(app_handle: &tauri::AppHandle, job: PreviewJob) {
     let state = app_handle.state::<AppState>();
     let responder = job.responder;
+    if !job.source.is_current(&state) {
+        let _ = responder.send(Ok(Vec::new()));
+        return;
+    }
     let result = catch_render_panic(|| {
         process_preview_job(
             app_handle,
@@ -1161,23 +1314,22 @@ fn run_editor_job(app_handle: &tauri::AppHandle, job: PreviewJob) {
             job.request_analytics,
             job.compute_waveform,
             job.active_waveform_channel.as_deref(),
+            Some(&job.source),
             PreviewTarget::Editor,
         )
     });
-    match result {
-        Ok(bytes) => {
-            let _ = responder.send(bytes);
-            if job.layer == DisplayLayer::Edited && !job.is_interactive {
-                viewer_window::schedule_viewer_render(app_handle);
-            }
+    let result = if job.source.is_current(&app_handle.state::<AppState>()) {
+        if let Err(error) = &result {
+            log::error!("Preview worker error: {}", error);
         }
-        Err(e) if e == "No original image loaded" => {
-            log::debug!("Preview job superseded while an image loads");
+        if result.is_ok() && job.layer == DisplayLayer::Edited && !job.is_interactive {
+            viewer_window::schedule_viewer_render(app_handle);
         }
-        Err(e) => {
-            log::error!("Preview worker error: {}", e);
-        }
-    }
+        result
+    } else {
+        Ok(Vec::new())
+    };
+    let _ = responder.send(result);
 }
 
 fn run_viewer_job(app_handle: &tauri::AppHandle) {
@@ -1196,6 +1348,7 @@ fn run_viewer_job(app_handle: &tauri::AppHandle) {
             None,
             false,
             false,
+            None,
             None,
             PreviewTarget::Viewer,
         )
@@ -1228,7 +1381,9 @@ fn start_preview_worker(app_handle: tauri::AppHandle) {
                 match task {
                     PreviewTask::Editor(job) => {
                         let slot = job.layer as usize;
-                        latest[slot] = Some(job);
+                        if let Some(superseded) = latest[slot].replace(job) {
+                            let _ = superseded.responder.send(Ok(Vec::new()));
+                        }
                     }
                     PreviewTask::Viewer => viewer_pending = true,
                 }
@@ -1248,6 +1403,8 @@ fn start_preview_worker(app_handle: tauri::AppHandle) {
 #[allow(clippy::too_many_arguments)]
 #[tauri::command]
 async fn apply_adjustments(
+    image_path: String,
+    load_generation: usize,
     js_adjustments: serde_json::Value,
     original: bool,
     is_interactive: bool,
@@ -1258,12 +1415,28 @@ async fn apply_adjustments(
     active_waveform_channel: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Response, String> {
+    let source = {
+        let image = state
+            .original_image
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let generation = state.load_image_generation.load(Ordering::SeqCst);
+        let source = PreviewSource {
+            path: image_path,
+            generation: load_generation,
+        };
+        if !source.matches(generation, image.as_ref()) {
+            return Ok(Response::new(Vec::<u8>::new()));
+        }
+        source
+    };
     let (tx, rx) = tokio::sync::oneshot::channel();
 
     {
         let tx_guard = state.preview_worker_tx.lock().unwrap();
         if let Some(worker_tx) = tx_guard.as_ref() {
             let job = PreviewJob {
+                source,
                 adjustments: js_adjustments,
                 layer: if original {
                     DisplayLayer::Original
@@ -1287,8 +1460,8 @@ async fn apply_adjustments(
     }
 
     match rx.await {
-        Ok(bytes) => Ok(Response::new(bytes)),
-        Err(_) => Err("Superseded or worker failed".to_string()),
+        Ok(result) => result.map(Response::new),
+        Err(_) => Err("Preview worker failed".to_string()),
     }
 }
 
@@ -1317,13 +1490,11 @@ async fn generate_uncropped_preview(
         let settings = load_settings(app_handle.clone()).unwrap_or_default();
         let target_dim = settings.editor_preview_resolution.unwrap_or(1920);
 
-        let mut hasher = DefaultHasher::new();
-        path.hash(&mut hasher);
-        crate::cache_utils::calculate_patch_hash(&adjustments_clone).hash(&mut hasher);
-        let patched_key = hasher.finish();
+        let patched_key = patched_cache_key(&loaded_image, &adjustments_clone);
 
         let mut hasher = DefaultHasher::new();
         patched_key.hash(&mut hasher);
+        loaded_image.source_epoch.hash(&mut hasher);
         crate::cache_utils::calculate_effects_hash(&adjustments_clone).hash(&mut hasher);
         target_dim.hash(&mut hasher);
         let base_key = hasher.finish();
@@ -1417,6 +1588,7 @@ async fn generate_uncropped_preview(
                 mask_cache_key: None,
                 lut,
                 roi: None,
+                hsl_probe: false,
             },
             "generate_uncropped_preview",
         ) {
@@ -1529,6 +1701,7 @@ async fn generate_preset_preview(
                 mask_cache_key: None,
                 lut,
                 roi: None,
+                hsl_probe: false,
             },
             "generate_preset_preview",
         )?;
@@ -1724,6 +1897,7 @@ async fn generate_all_community_previews(
                             mask_cache_key: None,
                             lut,
                             roi: None,
+                            hsl_probe: false,
                         },
                         "generate_all_community_previews",
                     )?;
@@ -1966,6 +2140,7 @@ async fn generate_culling_preview_for_path(
         0,
         PreviewRenderOptions {
             cancel_token: Some(culling_preview::token(generation)),
+            reuse_decoded: true,
             ..PreviewRenderOptions::default()
         },
         app_handle,
@@ -1980,6 +2155,7 @@ async fn generate_culling_preview_for_path(
 
 #[derive(Default)]
 struct PreviewRenderOptions {
+    reuse_decoded: bool,
     #[cfg(feature = "mcp")]
     mask_id: Option<String>,
     native_region: Option<(u32, u32, u32, u32)>,
@@ -2095,6 +2271,7 @@ async fn render_preview_for_path(
     app_handle: tauri::AppHandle,
 ) -> Result<RenderedPreview, String> {
     let PreviewRenderOptions {
+        reuse_decoded,
         native_region,
         raw_pixels,
         cancel_token,
@@ -2135,48 +2312,67 @@ async fn render_preview_for_path(
         let settings = load_settings(app_handle.clone()).unwrap_or_default();
 
         let load_span = perf_trace::span("full.decode_raw");
-        let base_image = match read_file_mapped(&source_path) {
-            Ok(mmap) => (if read_only {
-                image_loader::load_and_composite_read_only
-            } else {
-                load_and_composite
-            })(
-                &mmap,
-                &source_path_str,
-                &js_adjustments,
-                false,
-                &settings,
-                cancel_token.clone(),
+        let decoded = if reuse_decoded && !read_only {
+            Some(
+                image_loader::get_or_decode_pristine(
+                    &state,
+                    &source_path,
+                    &settings,
+                    cancel_token.clone(),
+                    image_loader::PristineCachePolicy::Store,
+                )?
+                .0,
             )
-            .map_err(|e| e.to_string())?,
-            Err(e) => {
-                log::warn!(
-                    "Failed to memory-map file '{}': {}. Falling back to standard read.",
-                    source_path_str,
-                    e
-                );
-                let bytes = fs::read(&source_path).map_err(|io_err| io_err.to_string())?;
-                (if read_only {
+        } else {
+            None
+        };
+        let base_image = if let Some(decoded) = &decoded {
+            prepare_base_image_cow(decoded, &source_path_str, &js_adjustments)
+                .map_err(|e| e.to_string())?
+        } else {
+            Cow::Owned(match read_file_mapped(&source_path) {
+                Ok(mmap) => (if read_only {
                     image_loader::load_and_composite_read_only
                 } else {
                     load_and_composite
                 })(
-                    &bytes,
+                    &mmap,
                     &source_path_str,
                     &js_adjustments,
                     false,
                     &settings,
                     cancel_token.clone(),
                 )
-                .map_err(|e| e.to_string())?
-            }
+                .map_err(|e| e.to_string())?,
+                Err(e) => {
+                    log::warn!(
+                        "Failed to memory-map file '{}': {}. Falling back to standard read.",
+                        source_path_str,
+                        e
+                    );
+                    let bytes = fs::read(&source_path).map_err(|io_err| io_err.to_string())?;
+                    (if read_only {
+                        image_loader::load_and_composite_read_only
+                    } else {
+                        load_and_composite
+                    })(
+                        &bytes,
+                        &source_path_str,
+                        &js_adjustments,
+                        false,
+                        &settings,
+                        cancel_token.clone(),
+                    )
+                    .map_err(|e| e.to_string())?
+                }
+            })
         };
 
         culling_preview::ensure_current(&cancel_token)?;
         drop(load_span);
         let transform_span = perf_trace::span("full.transform");
         let (transformed_image, unscaled_crop_offset) =
-            apply_all_transformations(Cow::Borrowed(&base_image), &js_adjustments);
+            apply_all_transformations(Cow::Borrowed(base_image.as_ref()), &js_adjustments);
         drop(transform_span);
         let (img_w, img_h) = transformed_image.dimensions();
         if raw_pixels && u64::from(img_w) * u64::from(img_h) > 100_000_000 {
@@ -2268,6 +2464,7 @@ async fn render_preview_for_path(
                 mask_cache_key: None,
                 lut,
                 roi: None,
+                hsl_probe: false,
             },
             "generate_preview_for_path",
         )?;
@@ -2288,13 +2485,11 @@ async fn render_preview_for_path(
                 final_image.to_rgb8(),
             )));
         }
-        let (width, height) = final_image.dimensions();
         let _encode_span = perf_trace::span("full.jpeg_encode");
-        let rgb_pixels = final_image.to_rgb8().into_vec();
-
-        let bytes = Encoder::new(Preset::BaselineFastest)
-            .quality(92)
-            .encode_rgb(&rgb_pixels, width, height)
+        let rgba = final_image.into_rgba8();
+        let (width, height) = rgba.dimensions();
+        let pixels = ImgRef::new(rgba.as_raw().as_rgba(), width as usize, height as usize);
+        let bytes = preview_jpeg::encode_rgba(pixels, 92, false)
             .map_err(|e| format!("Failed to encode with mozjpeg-rs: {}", e))?;
 
         culling_preview::ensure_current(&cancel_token)?;
@@ -2341,7 +2536,10 @@ fn setup_logging(app_handle: &tauri::AppHandle) {
                 message
             ))
         })
-        .level(level)
+        .level(level.max(log::LevelFilter::Warn))
+        .filter(move |metadata| {
+            !raw_processing::swallow_prefix_log(metadata) && metadata.level() <= level
+        })
         // fern panics when a stderr write fails (e.g. output piped into `head`),
         // and the panic hook below logs again, which aborts the process.
         .chain(fern::Output::call(|record| {
@@ -2362,6 +2560,9 @@ fn setup_logging(app_handle: &tauri::AppHandle) {
     }
 
     panic::set_hook(Box::new(|info| {
+        if raw_processing::is_reading_prefix() {
+            return;
+        }
         let message = if let Some(s) = info.payload().downcast_ref::<&'static str>() {
             s.to_string()
         } else if let Some(s) = info.payload().downcast_ref::<String>() {
@@ -3184,6 +3385,7 @@ pub fn run() {
             thumbnail_geometry_cache: Mutex::new(HashMap::new()),
             lens_db: Mutex::new(None),
             load_image_generation: Arc::new(AtomicUsize::new(0)),
+            decoded_source_epoch: AtomicU64::new(0),
             full_warped_cache: Mutex::new(None),
             full_warped_build_lock: Mutex::new(()),
             wgpu_presented_generation: AtomicUsize::new(usize::MAX),
@@ -3234,13 +3436,13 @@ pub fn run() {
             video_notice::count_unshown_videos,
             cancel_thumbnail_generation,
             update_wgpu_transform,
-            sample_display_area,
             release_original_preview,
             viewer_window::open_viewer_window,
             viewer_window::close_viewer_window,
             viewer_window::set_viewer_view,
             viewer_window::get_viewer_info,
             viewer_window::get_viewer_frame,
+            sample_hsl_mixer_area,
             android_integration::resolve_android_content_uri_name,
             cache_utils::clear_session_caches,
             cache_utils::clear_image_caches,
@@ -3293,6 +3495,8 @@ pub fn run() {
             export_processing::cancel_export,
             export_processing::estimate_export_sizes,
             export_recipes::get_export_recipes,
+            edit_in::edit_in_app,
+            edit_in::cancel_edit_in_app,
             image_processing::calculate_auto_adjustments,
             image_processing::sample_white_balance,
             auto_straighten::calculate_auto_straighten,

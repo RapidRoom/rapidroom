@@ -256,3 +256,9 @@ raw.pixls.us; generated pixels and real captures are labelled separately in
 the [fixture manifest](rapidroom/validation/mcp-gap-repro/fixtures.json).
 
 Sony ARW radial metadata correction formulae and knot conventions: independently reimplemented in Rust by yojen7 with Codex from darktable's `src/iop/lens.cc` (`_init_coeffs_md_v1`) and `src/common/exif.cc`. Copyright (C) 2019–2026 darktable developers, GPL-3.0-or-later. See `rapidroom/validation/camera-data/README.md` for pinned reference sources and validation limits.
+
+Before/after comparison modes are restored from Timon Käch / CyberTimon's
+[029cf3ed](https://github.com/CyberTimon/RapidRAW/commit/029cf3ed1b6e8fdc8c112f6fbb3289f6b4c745f0)
+and [8913b91c](https://github.com/CyberTimon/RapidRAW/commit/8913b91c8e49ab12b5ad21d8105aa94744187fab).
+Yojen with Codex retained RapidRoom's pinned virtual-copy/reference sources and
+read-only MCP workflow on the upstream comparison canvas.

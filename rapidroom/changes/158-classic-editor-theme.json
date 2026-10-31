@@ -1,0 +1,14 @@
+{
+  "id": "classic-editor-theme",
+  "title": "Editor canvas surround options",
+  "category": "feature",
+  "landed": "2026-10-09",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Editor surrounds can be the theme, black, dark grey, mid grey, or white. The old neutral-grey preference maps to mid grey. A saved Classic theme choice falls back to the default theme. A real Lightroom look is a separate design. No photo processing or exported pixels change.",
+  "highlight": "The editor surround can be the theme, black, dark grey, mid grey, or white."
+}
