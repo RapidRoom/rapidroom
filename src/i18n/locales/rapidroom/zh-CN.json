@@ -117,6 +117,11 @@
     }
   },
   "editor": {
+    "metadata": {
+      "camera": {
+        "focusDistance": "对焦距离"
+      }
+    },
     "presets": {
       "favorites": "收藏",
       "tooltips": {

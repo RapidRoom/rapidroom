@@ -90,7 +90,8 @@ pub fn resolved_snapshot<'a>(
         return std::borrow::Cow::Borrowed(adjustments);
     }
     let mut snapshot = adjustments.clone();
-    resolve_snapshot(&mut snapshot, path, state);
+    // Cached preview snapshots must not repair or migrate metadata on disk.
+    resolve_snapshot_read_only(&mut snapshot, path, state);
     std::borrow::Cow::Owned(snapshot)
 }
 

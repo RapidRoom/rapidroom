@@ -3,13 +3,21 @@ import { invoke } from '@tauri-apps/api/core';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { useEditorStore } from '../store/useEditorStore';
-import { Adjustments, getActiveTools, HueSatLum, INITIAL_ADJUSTMENTS, isToolActive } from '../utils/adjustments';
+import {
+  Adjustments,
+  getActiveTools,
+  HueSatLum,
+  INITIAL_ADJUSTMENTS,
+  INITIAL_MASK_ADJUSTMENTS,
+  isToolActive,
+} from '../utils/adjustments';
 import { HslMixerBand, HslMixerProperty, HslPresence, sampleHslPresence } from '../utils/hslMixer';
 import { RenderSize } from './useImageRenderSize';
 import { Invokes } from '../components/ui/AppProperties';
-import { FINE_ADJUSTMENT_MULTIPLIER } from '../components/ui/Slider';
+import { FINE_ADJUSTMENT_MULTIPLIER, hasFineAdjustmentModifier } from '../components/ui/Slider';
+import { prepareAdjustmentsPayload } from '../utils/backendPayload';
 
-const SAMPLE_SCREEN_SIZE = 16;
+export const MIXER_SAMPLE_SCREEN_SIZE = 16;
 const DRAG_GAIN = 0.5;
 
 interface Coord {
@@ -20,156 +28,148 @@ interface Coord {
 interface PickerDrag {
   path: string | undefined;
   property: HslMixerProperty;
-  lastY: number;
+  maskId: string | null;
+  last: Coord;
   offset: number;
-  appliedKey: string;
-  baseKey: string;
+  appliedKey: string | null;
   base: Record<string, HueSatLum>;
   presence: HslPresence | null;
   offsetRange: [number, number];
 }
 
 interface HslMixerPickerOptions {
+  activeMaskContainerId: string | null;
   getCanvasPointer(stage: Konva.Stage): Coord | null;
   imageRenderSize: RenderSize;
-  previewUrl: string | null;
-  useDisplayTexture: boolean;
+  isMasking: boolean;
   zoomScale: number;
   setAdjustments(fn: (prev: Adjustments) => Adjustments): void;
 }
 
 const clampOffset = ({ offsetRange: [min, max] }: PickerDrag, offset: number) => Math.max(min, Math.min(max, offset));
 
-const getClientY = (e: MouseEvent | TouchEvent) => ('touches' in e ? e.touches[0]?.clientY : e.clientY);
+const getClientPoint = (e: MouseEvent | TouchEvent): Coord | undefined => {
+  const point = 'touches' in e ? e.touches[0] : e;
+  return point && { x: point.clientX, y: point.clientY };
+};
 
-const getDragValues = ({ presence, base, property, offset }: PickerDrag): Array<[string, number]> =>
-  Object.entries(presence ?? {}).map(([band, weight]) => [
-    band,
-    offset === 0
-      ? base[band][property]
-      : Math.max(-100, Math.min(100, Math.round(base[band][property] + offset * weight))),
-  ]);
+const getTargetHsl = (adjustments: Adjustments, maskId: string | null): Adjustments['hsl'] =>
+  maskId
+    ? { ...INITIAL_MASK_ADJUSTMENTS.hsl, ...adjustments.masks.find((mask) => mask.id === maskId)?.adjustments.hsl }
+    : { ...INITIAL_ADJUSTMENTS.hsl, ...adjustments.hsl };
+
+const withBandValues = (
+  adjustments: Adjustments,
+  maskId: string | null,
+  key: HslMixerProperty,
+  values: Array<[string, number]>,
+): Adjustments => {
+  const hsl = getTargetHsl(adjustments, maskId);
+  values.forEach(([band, value]) => {
+    hsl[band] = { ...hsl[band], [key]: value };
+  });
+  return maskId
+    ? {
+        ...adjustments,
+        masks: adjustments.masks.map((mask) =>
+          mask.id === maskId ? { ...mask, adjustments: { ...mask.adjustments, hsl } } : mask,
+        ),
+      }
+    : { ...adjustments, hsl };
+};
 
 export function useHslMixerPicker({
+  activeMaskContainerId,
   getCanvasPointer,
   imageRenderSize,
-  previewUrl,
-  useDisplayTexture,
+  isMasking,
   zoomScale,
   setAdjustments,
 }: HslMixerPickerOptions) {
   const selectedProperty = useEditorStore((state) => state.mixerPickerProperty);
-  const mixerVisible = useEditorStore((state) => isToolActive(getActiveTools(state.adjustments), 'colorMixer'));
+  const mixerVisible = useEditorStore(
+    (state) => isMasking || isToolActive(getActiveTools(state.adjustments), 'colorMixer'),
+  );
   const property = mixerVisible ? selectedProperty : null;
   const setEditor = useEditorStore((state) => state.setEditor);
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef<PickerDrag | null>(null);
-  const bitmapRef = useRef<{ url: string; bitmap: Promise<ImageBitmap> } | null>(null);
   const detachRef = useRef<(() => void) | null>(null);
-  const setAdjustmentsRef = useRef(setAdjustments);
 
-  useEffect(() => {
-    setAdjustmentsRef.current = setAdjustments;
-  }, [setAdjustments]);
-
-  const getBitmap = useCallback((url: string) => {
-    if (bitmapRef.current?.url !== url) {
-      bitmapRef.current?.bitmap.then((bitmap) => bitmap.close()).catch(() => {});
-      bitmapRef.current = {
-        url,
-        bitmap: fetch(url)
-          .then((res) => res.blob())
-          .then((blob) => createImageBitmap(blob)),
-      };
-    }
-    return bitmapRef.current.bitmap;
+  const sampleArea = useCallback(async (u: number, v: number, radius: number): Promise<Uint8Array> => {
+    const { payload, markSent } = prepareAdjustmentsPayload(useEditorStore.getState().adjustments);
+    const probe = await invoke<ArrayBuffer>(Invokes.SampleHslMixerArea, { jsAdjustments: payload, x: u, y: v, radius });
+    markSent();
+    return new Uint8Array(probe);
   }, []);
 
-  const sampleArea = useCallback(
-    async (u: number, v: number, radius: number): Promise<Uint8ClampedArray> => {
-      if (useDisplayTexture) {
-        return Uint8ClampedArray.from(await invoke<number[]>(Invokes.SampleDisplayArea, { x: u, y: v, radius }));
-      }
-      if (!previewUrl) return new Uint8ClampedArray();
-      const bitmap = await getBitmap(previewUrl);
-      const half = Math.max(1, radius * bitmap.width);
-      const x0 = Math.max(0, Math.floor(u * bitmap.width - half));
-      const y0 = Math.max(0, Math.floor(v * bitmap.height - half));
-      const w = Math.max(1, Math.min(bitmap.width, Math.ceil(u * bitmap.width + half)) - x0);
-      const h = Math.max(1, Math.min(bitmap.height, Math.ceil(v * bitmap.height + half)) - y0);
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) return new Uint8ClampedArray();
-      ctx.drawImage(bitmap, x0, y0, w, h, 0, 0, w, h);
-      return ctx.getImageData(0, 0, w, h).data;
+  const getPick = useCallback(
+    (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
+      const stage = e.target.getStage();
+      const pos = stage && getCanvasPointer(stage);
+      const maskId = isMasking ? activeMaskContainerId : null;
+      if (!property || !pos || (isMasking && !maskId)) return null;
+      if (pos.x < 0 || pos.y < 0 || pos.x > imageRenderSize.width || pos.y > imageRenderSize.height) return null;
+      const radius = MIXER_SAMPLE_SCREEN_SIZE / 2 / zoomScale / imageRenderSize.width;
+      return {
+        property,
+        maskId,
+        sample: () => sampleArea(pos.x / imageRenderSize.width, pos.y / imageRenderSize.height, radius),
+      };
     },
-    [useDisplayTexture, previewUrl, getBitmap],
+    [property, isMasking, activeMaskContainerId, imageRenderSize, zoomScale, getCanvasPointer, sampleArea],
   );
 
   const end = useCallback(() => {
     detachRef.current?.();
     detachRef.current = null;
-    const drag = dragRef.current;
-    if (!drag) return;
+    if (!dragRef.current) return;
     dragRef.current = null;
     setIsDragging(false);
     setEditor({ isSliderDragging: false });
-    // Drag moves skip the undo history; record the whole gesture as one step.
-    if (drag.appliedKey !== drag.baseKey && useEditorStore.getState().selectedImage?.path === drag.path) {
-      setAdjustmentsRef.current((prev) => prev);
-    }
   }, [setEditor]);
 
   const applyDrag = useCallback(
     (drag: PickerDrag) => {
-      if (!drag.presence) return;
+      const { presence, base, property: key, maskId } = drag;
+      if (!presence) return;
       if (useEditorStore.getState().selectedImage?.path !== drag.path) {
         end();
         return;
       }
-      const values = getDragValues(drag);
+      // Sampling alone must not write edits; nothing is applied until the drag moves a value.
+      if (drag.offset === 0 && drag.appliedKey === null) return;
+      const values = Object.entries(presence).map(([band, weight]): [string, number] => [
+        band,
+        Math.max(-100, Math.min(100, Math.round(base[band][key] + drag.offset * (weight as number)))),
+      ]);
       const appliedKey = values.join();
       if (appliedKey === drag.appliedKey) return;
       drag.appliedKey = appliedKey;
-      const key = drag.property;
-      setEditor((state) => {
-        const hsl = { ...INITIAL_ADJUSTMENTS.hsl, ...state.adjustments.hsl };
-        values.forEach(([band, value]) => {
-          hsl[band] = { ...hsl[band], [key]: value };
-        });
-        return {
-          adjustments: { ...state.adjustments, hsl },
-          ...(state.showOriginal ? { showOriginal: false, previewOverride: null } : {}),
-        };
-      });
+      setAdjustments((prev) => withBandValues(prev, maskId, key, values));
     },
-    [setEditor, end],
+    [setAdjustments, end],
   );
 
   const start = useCallback(
     (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
-      const stage = e.target.getStage();
-      const pos = stage && getCanvasPointer(stage);
-      const clientY = getClientY(e.evt);
-      if (!property || !pos || clientY === undefined) return;
-      if (pos.x < 0 || pos.y < 0 || pos.x > imageRenderSize.width || pos.y > imageRenderSize.height) return;
+      const pick = getPick(e);
+      const clientPoint = getClientPoint(e.evt);
+      if (!pick || !clientPoint) return;
 
       end();
       // The canvas prevents default on press, so a slider still being typed into would keep focus
       // and later commit its stale value over the drag. Commit it now, before taking the base.
       const focused = document.activeElement;
       if (focused instanceof HTMLInputElement || focused instanceof HTMLTextAreaElement) focused.blur();
-      const { adjustments, selectedImage } = useEditorStore.getState();
       const drag: PickerDrag = {
-        path: selectedImage?.path,
-        property,
-        lastY: clientY,
+        path: useEditorStore.getState().selectedImage?.path,
+        property: pick.property,
+        maskId: pick.maskId,
+        last: clientPoint,
         offset: 0,
-        appliedKey: '',
-        baseKey: '',
-        base: { ...INITIAL_ADJUSTMENTS.hsl, ...adjustments.hsl },
+        appliedKey: null,
+        base: getTargetHsl(useEditorStore.getState().adjustments, pick.maskId),
         presence: null,
         offsetRange: [-Infinity, Infinity],
       };
@@ -178,12 +178,13 @@ export function useHslMixerPicker({
       setEditor({ isSliderDragging: true });
 
       const onMove = (ev: MouseEvent | TouchEvent) => {
-        const y = getClientY(ev);
-        if (y === undefined) return;
+        const point = getClientPoint(ev);
+        if (!point) return;
         if (ev.cancelable) ev.preventDefault();
-        const multiplier = ev.altKey ? FINE_ADJUSTMENT_MULTIPLIER : 1;
-        drag.offset = clampOffset(drag, drag.offset + (drag.lastY - y) * DRAG_GAIN * multiplier);
-        drag.lastY = y;
+        const multiplier = hasFineAdjustmentModifier(ev) ? FINE_ADJUSTMENT_MULTIPLIER : 1;
+        const delta = point.x - drag.last.x - (point.y - drag.last.y);
+        drag.offset = clampOffset(drag, drag.offset + delta * DRAG_GAIN * multiplier);
+        drag.last = point;
         applyDrag(drag);
       };
       window.addEventListener('mousemove', onMove);
@@ -201,13 +202,11 @@ export function useHslMixerPicker({
         window.removeEventListener('blur', end);
       };
 
-      const radius = SAMPLE_SCREEN_SIZE / 2 / zoomScale / imageRenderSize.width;
-      sampleArea(pos.x / imageRenderSize.width, pos.y / imageRenderSize.height, radius)
+      pick
+        .sample()
         .then((pixels) => {
           if (dragRef.current !== drag) return;
           drag.presence = sampleHslPresence(pixels, drag.property);
-          drag.baseKey = getDragValues({ ...drag, offset: 0 }).join();
-          drag.appliedKey = drag.baseKey;
           const dominant = Object.keys(drag.presence).find((band) => drag.presence?.[band as HslMixerBand] === 1);
           if (dominant) {
             const value = drag.base[dominant][drag.property];
@@ -218,7 +217,24 @@ export function useHslMixerPicker({
         })
         .catch((err) => console.error('Failed to sample preview for color mixer picker:', err));
     },
-    [property, imageRenderSize, zoomScale, getCanvasPointer, sampleArea, setEditor, applyDrag, end],
+    [getPick, setEditor, applyDrag, end],
+  );
+
+  const reset = useCallback(
+    (e: KonvaEventObject<MouseEvent>) => {
+      const pick = getPick(e);
+      if (!pick) return;
+      pick
+        .sample()
+        .then((pixels) => {
+          const values = Object.entries(sampleHslPresence(pixels, pick.property))
+            .filter(([, weight]) => (weight as number) > 0)
+            .map(([band]): [string, number] => [band, 0]);
+          setAdjustments((prev) => withBandValues(prev, pick.maskId, pick.property, values));
+        })
+        .catch((err) => console.error('Failed to sample preview for color mixer picker:', err));
+    },
+    [getPick, setAdjustments],
   );
 
   useEffect(() => {
@@ -226,13 +242,7 @@ export function useHslMixerPicker({
     if (!mixerVisible && selectedProperty !== null) setEditor({ mixerPickerProperty: null });
   }, [property, mixerVisible, selectedProperty, setEditor, end]);
 
-  useEffect(
-    () => () => {
-      end();
-      bitmapRef.current?.bitmap.then((bitmap) => bitmap.close()).catch(() => {});
-    },
-    [end],
-  );
+  useEffect(() => end, [end]);
 
-  return { isActive: property !== null, isDragging, start };
+  return { isActive: property !== null, isDragging, start, reset };
 }

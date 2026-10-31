@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Condvar, Mutex};
 
@@ -160,10 +160,15 @@ pub struct ViewerState {
 
 #[derive(Clone)]
 pub struct LoadedImage {
+    pub generation: usize,
     pub path: String,
     pub image: Arc<DynamicImage>,
     pub is_raw: bool,
     pub as_shot: AsShot,
+    /// Bumps when a provisional f16 buffer is replaced by a full decode of the
+    /// same path. Preview caches key on this so the replacement cannot reuse
+    /// pixels rendered from the half buffer.
+    pub source_epoch: u64,
 }
 
 #[derive(Clone)]
@@ -203,6 +208,7 @@ pub struct GpuProcessorState {
 }
 
 pub struct PreviewJob {
+    pub source: PreviewSource,
     pub adjustments: serde_json::Value,
     pub layer: DisplayLayer,
     pub is_interactive: bool,
@@ -211,7 +217,31 @@ pub struct PreviewJob {
     pub request_analytics: bool,
     pub compute_waveform: bool,
     pub active_waveform_channel: Option<String>,
-    pub responder: tokio::sync::oneshot::Sender<Vec<u8>>,
+    pub responder: tokio::sync::oneshot::Sender<Result<Vec<u8>, String>>,
+}
+
+#[derive(Clone)]
+pub struct PreviewSource {
+    pub path: String,
+    pub generation: usize,
+}
+
+impl PreviewSource {
+    pub fn matches(&self, generation: usize, image: Option<&LoadedImage>) -> bool {
+        self.generation == generation
+            && image.is_some_and(|image| image.path == self.path && image.generation == generation)
+    }
+
+    pub fn is_current(&self, state: &AppState) -> bool {
+        let image = state
+            .original_image
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        self.matches(
+            state.load_image_generation.load(Ordering::SeqCst),
+            image.as_ref(),
+        )
+    }
 }
 
 pub enum PreviewTask {
@@ -220,6 +250,7 @@ pub enum PreviewTask {
 }
 
 pub struct AnalyticsJob {
+    pub generation: usize,
     pub path: String,
     pub frame: crate::image_processing::AnalyticsFrame,
     pub compute_waveform: bool,
@@ -227,6 +258,7 @@ pub struct AnalyticsJob {
 }
 
 pub struct AnalyticsConfig {
+    pub generation: usize,
     pub path: String,
     pub compute_waveform: bool,
     pub active_waveform_channel: Option<String>,
@@ -356,6 +388,9 @@ pub struct AppState {
     pub thumbnail_geometry_cache: Mutex<HashMap<String, ThumbnailGeometryEntry>>,
     pub lens_db: Mutex<Option<Arc<LensDatabase>>>,
     pub load_image_generation: Arc<AtomicUsize>,
+    /// Paired with `LoadedImage::source_epoch`. Incremented only when the
+    /// loaded buffer is replaced in place by an exact re-decode.
+    pub decoded_source_epoch: AtomicU64,
     pub wgpu_presented_generation: AtomicUsize,
     pub full_warped_cache: Mutex<Option<(u64, Arc<DynamicImage>)>>,
     pub full_warped_build_lock: Mutex<()>,

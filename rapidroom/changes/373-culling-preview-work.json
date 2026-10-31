@@ -1,0 +1,12 @@
+{
+  "id": "culling-preview-work",
+  "title": "Reuse RAW decodes when culling and discard previews from superseded photos",
+  "category": "performance",
+  "landed": "2026-10-19",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": false,
+  "notes": "Editor and Culling share the existing bounded cache of pristine full-resolution decodes, checked against source file identity and decoding settings. Preview work follows the exact loaded photo generation, including returning to the same photo. Full-resolution Culling rendering and adjustment application are preserved. Refreshed on main after #474: Culling explicitly stores pristine decodes and retains source-epoch invalidation and per-photo effect caches. The native --culling-precision regression compares actual ordinary/Culling IPC JPEG bytes, decoded RGB pixels and dimensions with automatic lens correction before and after four intervening photo loads, beyond the three-photo f32 window."
+}
