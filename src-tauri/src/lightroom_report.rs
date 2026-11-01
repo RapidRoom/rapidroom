@@ -210,7 +210,20 @@ fn classify(field: &str, property: &PhotoProperty, preset: &Preset) -> (Outcome,
         _ => None,
     };
     if field == "WhiteBalance" && scalar.is_some_and(|s| s.eq_ignore_ascii_case("As Shot")) {
-        return (Outcome::Ignored, "asShot");
+        let reset = preset
+            .adjustments
+            .get("whiteBalance")
+            .is_some_and(|value| value.is_null())
+            && preset
+                .adjustments
+                .get("temperature")
+                .and_then(|value| value.as_f64())
+                == Some(0.0);
+        return if reset {
+            (Outcome::Mapped, "asShotReset")
+        } else {
+            (Outcome::Ignored, "asShot")
+        };
     }
     if matches!(
         field,
@@ -415,6 +428,7 @@ pub fn reason_text(reason: &str) -> &'static str {
             "Transferred to native controls; Lightroom rendering and units may differ"
         }
         "asShot" => "The source requests as-shot white balance; no native override is imported",
+        "asShotReset" => "Reset native white balance to the source's as-shot rendering",
         "disabled" => "The source disables this feature; no native adjustment is applied",
         "superseded" => "The newer process-version setting takes precedence",
         "inactive" => "This setting is inactive in the source conversion mode",
@@ -484,6 +498,31 @@ mod tests {
         );
         assert!(!r.settings.iter().any(|s| s.field == "Exposure2012"));
     }
+
+    #[test]
+    fn as_shot_reports_sidecar_reset_but_presets_stay_ignored() {
+        let xmp = r#"<root crs:WhiteBalance="As Shot" crs:Temperature="5000" crs:Tint="1"/>"#;
+        let sidecar = convert_xmp_sidecar_to_preset(xmp).unwrap();
+        let sidecar_report = settings_report(xmp, &sidecar);
+        assert!(sidecar_report.settings.iter().any(|setting| {
+            setting.field == "WhiteBalance"
+                && setting.outcome == Outcome::Mapped
+                && setting.reason == "asShotReset"
+        }));
+        assert!(sidecar_report.settings.iter().all(|setting| {
+            !matches!(setting.field.as_str(), "Temperature" | "Tint")
+                || (setting.outcome == Outcome::Ignored && setting.reason == "asShot")
+        }));
+
+        let preset = convert_xmp_to_preset(xmp).unwrap();
+        let preset_report = settings_report(xmp, &preset);
+        assert!(preset_report.settings.iter().any(|setting| {
+            setting.field == "WhiteBalance"
+                && setting.outcome == Outcome::Ignored
+                && setting.reason == "asShot"
+        }));
+    }
+
     #[test]
     fn approximations_missing_mappings_and_false_are_honest() {
         let r = report(

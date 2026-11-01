@@ -1550,6 +1550,12 @@ fn convert_xmp_to_preset_with_crop(
         adjustments.insert("whiteBalance".to_string(), Value::Null);
     }
 
+    if white_balance_is_as_shot && include_crop_transform {
+        adjustments.insert("temperature".to_string(), json!(0.0));
+        adjustments.insert("tint".to_string(), json!(0.0));
+        adjustments.insert("whiteBalance".to_string(), Value::Null);
+    }
+
     let colors = [
         ("Red", "reds"),
         ("Orange", "oranges"),
@@ -3219,13 +3225,18 @@ mod tests {
     }
 
     #[test]
-    fn keeps_as_shot_white_balance_neutral() {
+    fn resets_sidecar_as_shot_white_balance_and_keeps_presets_unchanged() {
         let xmp = r#"<rdf:Description
                 crs:WhiteBalance="As Shot"
                 crs:Temperature="6800"
                 crs:Tint="+38" />"#;
-        let preset = convert_xmp_sidecar_to_preset(xmp).unwrap();
+        let sidecar = convert_xmp_sidecar_to_preset(xmp).unwrap();
 
+        assert_eq!(sidecar.adjustments["temperature"], json!(0.0));
+        assert_eq!(sidecar.adjustments["tint"], json!(0.0));
+        assert_eq!(sidecar.adjustments["whiteBalance"], Value::Null);
+
+        let preset = convert_xmp_to_preset(xmp).unwrap();
         assert!(preset.adjustments.get("temperature").is_none());
         assert!(preset.adjustments.get("tint").is_none());
         assert!(preset.adjustments.get("whiteBalance").is_none());
