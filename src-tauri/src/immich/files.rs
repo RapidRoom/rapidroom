@@ -90,7 +90,10 @@ fn modified_ms(path: &Path) -> Option<u64> {
 }
 
 fn is_original(name: &str) -> bool {
-    !(name.starts_with('.') || name.ends_with(".rrdata") || name.ends_with(".rrexif"))
+    !(name.starts_with('.')
+        || name.ends_with(".rrdata")
+        || name.ends_with(".rrhistory")
+        || name.ends_with(".rrexif"))
 }
 
 fn an_hour_ago_ms() -> u64 {

@@ -1,3 +1,5 @@
+import { debouncedSave } from './useEditorActions';
+import type { HistoryRead } from '../utils/savedHistory';
 import { useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'react-toastify';
@@ -40,6 +42,21 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
 
   const isWgpuActive = appSettings?.useWgpuRenderer !== false && selectedImage?.isReady && hasRenderedFirstFrame;
 
+  useEffect(
+    () =>
+      useEditorStore.subscribe((state, previous) => {
+        if (
+          !state.selectedImage?.isReady ||
+          state.historyPath !== state.selectedImage.path ||
+          previous.historyPath !== state.historyPath
+        )
+          return;
+        if (state.historyRevision !== previous.historyRevision)
+          debouncedSave(state.historyPath, state.history[state.historyIndex], true);
+      }),
+    [],
+  );
+
   useEffect(() => {
     if (selectedImage && !selectedImage.isReady && selectedImage.path) {
       let isEffectActive = true;
@@ -61,6 +78,17 @@ export function useImageLoader(cachedEditStateRef: React.RefObject<Record<string
 
           setEditor({ adjustments: initialAdjusts });
           restoreHistory(initialAdjusts);
+          setEditor({ historyWarning: null, historyWritable: false });
+          try {
+            const saved = await invoke<HistoryRead>('read_edit_history', { path: selectedImage.path });
+            if (!isEffectActive) return;
+            useEditorStore
+              .getState()
+              .loadSavedHistory(selectedImage.path, saved.history, saved.warning, saved.writable);
+          } catch (error) {
+            if (isEffectActive)
+              setEditor({ historyWarning: `History could not be loaded: ${error}`, historyWritable: false });
+          }
         } catch (err) {
           console.error('Failed to load metadata early:', err);
         }

@@ -8,5 +8,31 @@
     "viewer": {
       "windowTitle": "Переглядач RapidRoom"
     }
+  },
+  "history": {
+    "title": "History",
+    "system": "System",
+    "user": "User",
+    "addSnapshot": "+ Snapshot",
+    "close": "Close History",
+    "selectPhoto": "Open a photo in the Editor to view its history.",
+    "snapshots": "Snapshots",
+    "snapshotActions": "Snapshot actions",
+    "rename": "Rename snapshot",
+    "delete": "Delete snapshot",
+    "steps": "Edit steps",
+    "initial": "Initial state",
+    "snapshotName": "Snapshot name",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirmDelete": "Delete this named snapshot? Its saved state will be removed.",
+    "branch_few": "New edits replace {{count}} later steps",
+    "compacted_few": "+{{count}} earlier steps compacted",
+    "branch_many": "New edits replace {{count}} later steps",
+    "compacted_many": "+{{count}} earlier steps compacted",
+    "branch_one": "New edits replace {{count}} later step",
+    "compacted_one": "+{{count}} earlier step compacted",
+    "branch_other": "New edits replace {{count}} later steps",
+    "compacted_other": "+{{count}} earlier steps compacted"
   }
 }

@@ -159,11 +159,16 @@ function persistAppliedPreset(path: string, record: AppliedPreset | null, adjust
           path,
           async () => {
             if (generations.get(path) !== generation) return;
-            await invoke('save_applied_preset', {
+            const warning = await invoke<string | null>('save_applied_preset', {
               path,
               record: saved,
               ...(saved?.stack ? { adjustments } : {}),
             });
+            if (warning) {
+              if (useEditorStore.getState().historyPath === path)
+                useEditorStore.getState().setEditor({ historyWarning: warning });
+              toast.warning(warning, { autoClose: false });
+            }
           },
           adjustments,
           async () => {
