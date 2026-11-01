@@ -14,7 +14,8 @@ import { useSettingsStore } from '../../store/useSettingsStore';
 
 export type DenoiseMethod = 'tree_best' | 'tree_fast' | 'ai' | 'bm3d' | 'raw9';
 
-const defaultIntensityFor = (m: DenoiseMethod) => (m === 'bm3d' ? 15 : 50);
+const defaultIntensityFor = (m: DenoiseMethod) =>
+  m === 'tree_best' || m === 'tree_fast' ? 71 : m === 'bm3d' ? 15 : 50;
 
 interface DenoiseModalProps {
   isOpen: boolean;
@@ -489,7 +490,7 @@ export default function DenoiseModal({
     if (isBatch) {
       const currentRun = ++runId.current;
       try {
-        await onBatchDenoise(isTree ? 1 : intensity / 100, method, targetPaths, sharpen);
+        await onBatchDenoise(intensity / 100, method, targetPaths, sharpen);
         if (currentRun === runId.current) onClose();
       } catch (e) {
         console.error('Batch denoise failed:', e);
@@ -497,7 +498,7 @@ export default function DenoiseModal({
         if (currentRun === runId.current) setBatchProgress(null);
       }
     } else {
-      onDenoise(isTree ? 1 : intensity / 100, method, sharpen);
+      onDenoise(intensity / 100, method, sharpen);
     }
   };
 
@@ -666,7 +667,7 @@ export default function DenoiseModal({
               }}
             />
           </div>
-          {isTree ? (
+          {isTree && (
             <div className="flex-1 max-w-[320px] flex flex-col gap-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -682,21 +683,20 @@ export default function DenoiseModal({
                 {t('modals.denoise.rawHint')}
               </Text>
             </div>
-          ) : (
-            <div className="flex-1 max-w-[280px]">
-              <Slider
-                label={method === 'ai' ? t('modals.denoise.qualityTileSizeLabel') : t('modals.denoise.strengthLabel')}
-                value={intensity}
-                min={0}
-                max={100}
-                step={1}
-                defaultValue={defaultIntensityFor(method)}
-                onChange={(e) => setIntensity(Number(e.target.value))}
-                trackClassName="bg-bg-secondary"
-                fillOrigin="min"
-              />
-            </div>
           )}
+          <div className="flex-1 max-w-[280px]">
+            <Slider
+              label={method === 'ai' ? t('modals.denoise.qualityTileSizeLabel') : t('modals.denoise.strengthLabel')}
+              value={intensity}
+              min={isTree ? 1 : 0}
+              max={100}
+              step={1}
+              defaultValue={defaultIntensityFor(method)}
+              onChange={(e) => setIntensity(Number(e.target.value))}
+              trackClassName="bg-bg-secondary"
+              fillOrigin="min"
+            />
+          </div>
           <button
             type="button"
             disabled={disabled || isAiFree}
@@ -704,8 +704,9 @@ export default function DenoiseModal({
             onClick={() => {
               setMoreMethods(!moreMethods);
               if (moreMethods && !isTree) {
-                setMethod(isRaw ? 'tree_best' : 'ai');
-                setIntensity(50);
+                const next = isRaw ? 'tree_best' : 'ai';
+                setMethod(next);
+                setIntensity(defaultIntensityFor(next));
               }
             }}
           >
