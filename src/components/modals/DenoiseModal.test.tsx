@@ -279,6 +279,12 @@ describe('AI raw denoise presets', () => {
     await click(button('moreMethods'));
     await click(dropdown);
     expect(container.textContent).toContain('modals.denoise.methodBm3d');
+    const bm3d = [...container.querySelectorAll('[role="option"]')].find(
+      (el) => el.textContent === 'modals.denoise.methodBm3d',
+    )!;
+    await click(bm3d);
+    await click(button('fewerMethods'));
+    expect(container.querySelector<HTMLInputElement>('input[type="range"]')?.value).toBe('71');
   });
 
   it('runs Fast without sharpening when the user switches it off', async () => {

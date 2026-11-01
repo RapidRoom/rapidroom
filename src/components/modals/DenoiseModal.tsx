@@ -704,8 +704,9 @@ export default function DenoiseModal({
             onClick={() => {
               setMoreMethods(!moreMethods);
               if (moreMethods && !isTree) {
-                setMethod(isRaw ? 'tree_best' : 'ai');
-                setIntensity(50);
+                const next = isRaw ? 'tree_best' : 'ai';
+                setMethod(next);
+                setIntensity(defaultIntensityFor(next));
               }
             }}
           >
