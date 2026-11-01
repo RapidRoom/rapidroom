@@ -2059,8 +2059,7 @@ fn run_lama_inpainting_impl(
         let alpha = m as f32 / 255.0;
         let original = cropped_img.get_pixel(x, y);
         for c in 0..3 {
-            pixel[c] = (f32::from(pixel[c]) * alpha
-                + f32::from(original[c]) * (1.0 - alpha))
+            pixel[c] = (f32::from(pixel[c]) * alpha + f32::from(original[c]) * (1.0 - alpha))
                 .round() as u8;
         }
     }

@@ -9,5 +9,5 @@
   "upstream_issues": [],
   "upstream_prs": [],
   "rendering_change": true,
-  "notes": "Local LaMa keeps the native linear source, selects nearby noise blocks excluding the object and structured/LED texture, and restores deterministic luminance-scaled grain before patch encoding. New local fills are stored losslessly; existing saved patches and ordinary renders are unchanged. No model or download changes."
+  "notes": "Local LaMa keeps the native linear source, matches fill colour from unmasked context, and restores only missing luminance/chroma noise variance from nearby unstructured blocks. Existing model noise is counted first; unsupported samples use a conservative no-addition fallback. New local fills are stored losslessly; existing saved patches and ordinary renders are unchanged. No model or download changes."
 }

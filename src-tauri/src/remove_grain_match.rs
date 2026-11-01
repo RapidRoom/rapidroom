@@ -358,6 +358,7 @@ pub(crate) fn harmonize(
         model_low = Some(low);
     }
     let target = target.variance();
+    let existing_samples = existing.n;
     let existing = existing.variance();
     let attenuation: [f32; 3] = std::array::from_fn(|c| {
         if field.flat && existing[c] > target[c] && existing[c] > 1e-8 {
@@ -367,7 +368,9 @@ pub(crate) fn harmonize(
         }
     });
     let gain: [f32; 3] = std::array::from_fn(|c| {
-        if target[c] > 1e-8 {
+        if existing_samples == 0 {
+            0.0
+        } else if target[c] > 1e-8 {
             ((target[c] - attenuation[c] * attenuation[c] * existing[c]).max(0.0) / target[c])
                 .sqrt()
         } else {
@@ -571,5 +574,93 @@ mod tests {
         );
         assert_eq!(fill.get_pixel(0, 0), &Rgba([64, 88, 104, 7]));
         assert_eq!(fill.get_pixel(1, 0), &Rgba([50, 80, 90, 7]));
+    }
+
+    fn unsupported_mask_noise(image: &RgbaImage, mask: &GrayImage, feather: bool) -> [f32; 3] {
+        let data = image
+            .pixels()
+            .flat_map(|p| p.0[..3].iter().map(|v| f32::from(*v)))
+            .collect::<Vec<_>>();
+        let low = gaussian_blur_rgb(&data, image.width() as usize, image.height() as usize, 2.5);
+        let mut moments = Moments::default();
+        for (x, y, pixel) in mask.enumerate_pixels() {
+            let m = pixel[0];
+            if m == 0 || (feather && m == 255) {
+                continue;
+            }
+            let i = (y as usize * image.width() as usize + x as usize) * 3;
+            moments.add(ycc(std::array::from_fn(|c| data[i + c] - low[i + c])));
+        }
+        assert!(moments.n > 0);
+        moments.variance().map(f32::sqrt)
+    }
+
+    #[test]
+    fn unsupported_model_noise_samples_never_mean_a_noiseless_fill() {
+        let size = 192;
+        let bounds = NativeRect {
+            x: 64,
+            y: 64,
+            width: 64,
+            height: 64,
+        };
+        let inside = |x, y| (64..128).contains(&x) && (64..128).contains(&y);
+        let feather = GrayImage::from_fn(size, size, |x, y| {
+            Luma([if inside(x, y) { 128 } else { 0 }])
+        });
+        let thin = GrayImage::from_fn(size, size, |x, y| {
+            let band = (64..128).contains(&x) && ((64..70).contains(&y) || (92..98).contains(&y));
+            Luma([if !band {
+                0
+            } else if y == 64 || y == 69 || y == 92 || y == 97 {
+                128
+            } else {
+                255
+            }])
+        });
+        let disconnected = GrayImage::from_fn(size, size, |x, y| {
+            let square = |left, top| (left..left + 8).contains(&x) && (top..top + 8).contains(&y);
+            let edge = (x == 64 || x == 71 || x == 120 || x == 127)
+                || (y == 64 || y == 71 || y == 120 || y == 127);
+            Luma([if square(64, 64) || square(120, 120) {
+                if edge { 128 } else { 255 }
+            } else {
+                0
+            }])
+        });
+        let scene = Rgb32FImage::from_fn(size, size, |x, y| {
+            let i = u64::from(y * size + x) * 3;
+            let v = rgb([noise(i, 12.0), noise(i + 1, 22.0), noise(i + 2, 18.0)]);
+            Rgb(v.map(|v| linear(100.0 + v)))
+        });
+        for (name, mask) in [
+            ("feather-only", feather),
+            ("thin separated bands", thin),
+            ("disconnected corners", disconnected),
+        ] {
+            assert!(crate::remove_grain::Grain::sample(&scene, &mask, bounds).is_some());
+            let mut fill = RgbaImage::from_fn(size, size, |x, y| {
+                let i = u64::from(y * size + x) * 3 + 999_999;
+                let v = rgb([noise(i, 12.0), noise(i + 1, 22.0), noise(i + 2, 18.0)]);
+                Rgba([v[0] as u8, v[1] as u8, v[2] as u8, 173])
+            });
+            let before = fill.clone();
+            crate::remove_grain::restore_grain(&scene, &mask, &mut fill, bounds);
+            for feather_band in [false, true] {
+                let old = unsupported_mask_noise(&before, &mask, feather_band);
+                let new = unsupported_mask_noise(&fill, &mask, feather_band);
+                for c in 0..3 {
+                    assert!(
+                        new[c] <= old[c] * 1.1 + 0.05,
+                        "{name}: feather={feather_band}, component {c}: {old:?} -> {new:?}"
+                    );
+                }
+            }
+            for (x, y, pixel) in fill.enumerate_pixels() {
+                if mask.get_pixel(x, y)[0] == 0 {
+                    assert_eq!(pixel, before.get_pixel(x, y));
+                }
+            }
+        }
     }
 }

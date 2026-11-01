@@ -1503,4 +1503,155 @@ mod grain_patch_tests {
             }
         }
     }
+
+    fn linear(v: f32) -> f32 {
+        let v = v / 255.0;
+        if v <= 0.04045 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
+    }
+
+    fn noise(index: u64, amplitude: f32) -> f32 {
+        (crate::remove_grain::mix64(index) as f64 / u64::MAX as f64 * 2.0 - 1.0) as f32 * amplitude
+    }
+
+    fn components(v: [f32; 3]) -> [f32; 3] {
+        let y = 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+        [y, v[2] - y, v[0] - y]
+    }
+
+    fn persisted_noise(image: &RgbImage, mask: &GrayImage, feather: bool) -> [f32; 3] {
+        let data = image
+            .pixels()
+            .flat_map(|p| p.0.iter().map(|v| f32::from(*v)))
+            .collect::<Vec<_>>();
+        let low = crate::remove_grain::gaussian_blur_rgb(
+            &data,
+            image.width() as usize,
+            image.height() as usize,
+            2.5,
+        );
+        let mut n = 0;
+        let mut sum = [0.0f64; 3];
+        let mut square = [0.0f64; 3];
+        for (x, y, pixel) in mask.enumerate_pixels() {
+            let m = pixel[0];
+            if m == 0 || (feather && m == 255) {
+                continue;
+            }
+            let i = (y as usize * image.width() as usize + x as usize) * 3;
+            let v = components(std::array::from_fn(|c| data[i + c] - low[i + c]));
+            n += 1;
+            for c in 0..3 {
+                sum[c] += f64::from(v[c]);
+                square[c] += f64::from(v[c]).powi(2);
+            }
+        }
+        assert!(n > 0);
+        std::array::from_fn(|c| {
+            (square[c] / n as f64 - (sum[c] / n as f64).powi(2)).max(0.0) as f32
+        })
+        .map(f32::sqrt)
+    }
+
+    fn persist_fill(
+        scene: &Rgb32FImage,
+        mask: &GrayImage,
+        bounds: crate::remove_grain::NativeRect,
+        fill: &RgbaImage,
+    ) -> RgbImage {
+        let color = DynamicImage::ImageRgba8(fill.clone()).to_rgb8();
+        let color =
+            imageops::crop_imm(&color, bounds.x, bounds.y, bounds.width, bounds.height).to_image();
+        let patch_mask =
+            imageops::crop_imm(mask, bounds.x, bounds.y, bounds.width, bounds.height).to_image();
+        let encoded = encode_patch_result(
+            &color,
+            &patch_mask,
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height,
+            true,
+            95,
+            true,
+            true,
+        )
+        .unwrap();
+        let patch: Value = serde_json::from_str(&encoded).unwrap();
+        let edits = serde_json::json!({"aiPatches":[{"visible":true,"patchData":patch}]});
+        let composite =
+            composite_patches_on_image(&DynamicImage::ImageRgb32F(scene.clone()), &edits).unwrap();
+        apply_linear_to_srgb(composite).to_rgb8()
+    }
+
+    #[test]
+    fn unsupported_mask_noise_is_not_amplified_by_persisted_compositing() {
+        let size = 192;
+        let bounds = crate::remove_grain::NativeRect {
+            x: 64,
+            y: 64,
+            width: 64,
+            height: 64,
+        };
+        let feather = GrayImage::from_fn(size, size, |x, y| {
+            Luma([if (64..128).contains(&x) && (64..128).contains(&y) {
+                128
+            } else {
+                0
+            }])
+        });
+        let thin = GrayImage::from_fn(size, size, |x, y| {
+            let band = (64..128).contains(&x) && ((64..70).contains(&y) || (92..98).contains(&y));
+            Luma([if !band {
+                0
+            } else if y == 64 || y == 69 || y == 92 || y == 97 {
+                128
+            } else {
+                255
+            }])
+        });
+        let disconnected = GrayImage::from_fn(size, size, |x, y| {
+            let square = |left, top| (left..left + 8).contains(&x) && (top..top + 8).contains(&y);
+            let edge = (x == 64 || x == 71 || x == 120 || x == 127)
+                || (y == 64 || y == 71 || y == 120 || y == 127);
+            Luma([if square(64, 64) || square(120, 120) {
+                if edge { 128 } else { 255 }
+            } else {
+                0
+            }])
+        });
+        let scene = Rgb32FImage::from_fn(size, size, |x, y| {
+            let i = u64::from(y * size + x) * 3;
+            Rgb(std::array::from_fn(|c| linear(100.0 + noise(i + c, 16.0))))
+        });
+        for (name, mask) in [
+            ("feather-only", feather),
+            ("thin separated bands", thin),
+            ("disconnected corners", disconnected),
+        ] {
+            let model = RgbaImage::from_fn(size, size, |x, y| {
+                let i = u64::from(y * size + x) * 3 + 999_999;
+                Rgba(std::array::from_fn(|c| {
+                    (100.0 + noise(i + c, 16.0)).round().clamp(0.0, 255.0) as u8
+                }))
+            });
+            let mut restored = model.clone();
+            crate::remove_grain::restore_grain(&scene, &mask, &mut restored, bounds);
+            let before = persist_fill(&scene, &mask, bounds, &model);
+            let after = persist_fill(&scene, &mask, bounds, &restored);
+            for feather_band in [false, true] {
+                let old = persisted_noise(&before, &mask, feather_band);
+                let new = persisted_noise(&after, &mask, feather_band);
+                for c in 0..3 {
+                    assert!(
+                        new[c] <= old[c] * 1.1 + 0.05,
+                        "{name}: feather={feather_band}, component {c}: {old:?} -> {new:?}"
+                    );
+                }
+            }
+        }
+    }
 }
