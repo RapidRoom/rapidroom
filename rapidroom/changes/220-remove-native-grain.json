@@ -1,0 +1,13 @@
+{
+  "id": "remove-native-grain",
+  "title": "Restore nearby scene grain in local AI Remove fills",
+  "category": "feature",
+  "landed": "2026-10-12",
+  "authors": ["yojen7", "Duecki1"],
+  "source": "Duecki1/CalibRaw (GPL-3.0-or-later adaptation; retained notices)",
+  "commits": ["https://github.com/Duecki1/CalibRaw/commit/2466ca6662c3fd1e901377c0450b19f5f96d3e85"],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Local LaMa keeps the native linear source, matches fill colour from unmasked context, and restores only missing luminance/chroma noise variance from nearby unstructured blocks. Existing model noise is counted first; unsupported samples use a conservative no-addition fallback. New local fills are stored losslessly; existing saved patches and ordinary renders are unchanged. No model or download changes."
+}
