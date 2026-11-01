@@ -1,7 +1,8 @@
-# Saved History implementation status
+# Saved History implementation status (parked)
 
 Implementation for #306 and #498 follows the approved design in #475. The PR
-remains draft while Rust, native and hosted validation run.
+is parked for shutdown and remains draft. See `306-PARKED.md` for the current
+validation gap and next step. No checks are currently running.
 
 Implemented: versioned bounded `.rrhistory` reads/writes and protected invalid or
 newer files; authoritative sidecar-first/history-second transactions; stable step
