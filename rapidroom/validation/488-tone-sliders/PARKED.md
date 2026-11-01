@@ -1,4 +1,20 @@
-# Parked status
+# Parked again 2026-10-31 (Codex limited to one agent)
+
+Head 039d2513 (review fixes; Rust changes in 60354038), main c49d7d66 merged.
+Done since the first park:
+
+- vono's two blocking findings fixed (Highlights detail keeps v0 reach; preset_converter sets the version only with tone sliders), plus items 3 and 6.
+- Native library suite 748 passed, 0 failed, 23 ignored. Frontend checks pass. Ramp gate 16/16.
+- Both full60 sets rendered against the shared exact-main control (`~/code/.cache/control-main-c49d7d66`, receipt with sha256) and compared with `samples/tone-488/compare-full60.py` (summary: `evidence/full60-summary-039d2513.json`):
+  - law-0 proof (legacy recipes): 60/60 pixel-identical.
+  - stock: 53 identical, 7 changed, all expected (calibrated camera baseline): Sony A7C II x5 +0.872 EV, Nikon Zf +0.816 EV, Canon R6 II +0.270 EV. No unexpected changes; same environment.
+    Left: before/after panels for the maintainer (make-panels.py) from the stock set, the J40 byte checks against the rebuilt control, hosted CI on the head, an independent re-review (vono) of 60354038..039d2513, then the maintainer's render approval.
+    Local renders live in ~/code/.cache/rani-488-tone/samples/tone-488/ (not committed).
+
+# Historical parking record
+
+Resumed on 2026-10-31. The following records the earlier parked state; see the
+neighboring README for current validation evidence.
 
 Parked at the maintainer's request before a trip. PR #495 remains draft and is
 not rendering-ready. No further builds or fixes were started during wrap-up.

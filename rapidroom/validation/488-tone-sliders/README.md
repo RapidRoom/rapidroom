@@ -29,6 +29,8 @@ For a sidecar, preset or bare adjustments JSON:
 RapidRAW migrate-tone INPUT.json OUTPUT.json
 ```
 
+The command handles one sidecar, one preset object, or bare adjustments; preset-library arrays are not supported.
+
 The output must not already exist. The command preserves the source, changes
 only the four tone numbers and the version, and prints each control's old/new
 value and ramp RMS as JSON. Version 1 or later inputs are left unchanged. Each
