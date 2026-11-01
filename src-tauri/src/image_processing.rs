@@ -145,7 +145,26 @@ pub fn default_adjustments() -> Value {
     let mut adjustments = json!({});
     mark_baseline_exposure(&mut adjustments);
     adjustments[CAMERA_EXPOSURE_COMPENSATION_KEY] = Value::Bool(true);
+    adjustments["toneSliderVersion"] = json!(1);
     adjustments
+}
+
+pub fn tone_slider_version(adjustments: &Value) -> u32 {
+    u32::from(
+        adjustments["toneSliderVersion"]
+            .as_f64()
+            .is_some_and(|version| version.is_finite() && version.fract() == 0.0 && version >= 1.0),
+    )
+}
+
+pub fn copy_tone_slider_version(source: &Value, target: &mut Value) {
+    if let Some(object) = target.as_object_mut() {
+        if let Some(version) = source.get("toneSliderVersion") {
+            object.insert("toneSliderVersion".into(), version.clone());
+        } else {
+            object.remove("toneSliderVersion");
+        }
+    }
 }
 
 pub fn copy_exposure_policy(source: &Value, target: &mut Value) {
@@ -2072,7 +2091,7 @@ pub struct GlobalAdjustments {
     pub chromatic_aberration_blue_yellow: f32,
     pub show_clipping: u32,
     pub is_raw_image: u32,
-    _pad_ca1: f32,
+    pub tone_slider_version: u32,
 
     pub has_lut: u32,
     pub lut_intensity: f32,
@@ -2798,10 +2817,12 @@ pub fn is_image_edited(
         non_raw_tonemapper_override: tonemapper_override,
         baseline: BaselineOptions::default(),
     };
-    let current_adj = get_all_adjustments_from_json(adj, is_raw, reference, render);
+    let mut current_adj = get_all_adjustments_from_json(adj, is_raw, reference, render);
     let default_adj =
         get_all_adjustments_from_json(&serde_json::json!({}), is_raw, reference, render);
 
+    // The process version alone cannot change a neutral recipe's pixels.
+    current_adj.global.tone_slider_version = default_adj.global.tone_slider_version;
     bytemuck::bytes_of(&current_adj) != bytemuck::bytes_of(&default_adj)
 }
 
@@ -3130,7 +3151,7 @@ fn get_global_adjustments_from_json(
             0
         },
         is_raw_image: if is_raw { 1 } else { 0 },
-        _pad_ca1: 0.0,
+        tone_slider_version: tone_slider_version(js_adjustments),
 
         has_lut,
         lut_intensity,

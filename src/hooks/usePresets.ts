@@ -292,7 +292,7 @@ export function usePresets(currentAdjustments: Adjustments) {
     if (!Object.prototype.hasOwnProperty.call(newAdjustments, 'lensCorrectionMode'))
       delete newAdjustments.cameraLensCorrectionVersion;
     // Saved presets have their own policy provenance, including legacy omission.
-    for (const key of ['baselineExposure', 'cameraExposureCompensation']) {
+    for (const key of ['baselineExposure', 'cameraExposureCompensation', 'toneSliderVersion']) {
       if (Object.prototype.hasOwnProperty.call(existingPreset.adjustments, key)) {
         newAdjustments[key] = existingPreset.adjustments[key];
       } else {

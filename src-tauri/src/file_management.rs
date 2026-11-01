@@ -3761,6 +3761,13 @@ fn import_xmp_adjustments_to_sidecar_with_draft(
         let before = metadata.adjustments.clone();
         let imported = converted_preset.adjustments;
         merge_imported_adjustments(&mut metadata.adjustments, imported.clone());
+        // Rendered-XMP policies were fitted to law 0. Fresh defaults or an
+        // existing edit must not silently put those imported numbers on law 1.
+        if !crate::formats::is_raw_file(&source_path)
+            && let Some(adjustments) = metadata.adjustments.as_object_mut()
+        {
+            adjustments.remove("toneSliderVersion");
+        }
         normalize_lens_policy_version(&before, &imported, &mut metadata.adjustments, 100.0);
         let imported_exposure_without_policy = imported.get("exposure").is_some()
             && imported.get("cameraExposureCompensation").is_none();
@@ -8590,6 +8597,40 @@ mod tests {
 mod lightroom_xmp_import_tests {
     use super::card_mode_test_support::{CardMode, folders, path_str, snapshot};
     use super::*;
+
+    #[test]
+    fn j40_rendered_xmp_keeps_law_zero_when_the_target_was_version_one() {
+        let directory = tempfile::tempdir().unwrap();
+        let photo = directory.path().join("photo.jpg");
+        let xmp = directory.path().join("photo.xmp");
+        image::RgbImage::new(2, 2).save(&photo).unwrap();
+        fs::write(
+            &xmp,
+            include_str!("../../rapidroom/validation/488-tone-sliders/fixtures/j40-whites-100.xmp"),
+        )
+        .unwrap();
+        let (_, sidecar) = parse_virtual_path(photo.to_str().unwrap());
+        let saved = ImageMetadata {
+            adjustments: serde_json::json!({"toneSliderVersion":1,"whites":-20}),
+            ..Default::default()
+        };
+        fs::write(&sidecar, serde_json::to_vec(&saved).unwrap()).unwrap();
+        let imported =
+            import_xmp_adjustments_to_sidecar(photo.to_str().unwrap(), &xmp, None).unwrap();
+        assert!(
+            imported
+                .metadata
+                .adjustments
+                .get("toneSliderVersion")
+                .is_none()
+        );
+        assert_eq!(
+            imported.metadata.adjustments["whites"].as_f64(),
+            Some(100.0)
+        );
+        let reopened = crate::exif_processing::load_sidecar(&sidecar);
+        assert_eq!(reopened.adjustments, imported.metadata.adjustments);
+    }
 
     #[test]
     fn refused_table_only_import_reports_groups_without_replacing_edits() {

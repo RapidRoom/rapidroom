@@ -1802,6 +1802,17 @@ fn convert_xmp_to_preset_with_crop(
         }
     }
 
+    if ["highlights", "shadows", "whites", "blacks"]
+        .iter()
+        .any(|key| adjustments.contains_key(*key))
+        && !matches!(
+            image_kind,
+            Some(XmpImageKind::Rendered | XmpImageKind::RenderedJpeg)
+        )
+    {
+        adjustments.insert("toneSliderVersion".into(), json!(1));
+    }
+
     Ok(preset_from_xmp_fields(
         &attrs,
         adjustments,
@@ -1934,6 +1945,28 @@ fn apply_missing_photo_defaults(
 mod tests {
     use super::*;
     use serde_json::json;
+
+    // The exact J40 Lightroom ramp preset is the outside reference, not a
+    // synthesized mapping fragment. Round-trip the imported recipe as a sidecar.
+    #[test]
+    fn j40_whites_reference_keeps_native_number_and_process_version() {
+        let xmp =
+            include_str!("../../rapidroom/validation/488-tone-sliders/fixtures/j40-whites-100.xmp");
+        let raw = convert_adobe_camera_raw_xmp_to_preset(xmp, XmpImageKind::Raw).unwrap();
+        assert_eq!(raw.adjustments["whites"], 100);
+        assert_eq!(raw.adjustments["toneSliderVersion"], 1);
+        let metadata = crate::image_processing::ImageMetadata {
+            adjustments: raw.adjustments,
+            ..Default::default()
+        };
+        let sidecar = serde_json::to_vec(&metadata).unwrap();
+        let reopened: crate::image_processing::ImageMetadata =
+            serde_json::from_slice(&sidecar).unwrap();
+        assert_eq!(reopened.adjustments, metadata.adjustments);
+        let rendered =
+            convert_adobe_camera_raw_xmp_to_preset(xmp, XmpImageKind::RenderedJpeg).unwrap();
+        assert!(rendered.adjustments.get("toneSliderVersion").is_none());
+    }
 
     #[test]
     fn crs_audit_legacy_root_properties_stay_scoped_and_yield_to_rdf() {

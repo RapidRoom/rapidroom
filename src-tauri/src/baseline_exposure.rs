@@ -99,11 +99,14 @@ pub fn read(
 }
 
 fn camera_baseline(make: &str, model: &str) -> Option<f32> {
-    if make.trim().eq_ignore_ascii_case("SONY") && matches!(model.trim(), "ILCE-7CM2" | "ILCE-7RM5")
-    {
-        Some(0.35)
-    } else {
-        None
+    // J40 mean encoded-luma calibration; see validation/488-tone-sliders.
+    match (make.trim().to_ascii_uppercase().as_str(), model.trim()) {
+        ("SONY", "ILCE-7CM2") => Some(1.222),
+        ("CANON", "Canon EOS R6m2") => Some(0.270),
+        ("NIKON CORPORATION", "NIKON Z f") => Some(0.816),
+        // Existing, uncalibrated value: no J40 export is available for this body.
+        ("SONY", "ILCE-7RM5") => Some(0.35),
+        _ => None,
     }
 }
 

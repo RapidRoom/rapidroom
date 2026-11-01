@@ -3,8 +3,9 @@
 
 The JSON is the study's comparison file. It must contain
 photos["rr-j40-grey-ramp"].engines.{rapidroom,lightroom}.ramp_steps.
-Pass that path as the only argument. The script prints the ramp ratios and
-the migration search. It does not render and it does not change a sidecar.
+Pass that path as the first argument. Optionally pass a second comparison JSON
+made from real version-1 renders to check the approved pixel/RMS gate. The script
+prints the ramp ratios and migration search. It does not render or change a sidecar.
 
 Coefficients are the design values in 488-tone-sliders.md. Rounding is four
 decimal places, which is what the note publishes.
@@ -129,8 +130,8 @@ def strength(proposed_delta, lightroom_delta):
 
 
 def main():
-    if len(sys.argv) != 2:
-        raise SystemExit(f"usage: {Path(sys.argv[0]).name} comparison.json")
+    if len(sys.argv) not in (2, 3):
+        raise SystemExit(f"usage: {Path(sys.argv[0]).name} original-comparison.json [version1-comparison.json]")
     comparison = json.loads(Path(sys.argv[1]).read_text())
     ramp = comparison["photos"]["rr-j40-grey-ramp"]["engines"]
     linear = np.array([step["input_linear"] for step in ramp["rapidroom"]["ramp_steps"]["blacks_0"]])
@@ -150,6 +151,28 @@ def main():
                 f"{strength(current, lightroom):8.1f} {strength(proposed, lightroom):8.1f} "
                 f"{float(np.sqrt(np.mean((proposed - lightroom) ** 2))):8.2f}"
             )
+    if len(sys.argv) == 3:
+        measured = json.loads(Path(sys.argv[2]).read_text())["photos"]["rr-j40-grey-ramp"]["engines"]["rapidroom"]["ramp_steps"]
+        print("\nReal version-1 renders (gate: pixel within 5 points, RMS within 1 luma of model)")
+        print(f"{'slider':22} {'mean':>8} {'pixel':>8} {'RMS':>8} {'pixel Δ':>8} {'RMS Δ':>8}")
+        failures = []
+        for kind in FITS:
+            for slider in SLIDERS:
+                key = f"{kind}_{slider}"
+                lr = np.array([step["delta_luma"] for step in ramp["lightroom"]["ramp_steps"][key]])
+                actual = np.array([step["delta_luma"] for step in measured[key]])
+                model = encode_luma(proposed_linear(kind, slider, linear)) - baseline
+                pixel = strength(actual, lr)
+                rms = float(np.sqrt(np.mean((actual - lr) ** 2)))
+                pixel_difference = pixel - strength(model, lr)
+                rms_difference = rms - float(np.sqrt(np.mean((model - lr) ** 2)))
+                print(f"{key:22} {100 * actual.sum() / lr.sum():8.1f} {pixel:8.1f} {rms:8.2f} {pixel_difference:8.2f} {rms_difference:8.2f}")
+                if abs(pixel_difference) > 5 or abs(rms_difference) > 1:
+                    failures.append(key)
+        if failures:
+            raise SystemExit("Real-render gate failed: " + ", ".join(failures))
+        print("Real-render ramp gate passed (16/16).")
+
     print("\nmigration: old slider -> new slider, ramp RMS of the encoded delta")
     grid = np.linspace(-100.0, 100.0, 801)
     for kind in ("highlights", "shadows", "whites", "blacks"):

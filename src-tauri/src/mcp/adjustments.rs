@@ -411,6 +411,10 @@ pub(super) fn adjustments_schema() -> Value {
         json!({ "type": "string", "enum": ["auto", "manual"] }),
     );
     properties.insert(
+        "toneSliderVersion".to_string(),
+        json!({ "type": "integer", "minimum": 0, "maximum": 1, "description": "Tone slider process version: absent or 0 keeps the previous law; 1 uses the Lightroom-fitted law for global and mask Highlights, Shadows, Whites and Blacks. Later versions use the newest supported law. Slider patches do not insert this key." }),
+    );
+    properties.insert(
         "cameraLensCorrectionVersion".to_string(),
         json!({ "type": "integer", "enum": [0, 1], "description": "Discrete lens-policy metadata. 0 or absent preserves the existing recipe; 1 opts Auto into validated camera correction fallback. Not an amount control." }),
     );
@@ -709,6 +713,7 @@ fn adjustment_keys() -> Vec<String> {
             [
                 "baselineExposure",
                 "cameraLensCorrectionVersion",
+                "toneSliderVersion",
                 "cameraExposureCompensation",
                 "aiDenoiseEnabled",
                 "aiDenoiseAmount",
@@ -813,6 +818,14 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
                 "curveMode" => validate_string_enum(value, key, &["point", "parametric"])?,
                 "toneMapper" => validate_string_enum(value, key, &["basic", "agx"])?,
                 "lensCorrectionMode" => validate_string_enum(value, key, &["auto", "manual"])?,
+                "toneSliderVersion" => {
+                    if !value
+                        .as_f64()
+                        .is_some_and(|version| version == 0.0 || version == 1.0)
+                    {
+                        return Err("toneSliderVersion must be the integer 0 or 1".into());
+                    }
+                }
                 "cameraLensCorrectionVersion" => {
                     if !matches!(value.as_u64(), Some(0 | 1)) {
                         return Err("cameraLensCorrectionVersion must be the integer 0 or 1".into());

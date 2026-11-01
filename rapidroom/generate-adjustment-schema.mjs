@@ -255,6 +255,16 @@ for (const file of sourceFiles) {
   visit(tree);
 }
 
+parameters.toneSliderVersion = {
+  defaultType: 'number',
+  optional: true,
+  type: 'integer',
+  minimum: 0,
+  maximum: 1,
+  description:
+    'Absent or 0 keeps the previous tone slider law; 1 uses the Lightroom-fitted law for global and mask Highlights, Shadows, Whites and Blacks. Later versions use the newest supported law. Slider patches do not insert the key.',
+};
+
 const schema = {
   version: 1,
   generatedFrom: [
