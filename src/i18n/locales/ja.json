@@ -222,7 +222,25 @@
       "roundness": "丸み",
       "size": "サイズ",
       "spatial": "空間",
-      "vignette": "周辺光量補正"
+      "vignette": "周辺光量補正",
+      "motionBlur": "モーションブラー",
+      "motionBlurAngle": "角度",
+      "motionBlurDepth": "奥行き",
+      "motionBlurHighlights": "ハイライト",
+      "motionBlurLayer": "動き",
+      "motionBlurLayers": {
+        "auto": "自動",
+        "panning": "流し撮り",
+        "subject": "被写体の動き",
+        "uniform": "均一"
+      },
+      "motionBlurType": "種類",
+      "motionBlurTypes": {
+        "linear": "直線",
+        "zoom": "ズーム",
+        "spin": "回転",
+        "smooth": "なめらか"
+      }
     }
   },
   "contextMenus": {
@@ -462,6 +480,15 @@
         "erase": "消去",
         "feather": "ブラシのぼかし",
         "size": "ブラシサイズ"
+      },
+      "cloneHeal": {
+        "cloneTooltip": "明るさと色を含め、ソースをそのままコピーします",
+        "dragSource": "ドラッグしてソースを移動",
+        "healTooltip": "ソースの質感をコピーし、周囲の明るさと色になじませます",
+        "hintActive": "ソースの輪郭をドラッグしてピクセルのコピー元を選びます。新しいストロークごとに個別のスポットになります。Shift を押しながら描くとこのスポットに追加されます。",
+        "hintEmpty": "シミ、電線、気になる部分の上をなぞってください。合うソースが自動で見つかります。",
+        "mode": "モード",
+        "newSource": "別のソースを探す"
       },
       "comingSoon": "近日公開",
       "connection": {
@@ -790,8 +817,7 @@
       "toggleAnalyticsTooltip": "アナリティクス表示の切り替え",
       "tooltips": {
         "addToCurrent": "{{name}}を現在のマスクに追加、または新規作成 (右クリック)",
-        "createNew": "新規の {{name}} マスクを作成",
-        "selectNewSourcePoint": "{{modifier}} + クリックで新しいソースポイントを選択"
+        "createNew": "新規の {{name}} マスクを作成"
       }
     },
     "metadata": {
@@ -1530,6 +1556,7 @@
         "halationGlow": "ハレーションとグロー",
         "hueShift": "グローバル色相シフト",
         "lensBlur": "レンズぼかし",
+        "motionBlur": "モーションブラー",
         "lensCorrection": "レンズ補正",
         "lut": "LUT",
         "masks": "マスク",
@@ -1773,7 +1800,7 @@
           "fine": "Shift で微調整"
         },
         "keys": {
-          "hold": "押し続ける",
+          "hold": "タップ / 長押し",
           "previousImage": "前の画像",
           "nextImage": "次の画像",
           "reset": "リセット",
@@ -2174,7 +2201,8 @@
       "title": "処理エンジン",
       "wgpu": "WGPUダイレクトレンダリング",
       "wgpuDescAndroid": "ブラウザエンコードをバイパスし、即座に反応するプレビューを実現します。（Androidでは無効: モバイルのWebview環境下でのネイティブWGPUサーフェスの作成は現在サポートされていません。）",
-      "wgpuDescLinux": "ブラウザエンコードをバイパスし、即座に反応するプレビューを実現します。（Linuxでは無効: TauriはGTKウェブビューを使用しており、同一X11サーフェス上でWGPUと競合してちらつきが発生するためです。）",
+      "wgpuDescLinuxExperimental": "Linuxでは実験的な機能で、不安定な場合があります。",
+      "wgpuDescLinuxX11": "X11では利用できません。",
       "wgpuDescRecommended": "ブラウザエンコードをバイパスし、即座に反応するライブプレビューを実現します。パフォーマンス向上のため、強く推奨します。",
       "wgpuLabel": "WGPUダイレクトレンダリングを有効化",
       "workerThreads": "サムネイルワーカー数",

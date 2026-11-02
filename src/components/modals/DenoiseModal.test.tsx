@@ -273,19 +273,19 @@ describe('AI raw denoise presets', () => {
     expect(container.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(true);
     const dropdown = container.querySelector('button[aria-haspopup="listbox"]')!;
     await click(dropdown);
-    expect(container.textContent).toContain('modals.denoise.presetFast');
-    expect(container.textContent).not.toContain('modals.denoise.methodBm3d');
+    expect(document.body.textContent).toContain('modals.denoise.presetFast');
+    expect(document.body.textContent).not.toContain('modals.denoise.methodBm3d');
     await click(dropdown);
     await click(button('moreMethods'));
     await click(dropdown);
-    expect(container.textContent).toContain('modals.denoise.methodBm3d');
+    expect(document.body.textContent).toContain('modals.denoise.methodBm3d');
   });
 
   it('runs Fast without sharpening when the user switches it off', async () => {
     mockCommand(Invokes.ApplyDenoising, () => {});
     await mount();
     await click(container.querySelector('button[aria-haspopup="listbox"]')!);
-    const option = [...container.querySelectorAll('[role="option"]')].find(
+    const option = [...document.querySelectorAll('[role="option"]')].find(
       (el) => el.textContent === 'modals.denoise.presetFast',
     )!;
     await click(option);
