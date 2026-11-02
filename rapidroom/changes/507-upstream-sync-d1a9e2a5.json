@@ -1,0 +1,14 @@
+{
+  "id": "upstream-sync-d1a9e2a5",
+  "title": "Sync upstream main: color mixer pipette for the B&W mix",
+  "category": "feature",
+  "landed": "2026-11-02",
+  "authors": ["lalibertemarc"],
+  "source": "CyberTimon/RapidRAW",
+  "commits": ["https://github.com/CyberTimon/RapidRAW/commit/80acee54"],
+  "upstream_issues": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#2081"],
+  "rendering_change": false,
+  "highlight": "The B&W Mix header gets the color pipette: drag on the photo to move the bands under the cursor.",
+  "notes": "Upstream extends the mixer pipette to the B&W mix (main image edits the monochrome mix, masks edit luminance bands). RapidRoom's pipette guards (ends on image change, window blur or bypassed tool; commits a focused slider before a drag; an unmoved press writes no edit; turns off when the Color panel unmounts) are ported onto upstream's version. Upstream's effect that cleared the pipette in monochrome mode is dropped because the pipette now works there. The HSL probe moves before the monochrome mix and also returns HSV value; the colour calibration step still runs only for non-monochrome renders, so rendered output is unchanged. Locale catalogs are upstream's byte for byte. The generated adjustment schema was regenerated."
+}
