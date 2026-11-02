@@ -1,0 +1,20 @@
+{
+  "id": "upstream-sync-25efaf17",
+  "title": "Sync upstream main: motion blur, reworked clone and heal, Wayland WGPU renderer, TIFF metadata and oversized GPU export report",
+  "category": "feature",
+  "landed": "2026-11-02",
+  "authors": ["CyberTimon", "dan1el", "MrProSpectrumPT", "FabianWeiss90"],
+  "source": "CyberTimon/RapidRAW",
+  "commits": [
+    "https://github.com/CyberTimon/RapidRAW/commit/4302d512",
+    "https://github.com/CyberTimon/RapidRAW/commit/19427777",
+    "https://github.com/CyberTimon/RapidRAW/commit/ab55ebe8",
+    "https://github.com/CyberTimon/RapidRAW/commit/dfb0cba4",
+    "https://github.com/CyberTimon/RapidRAW/commit/7d29a368"
+  ],
+  "upstream_issues": [],
+  "upstream_prs": ["CyberTimon/RapidRAW#2042", "CyberTimon/RapidRAW#2064", "CyberTimon/RapidRAW#1752"],
+  "rendering_change": true,
+  "highlight": "New Motion Blur effect (linear, zoom, spin, smooth; per mask or whole image), clone and heal pick their source automatically, and TIFF exports carry metadata.",
+  "notes": "Upstream adds motion blur, reworks clone and heal (automatic source matching, multigrid healing, draggable source overlay), enables the WGPU renderer on Wayland, writes EXIF and an sRGB profile into TIFF exports and reports the GPU size limit. Where RapidRoom had a similar feature upstream's version was kept: mask resampling (RapidRoom's bilinear pre-filter is dropped for upstream's supersampled edges), TIFF encoding (RapidRoom's resolution-only TIFF encoder is dropped; the DPI-zero check, JXL dimensions and DPI scoping stay), the effect-map table and the clone/heal source flow (click-to-set-source and Ctrl tracking are dropped). RapidRoom's full-content AI patch cache hash, perf spans, mask-container refactors and typed canvas props are kept. Locale catalogs are upstream's byte for byte; the adjustment schema and reference were regenerated. Mask sampling and the new cleanup paths can change rendered masks, so the regression comparison is the check."
+}

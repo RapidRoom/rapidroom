@@ -90,7 +90,19 @@ describe('stored GUI drawing placeholders (issue359)', () => {
       rotation: original.rotation,
       feather: original.feather,
     });
-    expect(result.adjustments).toEqual(fixture.mask.adjustments);
+    // The fixture predates motion blur; normalization fills those keys with their defaults.
+    const isMotionBlur = ([key]: [string, unknown]) => key.startsWith('motionBlur');
+    const entries: Array<[string, unknown]> = Object.entries(result.adjustments);
+    expect(Object.fromEntries(entries.filter((entry) => !isMotionBlur(entry)))).toEqual(fixture.mask.adjustments);
+    expect(Object.fromEntries(entries.filter(isMotionBlur))).toEqual({
+      motionBlurAmount: 0,
+      motionBlurAngle: 0,
+      motionBlurDepth: 50,
+      motionBlurDepthEnabled: false,
+      motionBlurHighlights: 30,
+      motionBlurLayer: 'auto',
+      motionBlurType: 'linear',
+    });
     expect(JSON.stringify(fixture.mask)).toBe(before);
   });
 });

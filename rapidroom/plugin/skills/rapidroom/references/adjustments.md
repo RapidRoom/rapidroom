@@ -250,6 +250,17 @@ Every key of an edit, as `get_image_state` returns it and `update_adjustments` t
 | `fogTemperature` | number  | `0`     | -100 to 100  | 1    |       | + warms the fog colour; − cools it.                                  |
 | `fogTint`        | number  | `0`     | -100 to 100  | 1    |       | + magenta, − green, in the fog colour.                               |
 
+### Motion Blur
+
+| Key                      | Type    | Default    | Slider range | Step | Masks | Notes                                                                                 |
+| ------------------------ | ------- | ---------- | ------------ | ---- | ----- | ------------------------------------------------------------------------------------- |
+| `motionBlurAmount`       | number  | `0`        | 0 to 100     | 1    | yes   | Blur strength; 0 leaves the image unchanged. Also available per mask.                 |
+| `motionBlurAngle`        | number  | `0`        | -90 to 90    | 1    | yes   | Direction of linear blur, in degrees. Ignored by the other blur types.                |
+| `motionBlurType`         | string  | `"linear"` |              |      | yes   | `linear`, `zoom`, `spin` or `smooth`.                                                 |
+| `motionBlurHighlights`   | number  | `30`       | 0 to 100     | 1    | yes   | Boosts bright areas so they streak through the blur.                                  |
+| `motionBlurDepthEnabled` | boolean | `false`    |              |      | yes   | Scales the blur by distance using the generated depth map (parallax). Off by default. |
+| `motionBlurDepth`        | number  | `50`       | 0 to 100     | 1    | yes   | How strongly depth changes the blur length; applies when depth is enabled.            |
+
 ### Relight
 
 | Key                                 | Type    | Default     | Slider range | Step | Masks | Notes                                                                                                                          |
@@ -328,16 +339,18 @@ Every key of an edit, as `get_image_state` returns it and `update_adjustments` t
 
 Not part of Copy & Paste; most are set by the editor itself.
 
-| Key                    | Type           | Default | Slider range | Step | Masks | Notes                                                                                                                                                                                                                            |
-| ---------------------- | -------------- | ------- | ------------ | ---- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `activeTools`          | object         | `{}`    |              |      | yes   | Per-tool boolean map; omitted keys are enabled. Set colorMixer or colorGrading to false to bypass that tool without losing its values. Applies to global and mask edits; legacy sectionVisibility sidecars are migrated on load. |
-| `aiPatches`            | array          | `[]`    |              |      |       | Generative edits made in the GUI. Leave alone.                                                                                                                                                                                   |
-| `lensBlurDepthMap`     | string \| null | `null`  |              |      |       | Depth map the GUI generates when lens blur is turned on. Without it the blur does nothing.                                                                                                                                       |
-| `relightNormalMap`     | string \| null | `null`  |              |      |       | Generated source-space normal map. Set by the GUI; leave its encoded data alone.                                                                                                                                                 |
-| `fogDepthMap`          | string \| null | `null`  |              |      |       | Generated source-space depth map. Set by the GUI; leave its encoded data alone.                                                                                                                                                  |
-| `lensDistortionParams` | object \| null | `null`  |              |      |       | Lens profile coefficients, filled by the GUI from the lens database. Leave alone.                                                                                                                                                |
-| `masks`                | array          | `[]`    |              |      |       | Mask containers; see [Masks](#masks). Replacing the array replaces every mask.                                                                                                                                                   |
-| `showClipping`         | boolean        | `false` |              |      |       | Shows the clipping overlay in the editor. Display only; doesn’t change the photo.                                                                                                                                                |
+| Key                    | Type           | Default  | Slider range | Step | Masks | Notes                                                                                                                                                                                                                            |
+| ---------------------- | -------------- | -------- | ------------ | ---- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `activeTools`          | object         | `{}`     |              |      | yes   | Per-tool boolean map; omitted keys are enabled. Set colorMixer or colorGrading to false to bypass that tool without losing its values. Applies to global and mask edits; legacy sectionVisibility sidecars are migrated on load. |
+| `aiPatches`            | array          | `[]`     |              |      |       | Generative edits made in the GUI. Leave alone.                                                                                                                                                                                   |
+| `lensBlurDepthMap`     | string \| null | `null`   |              |      |       | Depth map the GUI generates when lens blur is turned on. Without it the blur does nothing.                                                                                                                                       |
+| `relightNormalMap`     | string \| null | `null`   |              |      |       | Generated source-space normal map. Set by the GUI; leave its encoded data alone.                                                                                                                                                 |
+| `fogDepthMap`          | string \| null | `null`   |              |      |       | Generated source-space depth map. Set by the GUI; leave its encoded data alone.                                                                                                                                                  |
+| `motionBlurDepthMap`   | object \| null | `null`   |              |      |       | Generated source-space depth map. Set by the GUI; leave its encoded data alone.                                                                                                                                                  |
+| `motionBlurLayer`      | string         | `"auto"` |              |      | yes   | Which motion the blur simulates: `auto`, `subject`, `panning` or `uniform`.                                                                                                                                                      |
+| `lensDistortionParams` | object \| null | `null`   |              |      |       | Lens profile coefficients, filled by the GUI from the lens database. Leave alone.                                                                                                                                                |
+| `masks`                | array          | `[]`     |              |      |       | Mask containers; see [Masks](#masks). Replacing the array replaces every mask.                                                                                                                                                   |
+| `showClipping`         | boolean        | `false`  |              |      |       | Shows the clipping overlay in the editor. Display only; doesn’t change the photo.                                                                                                                                                |
 
 ## Masks
 

@@ -222,7 +222,25 @@
       "roundness": "Rondheid",
       "size": "Grootte",
       "spatial": "Ruimtelijk",
-      "vignette": "Vignet"
+      "vignette": "Vignet",
+      "motionBlur": "Bewegingsonscherpte",
+      "motionBlurAngle": "Hoek",
+      "motionBlurDepth": "Diepte",
+      "motionBlurHighlights": "Hoge lichten",
+      "motionBlurLayer": "Beweging",
+      "motionBlurLayers": {
+        "auto": "Automatisch",
+        "panning": "Meetrekken",
+        "subject": "Bewegend onderwerp",
+        "uniform": "Gelijkmatig"
+      },
+      "motionBlurType": "Type",
+      "motionBlurTypes": {
+        "linear": "Lineair",
+        "zoom": "Zoom",
+        "spin": "Draaiing",
+        "smooth": "Zacht"
+      }
     }
   },
   "contextMenus": {
@@ -462,6 +480,15 @@
         "erase": "Wissen",
         "feather": "Penseelrandvervaging",
         "size": "Penseelgrootte"
+      },
+      "cloneHeal": {
+        "cloneTooltip": "Kopieert de bron exact, inclusief helderheid en kleur",
+        "dragSource": "Sleep om de bron te verplaatsen",
+        "healTooltip": "Kopieert de textuur van de bron en past die aan de omliggende helderheid en kleur aan",
+        "hintActive": "Sleep de bronomtrek om te kiezen waar de pixels vandaan komen. Elke nieuwe streek wordt een eigen plek. Houd Shift ingedrukt om aan deze toe te voegen.",
+        "hintEmpty": "Schilder over een vlek, draad of storend element. Er wordt automatisch een passende bron gevonden.",
+        "mode": "Modus",
+        "newSource": "Andere bron zoeken"
       },
       "comingSoon": "Binnenkort beschikbaar",
       "connection": {
@@ -793,8 +820,7 @@
       "toggleAnalyticsTooltip": "Analytische weergave aan/uit",
       "tooltips": {
         "addToCurrent": "{{name}} toevoegen aan huidig masker of nieuw masker maken (rechtermuisknop)",
-        "createNew": "Nieuw {{name}} masker maken",
-        "selectNewSourcePoint": "{{modifier}} + klik om een nieuw bronpunt te selecteren"
+        "createNew": "Nieuw {{name}} masker maken"
       }
     },
     "metadata": {
@@ -1536,6 +1562,7 @@
         "halationGlow": "Halatie & gloed",
         "hueShift": "Globale kleurtoonwijziging",
         "lensBlur": "Lensvervaging",
+        "motionBlur": "Bewegingsonscherpte",
         "lensCorrection": "Lenscorrectie",
         "lut": "LUT",
         "masks": "Maskers",
@@ -1779,7 +1806,7 @@
           "fine": "Shift voor fijn"
         },
         "keys": {
-          "hold": "Vasthouden",
+          "hold": "Tikken / Houden",
           "previousImage": "Vorige afb.",
           "nextImage": "Volgende afb.",
           "reset": "Herstellen",
@@ -2176,7 +2203,8 @@
       "title": "Verwerkingsmotor",
       "wgpu": "WGPU directe rendering",
       "wgpuDescAndroid": "Omzeilt browsercodering voor direct responsieve live voorbeelden. (Uitgeschakeld op Android: native WGPU-surface creatie wordt momenteel niet ondersteund naast de mobiele webweergave.)",
-      "wgpuDescLinux": "Omzeilt browsercodering voor direct responsieve live voorbeelden. (Uitgeschakeld op Linux: Tauri gebruikt GTK voor webweergaven, wat conflicteert met WGPU op hetzelfde X11-surface en flikkering veroorzaakt.)",
+      "wgpuDescLinuxExperimental": "Experimenteel op Linux en mogelijk instabiel.",
+      "wgpuDescLinuxX11": "Niet beschikbaar op X11.",
       "wgpuDescRecommended": "Omzeilt browsercodering voor direct responsieve live voorbeelden. Sterk aanbevolen voor prestaties.",
       "wgpuLabel": "Directe WGPU-rendering inschakelen",
       "workerThreads": "Miniatuurwerkerthreads",

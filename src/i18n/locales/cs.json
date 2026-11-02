@@ -222,7 +222,25 @@
       "roundness": "Kulatost",
       "size": "Velikost",
       "spatial": "Prostorové",
-      "vignette": "Viněta"
+      "vignette": "Viněta",
+      "motionBlur": "Pohybové rozmazání",
+      "motionBlurAngle": "Úhel",
+      "motionBlurDepth": "Hloubka",
+      "motionBlurHighlights": "Světla",
+      "motionBlurLayer": "Pohyb",
+      "motionBlurLayers": {
+        "auto": "Automaticky",
+        "panning": "Švenkování",
+        "subject": "Pohybující se objekt",
+        "uniform": "Rovnoměrně"
+      },
+      "motionBlurType": "Typ",
+      "motionBlurTypes": {
+        "linear": "Lineární",
+        "zoom": "Zoom",
+        "spin": "Otáčení",
+        "smooth": "Vyhlazení"
+      }
     }
   },
   "contextMenus": {
@@ -496,6 +514,15 @@
         "erase": "Vymazat",
         "feather": "Prolnutí štětce",
         "size": "Velikost štětce"
+      },
+      "cloneHeal": {
+        "cloneTooltip": "Zkopíruje zdroj přesně, včetně jasu a barvy",
+        "dragSource": "Tažením přesunete zdroj",
+        "healTooltip": "Zkopíruje texturu zdroje a přizpůsobí ji jasu a barvě okolí",
+        "hintActive": "Tažením obrysu zdroje zvolíte, odkud se pixely berou. Každý nový tah vytvoří samostatnou oblast. Podržením Shift přidáte k této.",
+        "hintEmpty": "Přemalujte skvrnu, drát nebo rušivý prvek. Vhodný zdroj se najde automaticky.",
+        "mode": "Režim",
+        "newSource": "Najít jiný zdroj"
       },
       "comingSoon": "Již brzy",
       "connection": {
@@ -841,8 +868,7 @@
       "toggleAnalyticsTooltip": "Přepnout zobrazení Analytics",
       "tooltips": {
         "addToCurrent": "Přidat {{name}} na aktuální masku nebo vytvořit novou (klikněte pravým tlačítkem)",
-        "createNew": "Vytvořit novou {{name}} masku",
-        "selectNewSourcePoint": "{{modifier}} + kliknutím vyberete nový zdrojový bod"
+        "createNew": "Vytvořit novou {{name}} masku"
       }
     },
     "metadata": {
@@ -1600,6 +1626,7 @@
         "halationGlow": "Halace a záře",
         "hueShift": "Globální posun odstínu",
         "lensBlur": "Rozostření objektivu",
+        "motionBlur": "Pohybové rozmazání",
         "lensCorrection": "Korekce objektivu",
         "lut": "LUT",
         "masks": "Masky",
@@ -1855,7 +1882,7 @@
           "fine": "Shift pro jemnost"
         },
         "keys": {
-          "hold": "Podržet",
+          "hold": "Klepnout / Držet",
           "previousImage": "Předch. snímek",
           "nextImage": "Další snímek",
           "reset": "Obnovit",
@@ -2262,7 +2289,8 @@
       "title": "Engine zpracování",
       "wgpu": "Přímé vykreslování WGPU",
       "wgpuDescAndroid": "Obchází kódování prohlížeče pro okamžitě reagující živé náhledy. (Na Androidu zakázáno: nativní tvorba povrchů WGPU není v současnosti podporována vedle mobilního webview.)",
-      "wgpuDescLinux": "Obchází kódování prohlížeče pro okamžitě reagující živé náhledy. (Na Linuxu zakázáno: Tauri používá GTK pro webview, což je v konfliktu s WGPU na stejném povrchu X11 a způsobuje blikání.)",
+      "wgpuDescLinuxExperimental": "Experimentální na Linuxu a může být nestabilní.",
+      "wgpuDescLinuxX11": "Není k dispozici na X11.",
       "wgpuDescRecommended": "Obchází kódování prohlížeče pro okamžitě reagující živé náhledy. Důrazně doporučeno pro výkon.",
       "wgpuLabel": "Povolit přímé vykreslování WGPU",
       "workerThreads": "Pracovní vlákna miniatur",

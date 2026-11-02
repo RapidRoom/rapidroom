@@ -761,6 +761,7 @@ fn nind_raw_view(
             lut: None,
             roi: None,
             hsl_probe: false,
+            motion_blur: Default::default(),
         },
         "nind_default_raw_view",
         RenderOutputPrecision::SixteenBit,

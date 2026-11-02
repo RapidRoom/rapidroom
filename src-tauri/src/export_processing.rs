@@ -1,14 +1,13 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
-use std::io::{Cursor, Seek, Write};
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use image::codecs::jpeg::{JpegEncoder, PixelDensity};
 use image::codecs::png::PngEncoder;
-use image::codecs::tiff::TiffEncoder;
 use image::{
     DynamicImage, GenericImageView, GrayImage, ImageBuffer, ImageEncoder, ImageFormat, Luma,
     imageops,
@@ -21,8 +20,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::Emitter;
 use tauri::Manager;
-use tiff::encoder::{Rational, TiffEncoder as ResolutionTiffEncoder, TiffValue, colortype};
-use tiff::tags::{ResolutionUnit, Tag};
 
 use crate::AppState;
 use crate::baseline_exposure::BaselineOptions;
@@ -43,6 +40,7 @@ use crate::lut_processing::{
 };
 use crate::mask_generation::{MaskDefinition, build_warped_image_for_masks, generate_mask_bitmap};
 use crate::output_sharpening::{OutputSharpening, apply_output_sharpening};
+use crate::tiff_metadata::{TiffSamples, encode_tiff_with_metadata};
 
 use crate::as_shot::as_shot;
 use crate::cache_utils::{calculate_full_job_hash, calculate_transform_hash};
@@ -1256,6 +1254,12 @@ pub(crate) fn process_source_view(
             mask_cache_key: None,
             roi: None,
             hsl_probe: false,
+            motion_blur: crate::motion_blur::MotionBlurs::new(
+                js_adjustments,
+                (img_w, img_h),
+                unscaled_crop_offset,
+                base_image.width().max(base_image.height()) as f32,
+            ),
         },
         debug_tag,
         options.output_precision,
@@ -1308,7 +1312,19 @@ fn save_image_with_metadata(
         .unwrap_or("")
         .to_lowercase();
 
-    let mut image_bytes = encode_image_to_bytes(image, &extension, export_settings)?;
+    let tiff_metadata =
+        if export_settings.keep_metadata && matches!(extension.as_str(), "tif" | "tiff") {
+            exif_processing::collect_metadata_from_source(
+                source_path_str,
+                export_settings.strip_gps,
+                Some(image.dimensions()),
+            )
+        } else {
+            None
+        };
+
+    let mut image_bytes =
+        encode_image_to_bytes(image, &extension, export_settings, tiff_metadata.as_ref())?;
 
     exif_processing::write_image_with_metadata_and_resolution(
         &mut image_bytes,
@@ -1430,12 +1446,13 @@ fn encode_grayscale_to_png(bitmap: &GrayImage) -> Result<Vec<u8>, String> {
     Ok(buf)
 }
 
-const SRGB_ICC_PROFILE: &[u8] = include_bytes!("../icc/sRGB-v2-magic.icc");
+pub(crate) const SRGB_ICC_PROFILE: &[u8] = include_bytes!("../icc/sRGB-v2-magic.icc");
 
 fn encode_image_to_bytes(
     image: &DynamicImage,
     output_format: &str,
     export_settings: &ExportSettings,
+    tiff_metadata: Option<&little_exif::metadata::Metadata>,
 ) -> Result<Vec<u8>, String> {
     let jpeg_quality = export_settings.jpeg_quality;
     let tiff_bit_depth = export_settings.tiff_bit_depth;
@@ -1522,39 +1539,17 @@ fn encode_image_to_bytes(
                 .map_err(|e| e.to_string())?;
         }
         "tif" | "tiff" => {
-            if let Some(dpi) = dpi {
-                let (width, height) = image.dimensions();
-                let mut encoder =
-                    ResolutionTiffEncoder::new(&mut cursor).map_err(|e| e.to_string())?;
-                match tiff_bit_depth {
-                    TiffBitDepth::Eight => write_tiff_with_resolution::<colortype::RGB8, _>(
-                        &mut encoder,
-                        width,
-                        height,
-                        image.to_rgb8().as_raw(),
-                        dpi,
-                    )?,
-                    TiffBitDepth::Sixteen => write_tiff_with_resolution::<colortype::RGB16, _>(
-                        &mut encoder,
-                        width,
-                        height,
-                        image.to_rgb16().as_raw(),
-                        dpi,
-                    )?,
-                }
-            } else {
-                let image_to_encode = match tiff_bit_depth {
-                    TiffBitDepth::Eight => DynamicImage::ImageRgb8(image.to_rgb8()),
-                    TiffBitDepth::Sixteen => DynamicImage::ImageRgb16(image.to_rgb16()),
-                };
-                let mut encoder = TiffEncoder::new(&mut cursor);
-                encoder
-                    .set_icc_profile(SRGB_ICC_PROFILE.to_vec())
-                    .map_err(|e| e.to_string())?;
-                image_to_encode
-                    .write_with_encoder(encoder)
-                    .map_err(|e| e.to_string())?;
-            }
+            let samples = match tiff_bit_depth {
+                TiffBitDepth::Eight => TiffSamples::Eight,
+                TiffBitDepth::Sixteen => TiffSamples::Sixteen,
+            };
+            return encode_tiff_with_metadata(
+                image,
+                samples,
+                tiff_metadata,
+                Some(SRGB_ICC_PROFILE),
+                export_settings.dpi,
+            );
         }
         "avif" => {
             image
@@ -1569,33 +1564,6 @@ fn encode_image_to_bytes(
         insert_png_phys_chunk(&mut image_bytes, dpi);
     }
     Ok(image_bytes)
-}
-
-fn write_tiff_with_resolution<C: colortype::ColorType, W: Write + Seek>(
-    encoder: &mut ResolutionTiffEncoder<W>,
-    width: u32,
-    height: u32,
-    data: &[C::Inner],
-    dpi: u16,
-) -> Result<(), String>
-where
-    [C::Inner]: TiffValue,
-{
-    let mut image = encoder
-        .new_image::<C>(width, height)
-        .map_err(|e| e.to_string())?;
-    image.resolution(
-        ResolutionUnit::Inch,
-        Rational {
-            n: dpi.into(),
-            d: 1,
-        },
-    );
-    image
-        .encoder()
-        .write_tag(Tag::IccProfile, SRGB_ICC_PROFILE)
-        .map_err(|e| e.to_string())?;
-    image.write_data(data).map_err(|e| e.to_string())
 }
 
 fn encode_mask_alpha_to_png(image: &GrayImage, dpi: Option<u16>) -> Result<Vec<u8>, String> {
@@ -1708,6 +1676,7 @@ fn export_masks_for_image(
                     lut: lut.clone(),
                     roi: None,
                     hsl_probe: false,
+                    motion_blur: Default::default(),
                 },
                 "export_mask_image",
                 render_output_precision(extension, export_settings),
@@ -1833,6 +1802,7 @@ fn export_adjustments_as_lut(
             lut,
             roi: None,
             hsl_probe: false,
+            motion_blur: Default::default(),
         },
         "export_lut",
     )?;
@@ -2911,7 +2881,7 @@ pub async fn estimate_export_sizes(
         let mut settings = export_settings.clone();
         configure_instagram_output(&mut settings);
         let (preview, _) = apply_export_geometry_and_watermark(preview, &settings)?;
-        return Ok(encode_image_to_bytes(&preview, "jpg", &settings)?
+        return Ok(encode_image_to_bytes(&preview, "jpg", &settings, None)?
             .len()
             .saturating_mul(paths.len()));
     }
@@ -3004,13 +2974,19 @@ pub async fn estimate_export_sizes(
                 lut,
                 roi: None,
                 hsl_probe: false,
+                motion_blur: crate::motion_blur::MotionBlurs::new(
+                    &adjustments_clone,
+                    (img_w, img_h),
+                    scaled_crop_offset,
+                    loaded_image.image.width().max(loaded_image.image.height()) as f32 * scale,
+                ),
             },
             "estimate_export_size",
             render_output_precision(&output_format, &export_settings),
         )?;
 
         let preview_bytes =
-            encode_image_to_bytes(&processed_preview, &output_format, &export_settings)?;
+            encode_image_to_bytes(&processed_preview, &output_format, &export_settings, None)?;
         let preview_byte_size = preview_bytes.len();
 
         let (full_w, full_h) = crate::adjustment_utils::transformed_dimensions(
@@ -3134,13 +3110,19 @@ pub async fn estimate_export_sizes(
                 lut,
                 roi: None,
                 hsl_probe: false,
+                motion_blur: crate::motion_blur::MotionBlurs::new(
+                    &js_adjustments,
+                    (preview_w, preview_h),
+                    scaled_crop_offset,
+                    original_image.width().max(original_image.height()) as f32 * gpu_scale,
+                ),
             },
             "estimate_batch_export_size",
             render_output_precision(&output_format, &export_settings),
         )?;
 
         let preview_bytes =
-            encode_image_to_bytes(&processed_preview, &output_format, &export_settings)?;
+            encode_image_to_bytes(&processed_preview, &output_format, &export_settings, None)?;
         let single_image_estimated_size = preview_bytes.len();
 
         let full_w = (shrunk_w as f32 / raw_scale_factor).round() as u32;
@@ -3418,6 +3400,7 @@ mod dpi_tests {
     use little_exif::{
         exif_tag::ExifTag, filetype::FileExtension, metadata::Metadata, rational::uR64,
     };
+    use tiff::tags::Tag;
 
     fn settings(dpi: Option<u16>) -> ExportSettings {
         serde_json::from_value(serde_json::json!({
@@ -3456,9 +3439,10 @@ mod dpi_tests {
     fn jpeg_png_density_preserves_pixels_and_icc() {
         let image = photo();
         for format in ["jpeg", "png"] {
-            let plain = encode_image_to_bytes(&image, format, &settings(None)).unwrap();
+            let plain = encode_image_to_bytes(&image, format, &settings(None), None).unwrap();
             for dpi in [1, 300, 65535] {
-                let bytes = encode_image_to_bytes(&image, format, &settings(Some(dpi))).unwrap();
+                let bytes =
+                    encode_image_to_bytes(&image, format, &settings(Some(dpi)), None).unwrap();
                 assert_eq!(
                     image::load_from_memory(&bytes).unwrap(),
                     image::load_from_memory(&plain).unwrap()
@@ -3521,7 +3505,7 @@ mod dpi_tests {
         for depth in [TiffBitDepth::Eight, TiffBitDepth::Sixteen] {
             let mut settings = settings(Some(300));
             settings.tiff_bit_depth = depth;
-            let bytes = encode_image_to_bytes(&image, "tiff", &settings).unwrap();
+            let bytes = encode_image_to_bytes(&image, "tiff", &settings, None).unwrap();
             let mut decoder = tiff::decoder::Decoder::new(Cursor::new(&bytes)).unwrap();
             assert_eq!(decoder.dimensions().unwrap(), (7, 3));
             assert!(matches!(
@@ -3550,7 +3534,7 @@ mod dpi_tests {
         let dir = tempfile::tempdir().unwrap();
         let source_path = dir.path().join("source.jpeg");
         let image = photo();
-        let mut source = encode_image_to_bytes(&image, "jpeg", &settings(None)).unwrap();
+        let mut source = encode_image_to_bytes(&image, "jpeg", &settings(None), None).unwrap();
         let mut metadata = Metadata::new();
         metadata.set_tag(ExifTag::XResolution(vec![uR64 {
             nominator: 72,
@@ -3575,7 +3559,8 @@ mod dpi_tests {
             ),
             ("jxl", FileExtension::JXL),
         ] {
-            let mut bytes = encode_image_to_bytes(&image, format, &settings(Some(300))).unwrap();
+            let mut bytes =
+                encode_image_to_bytes(&image, format, &settings(Some(300)), None).unwrap();
             let plain_pixels = if format != "jxl" {
                 Some(image::load_from_memory(&bytes).unwrap())
             } else {
@@ -3631,7 +3616,7 @@ mod dpi_tests {
         let image = photo();
         fs::write(
             &source_path,
-            encode_image_to_bytes(&image, "jpeg", &settings(Some(72))).unwrap(),
+            encode_image_to_bytes(&image, "jpeg", &settings(Some(72)), None).unwrap(),
         )
         .unwrap();
         let xmp = exif_processing::ExportXmp::from_metadata(&ImageMetadata {
@@ -3650,9 +3635,10 @@ mod dpi_tests {
         ] {
             let mut settings = settings(Some(300));
             settings.keep_metadata = true;
-            let expected =
-                image::load_from_memory(&encode_image_to_bytes(&image, format, &settings).unwrap())
-                    .unwrap();
+            let expected = image::load_from_memory(
+                &encode_image_to_bytes(&image, format, &settings, None).unwrap(),
+            )
+            .unwrap();
             let output = dir.path().join(format!("output.{format}"));
             save_image_with_metadata(
                 &image,
@@ -3706,12 +3692,12 @@ mod dpi_tests {
         }
         let mut invalid = settings(None);
         invalid.dpi = Some(0);
-        assert!(encode_image_to_bytes(&photo(), "png", &invalid).is_err());
+        assert!(encode_image_to_bytes(&photo(), "png", &invalid, None).is_err());
         let image = DynamicImage::ImageRgb8(photo().to_rgb8());
         for format in ["jxl", "webp"] {
             assert_eq!(
-                encode_image_to_bytes(&image, format, &settings(None)).unwrap(),
-                encode_image_to_bytes(&image, format, &settings(Some(300))).unwrap()
+                encode_image_to_bytes(&image, format, &settings(None), None).unwrap(),
+                encode_image_to_bytes(&image, format, &settings(Some(300)), None).unwrap()
             );
         }
     }

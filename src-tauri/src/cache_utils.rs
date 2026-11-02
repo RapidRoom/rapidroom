@@ -792,6 +792,10 @@ pub fn clear_preview_stage_caches(state: &AppState) {
         .patched_cache
         .lock()
         .unwrap_or_else(|e| e.into_inner()) = None;
+    *state
+        .cleanup_source_cache
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = None;
     *state.warped_cache.lock().unwrap_or_else(|e| e.into_inner()) = None;
     *state
         .working_cache
