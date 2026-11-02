@@ -927,7 +927,23 @@ fn transform_full_mask(
         (x_unrotated_coarse / tf.scale, y_unrotated_coarse / tf.scale)
     };
 
-    let raw = full_mask_image.as_raw();
+    // Filter before minification so thin edges and fine patterns keep their
+    // coverage; point sampling alone cannot see pixels a reduced preview skips.
+    let filtered = (tf.scale < 1.0).then(|| {
+        image::imageops::resize(
+            full_mask_image,
+            (full_mask_w as f32 * tf.scale).round().max(1.0) as u32,
+            (full_mask_h as f32 * tf.scale).round().max(1.0) as u32,
+            image::imageops::FilterType::Triangle,
+        )
+    });
+    let sampled = filtered.as_ref().unwrap_or(full_mask_image);
+    let (sampled_w, sampled_h) = sampled.dimensions();
+    let (fx, fy) = (
+        sampled_w as f32 / full_mask_w as f32,
+        sampled_h as f32 / full_mask_h as f32,
+    );
+    let raw = sampled.as_raw();
     let sample = |(x_src, y_src): (f32, f32)| {
         if clamp_edges
             || (x_src >= 0.0
@@ -935,9 +951,9 @@ fn transform_full_mask(
                 && y_src >= 0.0
                 && y_src < full_mask_h as f32)
         {
-            let x = (x_src.max(0.0) as usize).min(full_mask_w as usize - 1);
-            let y = (y_src.max(0.0) as usize).min(full_mask_h as usize - 1);
-            raw[y * full_mask_w as usize + x] as u32
+            let x = ((x_src.max(0.0) * fx) as usize).min(sampled_w as usize - 1);
+            let y = ((y_src.max(0.0) * fy) as usize).min(sampled_h as usize - 1);
+            raw[y * sampled_w as usize + x] as u32
         } else {
             0
         }
@@ -945,7 +961,7 @@ fn transform_full_mask(
 
     for_each_mask_row(&mut final_mask, |y_out, row| {
         for (x_out, value) in row.iter_mut().enumerate() {
-            *value = sample(to_source(x_out as f32, y_out as f32)) as u8;
+            *value = sample(to_source(x_out as f32 + 0.5, y_out as f32 + 0.5)) as u8;
         }
     });
 

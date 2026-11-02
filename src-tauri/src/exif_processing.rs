@@ -1561,7 +1561,10 @@ fn copy_full_exif_from_source(
             continue;
         }
         for tag in ifd.get_tags() {
-            if !tag.is_writable() || crate::tiff_metadata::is_structural_tag(tag.as_u16()) {
+            let is_resolution = matches!(tag.as_u16(), 0x011A | 0x011B | 0x0128);
+            if !tag.is_writable()
+                || (crate::tiff_metadata::is_structural_tag(tag.as_u16()) && !is_resolution)
+            {
                 continue;
             }
             metadata.set_tag(tag.clone());

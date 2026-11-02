@@ -89,7 +89,6 @@ interface GuidedPerspectiveResult {
 declare global {
   interface Window {
     altKeyDown?: boolean;
-    ctrlKeyDown?: boolean;
   }
 }
 

@@ -240,6 +240,7 @@ function EffectsPanel({
         setIsGeneratingDepth(false);
         setIsGeneratingNormals(false);
         setIsGeneratingFogDepth(false);
+        setIsGeneratingMotionDepth(false);
       }
     });
     return () => {
@@ -254,6 +255,7 @@ function EffectsPanel({
     command: 'generate_full_image_depth_map' | 'generate_relight_normal_map',
     setGenerating: (value: boolean) => void,
     label: string,
+    imageLevel = false,
   ) => {
     const selectedImage = useEditorStore.getState().selectedImage;
     if (!selectedImage?.isReady) return;
@@ -266,10 +268,12 @@ function EffectsPanel({
     try {
       const result = await invoke<{ imagePath: string; dataUrl: string }>(command, {
         imagePath,
-        jsAdjustments: adjustments,
+        jsAdjustments: imageLevel ? useEditorStore.getState().adjustments : adjustments,
       });
       if (!isCurrent() || result.imagePath !== imagePath) return;
-      setAdjustments((prev) => (isCurrent() ? { ...prev, [mapKey]: result.dataUrl } : prev));
+      // The motion blur depth map lives in the image adjustments even when the panel edits a mask.
+      const setMap = imageLevel ? setImageAdjustments : setAdjustments;
+      setMap((prev) => (isCurrent() ? { ...prev, [mapKey]: result.dataUrl } : prev));
     } catch (e: unknown) {
       if (!isCurrent()) return;
       toast.error(`Failed to generate ${label} map: ${e}`);
@@ -295,6 +299,7 @@ function EffectsPanel({
       'generate_full_image_depth_map',
       setIsGeneratingMotionDepth,
       'depth',
+      true,
     );
 
   const handleAdjustmentChange = (key: string, value: number | string | boolean) => {
