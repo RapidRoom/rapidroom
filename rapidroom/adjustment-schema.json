@@ -2661,7 +2661,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 600,
+      "line": 607,
       "valueExpression": "values[name] ?? 0",
       "changeExpression": "(e: SliderChangeEvent) => onChange(name, e.target.value)",
       "labelExpression": "label",
@@ -2681,7 +2681,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 657,
+      "line": 665,
       "valueExpression": "toning[hueKey]",
       "changeExpression": "(e: SliderChangeEvent) => handleToningChange(hueKey, e.target.value)",
       "labelExpression": "t('adjustments.color.monochrome.hue')",
@@ -2692,7 +2692,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 669,
+      "line": 677,
       "valueExpression": "toning[saturationKey]",
       "changeExpression": "(e: SliderChangeEvent) => handleToningChange(saturationKey, e.target.value)",
       "labelExpression": "t('adjustments.color.monochrome.saturation')",
@@ -2703,7 +2703,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 702,
+      "line": 710,
       "valueExpression": "toning.balance",
       "changeExpression": "(e: SliderChangeEvent) => handleToningChange('balance', e.target.value)",
       "labelExpression": "t('adjustments.color.monochrome.balance')",
@@ -2714,7 +2714,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 876,
+      "line": 886,
       "valueExpression": "hsl[color][property]",
       "changeExpression": "(e: SliderChangeEvent) => handleHslChange(color, property, e.target.value)",
       "labelExpression": "label",
@@ -2750,7 +2750,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 920,
+      "line": 930,
       "valueExpression": "displayedWhiteBalance.temperature",
       "changeExpression": "(e: SliderChangeEvent) => handleWhiteBalanceChange('temperature', e.target.value)",
       "labelExpression": "t('adjustments.color.temperature')",
@@ -2765,7 +2765,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 935,
+      "line": 945,
       "valueExpression": "displayedWhiteBalance.tint",
       "changeExpression": "(e: SliderChangeEvent) => handleWhiteBalanceChange('tint', e.target.value)",
       "labelExpression": "t('adjustments.color.tint')",
@@ -2780,7 +2780,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 977,
+      "line": 987,
       "valueExpression": "adjustments.vibrance || 0",
       "changeExpression": "(e) => handleAdjustmentChange(ColorAdjustment.Vibrance, e.target.value)",
       "labelExpression": "t('adjustments.color.vibrance')",
@@ -2791,7 +2791,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 987,
+      "line": 997,
       "valueExpression": "adjustments.saturation || 0",
       "changeExpression": "(e) => handleAdjustmentChange(ColorAdjustment.Saturation, e.target.value)",
       "labelExpression": "t('adjustments.color.saturation')",
@@ -2802,7 +2802,7 @@
     },
     {
       "source": "src/components/adjustments/Color.tsx",
-      "line": 1008,
+      "line": 1018,
       "valueExpression": "adjustments.hue || 0",
       "changeExpression": "(e) => handleAdjustmentChange(ColorAdjustment.Hue, e.target.value)",
       "labelExpression": "t('adjustments.color.hue')",
