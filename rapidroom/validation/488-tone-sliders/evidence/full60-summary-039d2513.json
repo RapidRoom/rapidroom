@@ -1,0 +1,105 @@
+{
+  "legacy": {
+    "n_compared": 60,
+    "n_identical": 60,
+    "n_missing": 0,
+    "n_changed": 0,
+    "unexpected_changes": [],
+    "changes": [],
+    "same_environment": true
+  },
+  "stock": {
+    "n_compared": 60,
+    "n_identical": 53,
+    "n_missing": 0,
+    "n_changed": 7,
+    "unexpected_changes": [],
+    "changes": [
+      {
+        "set": "neutral",
+        "id": "canon-r6m2-24mp-raw",
+        "old_baseline_ev": 0,
+        "new_baseline_ev": 0.27,
+        "ev_shift": 0.27,
+        "mean_luma_before": 84.24223339567621,
+        "mean_luma_after": 92.83235320048219,
+        "mean_luma_shift": 8.59011980480598,
+        "ref_pixel_sha256": "363942a4f9f6648214642aec011ed043809de87a11cc0a8eae432a4b5e515778",
+        "test_pixel_sha256": "d85caa9ae6f8d839547bb7348ec26e4edaad8965b61d33ed95c5c00d36ed42f6"
+      },
+      {
+        "set": "neutral",
+        "id": "nikon-zf-24mp-compressed",
+        "old_baseline_ev": 0,
+        "new_baseline_ev": 0.816,
+        "ev_shift": 0.816,
+        "mean_luma_before": 107.18440125205663,
+        "mean_luma_after": 141.58655767312666,
+        "mean_luma_shift": 34.40215642107003,
+        "ref_pixel_sha256": "867ddee4070f47c38c2e17c2878f892f4f603bb9a31d1d058ff4e7b2768347b3",
+        "test_pixel_sha256": "2e4ea9cf0c7b9a6c6bb2055a201ef267fe1732ddca328335526d6cecbec1d219"
+      },
+      {
+        "set": "neutral",
+        "id": "sony-a7c2-15mp-compressed",
+        "old_baseline_ev": 0.35,
+        "new_baseline_ev": 1.222,
+        "ev_shift": 0.872,
+        "mean_luma_before": 102.32566454644731,
+        "mean_luma_after": 139.93034693471301,
+        "mean_luma_shift": 37.6046823882657,
+        "ref_pixel_sha256": "dd1d4504c7d5eae6b151e16b0a523ece45cdf964ee9d0a486bf6074c32663c9c",
+        "test_pixel_sha256": "c42846ec15a4e04dcf73f9af2040c2dcfda69e1ae7cbe3e7d619b252c1c96e67"
+      },
+      {
+        "set": "neutral",
+        "id": "sony-a7c2-15mp-uncompressed",
+        "old_baseline_ev": 0.35,
+        "new_baseline_ev": 1.222,
+        "ev_shift": 0.872,
+        "mean_luma_before": 98.00150747147595,
+        "mean_luma_after": 134.77776472578705,
+        "mean_luma_shift": 36.776257254311105,
+        "ref_pixel_sha256": "23d43a1fae1f862b1d0c18daa6448c324cea993e968afd43068fb8d781218e5a",
+        "test_pixel_sha256": "2610ee1fd4ec681c9a0478ab48e6ece6bf12913afe4c3f34d8ddd05c22af714c"
+      },
+      {
+        "set": "neutral",
+        "id": "sony-a7c2-33mp-compressed",
+        "old_baseline_ev": 0.35,
+        "new_baseline_ev": 1.222,
+        "ev_shift": 0.872,
+        "mean_luma_before": 82.59500567647815,
+        "mean_luma_after": 117.17492439928135,
+        "mean_luma_shift": 34.5799187228032,
+        "ref_pixel_sha256": "d8542819b1ff2d8284f779fd039c9518d771d9667dce038a59e36c0a36d19286",
+        "test_pixel_sha256": "ea3216814b9433254bdd6ffef4ad069362f4173747092b665eb49af38f6d1ad3"
+      },
+      {
+        "set": "neutral",
+        "id": "sony-a7c2-33mp-uncompressed",
+        "old_baseline_ev": 0.35,
+        "new_baseline_ev": 1.222,
+        "ev_shift": 0.872,
+        "mean_luma_before": 87.47502658540766,
+        "mean_luma_after": 122.98946835086126,
+        "mean_luma_shift": 35.5144417654536,
+        "ref_pixel_sha256": "fbd7b9d585b3e6616082d8d860aa016c831e709843562c7bacb71da8ebf7a291",
+        "test_pixel_sha256": "97258091031fe24c05cd1ffa7d7d15a3ba662340aa7d66abc26284bc032755d7"
+      },
+      {
+        "set": "neutral",
+        "id": "sony-a7c2-37mp-4x3",
+        "old_baseline_ev": 0.35,
+        "new_baseline_ev": 1.222,
+        "ev_shift": 0.872,
+        "mean_luma_before": 79.8201127765612,
+        "mean_luma_after": 113.731760718065,
+        "mean_luma_shift": 33.9116479415038,
+        "ref_pixel_sha256": "a4518456eebf4cd8ecc256c991feb1ed07a0dde3dae1a34bc20b671fce250c67",
+        "test_pixel_sha256": "3130064938dae1b08b3395f434d88ece4f43c1a1cb180bdded5bc48cc3ffb83a"
+      }
+    ],
+    "same_environment": true
+  }
+}

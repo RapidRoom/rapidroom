@@ -215,5 +215,10 @@
     "failed": "Zápis metadat selhal: {{error}}",
     "written_many": "Metadata JPEG byla zapsána do {{count}} souborů.",
     "restored_many": "Metadata byla obnovena pro {{count}} souborů."
+  },
+  "toneMigration": {
+    "action": "Convert tone sliders to the new response (approximate)",
+    "result": "Tone sliders converted. Largest ramp residual: {{rms}} luma. Undo to restore the previous edit.",
+    "failed": "Could not convert tone sliders: {{error}}"
   }
 }

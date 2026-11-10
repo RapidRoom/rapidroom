@@ -303,5 +303,10 @@
     "restored_one": "Restored metadata for {{count}} file.",
     "restored_other": "Restored metadata for {{count}} files.",
     "failed": "Metadata write failed: {{error}}"
+  },
+  "toneMigration": {
+    "action": "Convert tone sliders to the new response (approximate)",
+    "result": "Tone sliders converted. Largest ramp residual: {{rms}} luma. Undo to restore the previous edit.",
+    "failed": "Could not convert tone sliders: {{error}}"
   }
 }

@@ -1,0 +1,10 @@
+{
+  "renderer": "Intel Graphics LNL, Vulkan, Mesa 26.2.5",
+  "method": "Throwaway WGPU compute probe extracting the production tone functions; original control functions extracted from main 50a4e9fc",
+  "law_0_flat_samples_bit_identical": 440,
+  "law_0_colored_detail_samples_bit_identical": 1760,
+  "law_1_max_encoded_luma_error_against_approved_formula": 0.00004097832864147222,
+  "highlights_negative_100_gain_hold_tested_linear_values": [0.36, 0.5, 1, 4, 16],
+  "highlights_negative_100_held_gain": 0.50632197,
+  "note": "This directly checks GPU tone functions. Full-image J40 and matched full60 evidence is recorded separately."
+}

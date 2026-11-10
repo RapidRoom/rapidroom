@@ -130,6 +130,12 @@ export function mixAdjustments(
   if (preset.exposure !== undefined && preset.cameraExposureCompensation === undefined) {
     mixed.cameraExposureCompensation = false;
   }
+  // Process metadata is discrete; omission preserves the target's interpretation.
+  if (Object.prototype.hasOwnProperty.call(preset, 'toneSliderVersion'))
+    mixed.toneSliderVersion = preset.toneSliderVersion;
+  else if (Object.prototype.hasOwnProperty.call(before, 'toneSliderVersion'))
+    mixed.toneSliderVersion = before.toneSliderVersion;
+  else delete mixed.toneSliderVersion;
   return normalizeLensPolicyVersion(mixed, preset, before, fraction * 100);
 }
 

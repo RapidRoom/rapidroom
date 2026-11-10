@@ -37,5 +37,12 @@ export function captureAdjustments(
       if (owns(source, key)) patch[key] = source[key];
     }
   }
+  // The interpretation travels with captured tone controls, including local masks.
+  if (
+    owns(source, 'toneSliderVersion') &&
+    Object.keys(patch).some((key) => ['highlights', 'shadows', 'whites', 'blacks', 'masks'].includes(key))
+  ) {
+    patch.toneSliderVersion = source.toneSliderVersion;
+  }
   return copyLensPolicyVersion(source, patch);
 }
