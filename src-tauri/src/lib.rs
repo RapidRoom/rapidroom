@@ -111,6 +111,8 @@ mod preset_xmp;
 mod preview_jpeg;
 mod raw_processing;
 mod relight;
+mod remove_grain;
+mod remove_grain_match;
 mod sony_focus;
 mod starter_presets;
 mod storage;
