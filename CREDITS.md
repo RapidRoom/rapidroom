@@ -212,9 +212,9 @@ The data-only envelope, bounded UTF-8 text, shared free-text budget and assistan
 
 The optional Linux CPU runtime is supplied from `onnxruntime-openvino==1.24.1` (ONNX Runtime by Microsoft, MIT; OpenVINO by Intel, Apache-2.0), retaining exact ORT wheel notices and OpenVINO runtime/oneTBB/oneDNN notices from [OpenVINO `82bbf0292c5bd490bc25a383e63d6461d3ee05c5`](https://github.com/openvinotoolkit/openvino/tree/82bbf0292c5bd490bc25a383e63d6461d3ee05c5/licensing). The verification/staging and RapidRoom session/cache integration are original work. Full notices are in `rapidroom/openvino/notices/` and copied with the staged runtime. No model weights are redistributed.
 
-### AI denoise tiling and colour restoration
+### AI denoise tiling, colour restoration and grain return
 
-Tile placement, raised-cosine overlap and whole-image five-level B3-spline colour restoration adapt [open-photo-ai by Vinicius Egidio](https://github.com/vegidio/open-photo-ai/tree/67f1dd10d17efcb191ce1bb099642e32b2918861), AGPL-3.0. Periodic reflect padding adapts [CalibRaw by Duecki](https://github.com/Duecki1/CalibRaw/blob/2466ca6662c3fd1e901377c0450b19f5f96d3e85/crates/calibraw-ai/src/ai_denoise/tiling.rs), GPL-3.0-or-later. Source notices are bundled in `src-tauri/resources/raw-denoise-licenses/`. Model weights, telemetry and scalar per-tile gain matching were not imported.
+Tile placement, raised-cosine overlap and whole-image five-level B3-spline colour restoration adapt [open-photo-ai by Vinicius Egidio](https://github.com/vegidio/open-photo-ai/tree/67f1dd10d17efcb191ce1bb099642e32b2918861), AGPL-3.0. Periodic reflect padding adapts [CalibRaw by Duecki](https://github.com/Duecki1/CalibRaw/blob/2466ca6662c3fd1e901377c0450b19f5f96d3e85/crates/calibraw-ai/src/ai_denoise/tiling.rs), GPL-3.0-or-later. Post-demosaic neutral luminance residual return adapts [AutoShade by skymanbp](https://github.com/skymanbp/autoshade/blob/8f25a8aed6e77b4aa2f1dde64da2c8fbde5a9ed2/src/render/denoise_grain.rs), MIT. Source notices are bundled in `src-tauri/resources/raw-denoise-licenses/`. Model weights, telemetry, AutoShade's variance-stabilized model inputs and scalar per-tile gain matching were not imported.
 
 ### CRS interoperability cross-check
 

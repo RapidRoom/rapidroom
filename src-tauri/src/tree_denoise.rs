@@ -22,7 +22,7 @@ use tauri::Manager;
 
 const TILE: usize = 256;
 const OVERLAP: usize = 64;
-pub(crate) const PIPELINE: &str = "rawforge-bayer-malvar-f16-cpu-colour-cosine-v2";
+pub(crate) const PIPELINE: &str = "rawforge-bayer-malvar-f16-cpu-colour-cosine-grain-v3";
 const CACHE_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
 
 pub struct Model {
@@ -680,20 +680,26 @@ pub fn cached_sensor(
     app: &tauri::AppHandle,
     fast: bool,
     sharpen: bool,
+    strength: f32,
     models: &Models,
     job: &DenoiseJob,
 ) -> Result<PathBuf> {
     let root = app.path().app_cache_dir()?.join("raw-denoise");
-    cached_sensor_at(bytes, &root, fast, sharpen, models, job)
+    cached_sensor_at(bytes, &root, fast, sharpen, strength, models, job)
 }
 fn cached_sensor_at(
     bytes: &[u8],
     root: &Path,
     fast: bool,
     sharpen: bool,
+    strength: f32,
     models: &Models,
     job: &DenoiseJob,
 ) -> Result<PathBuf> {
+    ensure!(
+        strength.is_finite() && strength > 0.0 && strength <= 1.0,
+        "TreeNet strength must be greater than 0 and at most 1"
+    );
     job.check().map_err(anyhow::Error::msg)?;
     job.progress("Reading RAW sensor…");
     let source = RawSource::new_from_slice(bytes);
@@ -702,7 +708,7 @@ fn cached_sensor_at(
     let metadata = decoder.raw_metadata(&source, &RawDecodeParams::default())?;
     let a = area(&raw)?;
     let matrix = colour_matrix(&raw)?;
-    let identity = serde_json::json!({"pipeline":PIPELINE,"providers":models.iter().map(|m|m.profile.as_str()).collect::<Vec<_>>(),"cpu_threads":cpu_threads(),"source":blake3::hash(bytes).to_hex().as_str(),"model":if fast {FAST.sha256} else {BEST.sha256},"sharpen":sharpen.then_some(SHARPEN.sha256),"shape":[raw.width,raw.height,a.x,a.y,a.w,a.h],"matrix":matrix.as_slice(),"black":raw.blacklevel.as_vec(),"white":raw.whitelevel.0});
+    let identity = serde_json::json!({"pipeline":PIPELINE,"providers":models.iter().map(|m|m.profile.as_str()).collect::<Vec<_>>(),"cpu_threads":cpu_threads(),"source":blake3::hash(bytes).to_hex().as_str(),"model":if fast {FAST.sha256} else {BEST.sha256},"sharpen":sharpen.then_some(SHARPEN.sha256),"strength":strength,"shape":[raw.width,raw.height,a.x,a.y,a.w,a.h],"matrix":matrix.as_slice(),"black":raw.blacklevel.as_vec(),"white":raw.whitelevel.0});
     let key = blake3::hash(&serde_json::to_vec(&identity)?)
         .to_hex()
         .to_string();
@@ -747,6 +753,15 @@ fn cached_sensor_at(
     let mut corrected: Vec<f32> = rgb.into_iter().map(f16::to_f32).collect();
     crate::denoise_quality::restore_colour(&mut corrected, &reference, a.w, a.h, || job.check())
         .map_err(anyhow::Error::msg)?;
+    crate::denoise_quality::return_luminance(
+        &mut corrected,
+        &reference,
+        a.w,
+        a.h,
+        1.0 - strength,
+        || job.check(),
+    )
+    .map_err(anyhow::Error::msg)?;
     drop(reference);
     let rgb: Vec<f16> = corrected.into_iter().map(f16::from_f32).collect();
     restore(&mut raw, a, &matrix, &rgb, job)?;
@@ -1053,6 +1068,10 @@ mod tests {
             std::env::var("RAPIDROOM_TREE_PRESET").unwrap_or_else(|_| "fast".into()) == "fast";
         let sharpen =
             std::env::var("RAPIDROOM_TREE_SHARPEN").unwrap_or_else(|_| "on".into()) == "on";
+        let strength = std::env::var("RAPIDROOM_TREE_STRENGTH")
+            .unwrap_or_else(|_| "0.71".into())
+            .parse()
+            .unwrap();
         let mut wanted = vec![if fast { &FAST } else { &BEST }];
         if sharpen {
             wanted.push(&SHARPEN);
@@ -1063,16 +1082,43 @@ mod tests {
             .collect();
         let job = DenoiseJob::testing();
         let started = std::time::Instant::now();
-        let path = cached_sensor_at(&bytes, cache.path(), fast, sharpen, &models, &job).unwrap();
+        let path =
+            cached_sensor_at(&bytes, cache.path(), fast, sharpen, strength, &models, &job).unwrap();
         let inference_seconds = started.elapsed().as_secs_f64();
         let started = std::time::Instant::now();
         let before = fs::metadata(&path).unwrap().modified().unwrap();
-        let hit = cached_sensor_at(&bytes, cache.path(), fast, sharpen, &models, &job).unwrap();
+        let hit =
+            cached_sensor_at(&bytes, cache.path(), fast, sharpen, strength, &models, &job).unwrap();
         assert_eq!(hit, path);
         assert_eq!(fs::metadata(&hit).unwrap().modified().unwrap(), before);
         let cache_seconds = started.elapsed().as_secs_f64();
-        assert!(cached_sensor_at(&bytes, cache.path(), !fast, sharpen, &Vec::new(), &job).is_err());
-        assert!(cached_sensor_at(&bytes, cache.path(), fast, !sharpen, &Vec::new(), &job).is_err());
+        assert!(
+            cached_sensor_at(
+                &bytes,
+                cache.path(),
+                !fast,
+                sharpen,
+                strength,
+                &Vec::new(),
+                &job
+            )
+            .is_err()
+        );
+        assert!(
+            cached_sensor_at(
+                &bytes,
+                cache.path(),
+                fast,
+                !sharpen,
+                strength,
+                &Vec::new(),
+                &job
+            )
+            .is_err()
+        );
+        assert!(
+            cached_sensor_at(&bytes, cache.path(), fast, sharpen, 1.0, &Vec::new(), &job).is_err()
+        );
         let output = fs::read(path).unwrap();
         let source = RawSource::new_from_slice(&output);
         let decoder = rawler::get_decoder(&source).unwrap();
@@ -1130,7 +1176,7 @@ mod tests {
         );
         let samples = PathBuf::from(std::env::var("RAPIDROOM_TREE_SAMPLES").unwrap());
         fs::write(samples.join(format!("{name}.dng")), output).unwrap();
-        let report = serde_json::json!({"preset":name,"inference_seconds":inference_seconds,"cache_seconds":cache_seconds,"shape":[raw.width,raw.height],"matrix":colour_matrix(&original).unwrap().as_slice(),"metadata_preserved":true,"cache_hit":true,"setting_invalidation":true});
+        let report = serde_json::json!({"preset":name,"strength":strength,"inference_seconds":inference_seconds,"cache_seconds":cache_seconds,"shape":[raw.width,raw.height],"matrix":colour_matrix(&original).unwrap().as_slice(),"metadata_preserved":true,"cache_hit":true,"setting_invalidation":true});
         fs::write(
             samples.join(format!("{name}.json")),
             serde_json::to_vec_pretty(&report).unwrap(),

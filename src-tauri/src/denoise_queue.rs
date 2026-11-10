@@ -6,7 +6,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-const PIPELINE: &str = "rapidroom-denoise-queue-v3";
+const PIPELINE: &str = "rapidroom-denoise-queue-v4";
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Options {
@@ -18,7 +18,7 @@ impl Default for Options {
     fn default() -> Self {
         Self {
             method: "best".into(),
-            strength: 50.,
+            strength: 71.,
             sharpen: false,
         }
     }
@@ -36,16 +36,15 @@ impl Options {
         if !self.strength.is_finite() || !(0. ..=100.).contains(&self.strength) {
             return Err("Strength must be between 0 and 100".into());
         }
+        if matches!(self.method.as_str(), "best" | "fast") && self.strength <= 0.0 {
+            return Err("Strength must be greater than 0 for Best and Fast".into());
+        }
         if self.sharpen && !matches!(self.method.as_str(), "best" | "fast") {
             return Err("Sharpen is supported only by best and fast".into());
         }
         Ok(DenoiseOptions {
             method: method.into(),
-            intensity: if matches!(self.method.as_str(), "best" | "fast") {
-                1.0
-            } else {
-                self.strength / 100.0
-            },
+            intensity: self.strength / 100.0,
             sharpen: self.sharpen,
             exposure_policies: HashMap::new(),
         })
@@ -67,6 +66,7 @@ pub fn parse_args(args: &[String]) -> Result<Cli, String> {
         dry_run: false,
         options: Options::default(),
     };
+    let mut strength_explicit = false;
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
@@ -80,6 +80,7 @@ pub fn parse_args(args: &[String]) -> Result<Cli, String> {
                 result.options.method = iter.next().ok_or("Missing --method value")?.clone()
             }
             "--strength" => {
+                strength_explicit = true;
                 result.options.strength = iter
                     .next()
                     .ok_or("Missing --strength value")?
@@ -91,6 +92,13 @@ pub fn parse_args(args: &[String]) -> Result<Cli, String> {
     }
     if result.folder.is_empty() {
         return Err("Usage: rapidroom denoise --marked <folder> [--recursive] [--method best|fast|nind|bm3d|raw9] [--strength 0..100] [--sharpen] [--dry-run]".into());
+    }
+    if !strength_explicit {
+        result.options.strength = if matches!(result.options.method.as_str(), "best" | "fast") {
+            71.0
+        } else {
+            50.0
+        };
     }
     result.options.internal()?;
     Ok(result)
@@ -715,7 +723,7 @@ fn identity(models: &DenoiseModels, options: &Options, settings: &Value) -> Valu
         "nind" => crate::ai_processing::DENOISE_SHA256,
         _ => "builtin",
     };
-    json!({ "pipeline":PIPELINE, "treePipeline":crate::tree_denoise::PIPELINE, "method":options.method, "strength":if matches!(options.method.as_str(),"best"|"fast") {0.} else {options.strength}, "sharpen":options.sharpen, "model":model, "sharpenModel":options.sharpen.then_some(crate::tree_denoise::SHARPEN.sha256), "runtime":profiles, "settings":settings })
+    json!({ "pipeline":PIPELINE, "treePipeline":crate::tree_denoise::PIPELINE, "method":options.method, "strength":options.strength, "sharpen":options.sharpen, "model":model, "sharpenModel":options.sharpen.then_some(crate::tree_denoise::SHARPEN.sha256), "runtime":profiles, "settings":settings })
 }
 
 fn processing_identity(settings: &crate::app_settings::AppSettings, options: &Options) -> Value {
@@ -1715,7 +1723,23 @@ mod tests {
             };
             assert_eq!(options.internal().unwrap().intensity, 0.5);
         }
-        assert_eq!(Options::default().internal().unwrap().intensity, 1.0);
+        for method in ["best", "fast"] {
+            let options = Options {
+                method: method.into(),
+                strength: 71.,
+                sharpen: false,
+            };
+            assert_eq!(options.internal().unwrap().intensity, 0.71);
+            assert!(
+                Options {
+                    strength: 0.,
+                    ..options
+                }
+                .internal()
+                .is_err()
+            );
+        }
+        assert_eq!(Options::default().internal().unwrap().intensity, 0.71);
     }
 
     #[test]

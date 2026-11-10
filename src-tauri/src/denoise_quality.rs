@@ -111,6 +111,47 @@ pub(crate) fn restore_colour(
     check()
 }
 
+// Adapted from skymanbp/autoshade@8f25a8aed6e77b4aa2f1dde64da2c8fbde5a9ed2
+// src/render/denoise_grain.rs, MIT, copyright 2026 skymanbp.
+pub(crate) fn return_luminance(
+    result: &mut [f32],
+    reference: &[f32],
+    width: usize,
+    height: usize,
+    share: f32,
+    check: impl Fn() -> Result<(), String>,
+) -> Result<(), String> {
+    const REC2020_Y: [f32; 3] = [0.2627, 0.6780, 0.0593];
+    let plane = width.checked_mul(height).ok_or("Denoise image too large")?;
+    if plane == 0
+        || plane.checked_mul(3) != Some(result.len())
+        || result.len() != reference.len()
+        || !share.is_finite()
+        || !(0.0..=1.0).contains(&share)
+    {
+        return Err("Invalid denoise luminance return".into());
+    }
+    if share == 0.0 {
+        return Ok(());
+    }
+    for y in 0..height {
+        check()?;
+        for x in 0..width {
+            let i = y * width + x;
+            let luminance = |image: &[f32]| {
+                image[i] * REC2020_Y[0]
+                    + image[plane + i] * REC2020_Y[1]
+                    + image[2 * plane + i] * REC2020_Y[2]
+            };
+            let delta = share * (luminance(reference) - luminance(result));
+            for channel in 0..3 {
+                result[channel * plane + i] += delta;
+            }
+        }
+    }
+    check()
+}
+
 fn low_frequency(
     dst: &mut [f32],
     input: &[f32],
@@ -253,6 +294,49 @@ mod tests {
             assert_eq!(result.unwrap_err(), "cancelled");
         }
         assert!(restore_colour(&mut [0.0; 2], &[0.0; 3], 1, 1, || Ok(())).is_err());
+    }
+
+    #[test]
+    fn luminance_return_preserves_chroma_and_honours_strength() {
+        let (w, h) = (65, 33);
+        let n = w * h;
+        let clean: Vec<f32> = (0..3 * n)
+            .map(|i| 0.1 + (i % 997) as f32 / 2000.0)
+            .collect();
+        let mut reference = clean.clone();
+        for i in 0..n {
+            reference[i] += 0.02;
+            reference[n + i] -= 0.02 * 0.2627 / 0.6780;
+        }
+        let mut output = clean.clone();
+        return_luminance(&mut output, &reference, w, h, 0.29, || Ok(())).unwrap();
+        assert!(output.iter().zip(&clean).all(|(a, b)| (a - b).abs() < 2e-6));
+
+        for i in 0..n {
+            reference[i] += 0.01;
+            reference[n + i] -= 0.005;
+            reference[2 * n + i] += 0.002;
+        }
+        return_luminance(&mut output, &reference, w, h, 0.29, || Ok(())).unwrap();
+        for i in 0..n {
+            let expected = 0.29 * (0.01 * 0.2627 - 0.005 * 0.6780 + 0.002 * 0.0593);
+            for c in 0..3 {
+                let value = output[c * n + i];
+                assert!((value - clean[c * n + i] - expected).abs() < 2e-6);
+            }
+            assert!((output[i] - output[n + i] - (clean[i] - clean[n + i])).abs() < 2e-6);
+            assert!(
+                (output[2 * n + i] - output[n + i] - (clean[2 * n + i] - clean[n + i])).abs()
+                    < 2e-6
+            );
+        }
+        assert!(
+            return_luminance(&mut output, &reference, w, h, 1.0, || Err(
+                "cancelled".into()
+            ))
+            .is_err()
+        );
+        assert!(return_luminance(&mut output, &reference, w, h, f32::NAN, || Ok(())).is_err());
     }
 
     #[test]
