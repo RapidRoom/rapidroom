@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from star_field import compare
+from star_field import acceptance_failures, compare
 
 
 class StarFieldTests(unittest.TestCase):
@@ -36,6 +36,29 @@ class StarFieldTests(unittest.TestCase):
         result = compare(self.image, candidate, self.sites)
         self.assertGreater(result['median_spread_ratio'], 1.5)
         self.assertGreater(result['median_aperture_colour_delta'], 0.1)
+
+    def test_acceptance_thresholds_pass_fail_and_reject_missing_measurements(self):
+        result = compare(self.image, self.image, self.sites)
+        thresholds = {
+            'min_faint_survival': 1,
+            'min_median_peak_ratio': 0.5,
+            'min_median_flux_ratio': 0.5,
+            'max_median_spread_ratio': 1.5,
+            'max_median_colour_delta': 0.05,
+        }
+        self.assertEqual(acceptance_failures(result, **thresholds), [])
+        candidate = 0.002 + (self.image - 0.002) * 0.25
+        reduced = compare(self.image, candidate, self.sites)
+        failures = acceptance_failures(reduced, **thresholds)
+        self.assertEqual(len(failures), 3)
+        self.assertTrue(any('faint_survival_fraction' in failure for failure in failures))
+        self.assertTrue(any('median_peak_ratio' in failure for failure in failures))
+        self.assertTrue(any('median_flux_ratio' in failure for failure in failures))
+        self.assertEqual(acceptance_failures(result), [])
+        self.assertIn('None', acceptance_failures(
+            {'faint_survival_fraction': None}, min_faint_survival=0.5)[0])
+        self.assertIn('None', acceptance_failures(
+            {'median_spread_ratio': None}, max_median_spread_ratio=1.5)[0])
 
     def test_no_wraparound_duplicate_or_shape_mismatch(self):
         for sites in [[{'x': 2, 'y': 20, 'faint': True}], self.sites * 2]:
