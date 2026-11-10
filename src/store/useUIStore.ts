@@ -100,6 +100,7 @@ const ALL_PANELS: Panel[] = [
   Panel.Ai,
   Panel.Presets,
   Panel.Terminal,
+  Panel.History,
 ];
 
 const DEFAULT_PANEL_DEFAULT_REGIONS: Record<Panel, PanelRegion> = {
@@ -113,6 +114,7 @@ const DEFAULT_PANEL_DEFAULT_REGIONS: Record<Panel, PanelRegion> = {
   [Panel.Ai]: 'rightTop',
   [Panel.Presets]: 'leftTop',
   [Panel.Terminal]: 'bottom',
+  [Panel.History]: 'rightTop',
 };
 
 // Bump when a default panel moves; saved layouts below it get that panel moved once in reconcileWorkspace.
@@ -158,7 +160,7 @@ export function reconcileWorkspace(
         ...(isTetheringSupported ? [Panel.Tethering] : []),
       ],
       leftBottom: [],
-      rightTop: [Panel.Adjustments, Panel.Crop, Panel.Masks, Panel.Ai],
+      rightTop: [Panel.Adjustments, Panel.Crop, Panel.Masks, Panel.Ai, Panel.History],
       rightBottom: [],
       bottom: isTerminalSupported ? [Panel.Terminal] : [],
     },
@@ -384,7 +386,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   panelLayout: {
     leftTop: [Panel.Metadata, Panel.FolderTree, Panel.Presets, Panel.Export],
     leftBottom: [],
-    rightTop: [Panel.Adjustments, Panel.Crop, Panel.Masks, Panel.Ai],
+    rightTop: [Panel.Adjustments, Panel.Crop, Panel.Masks, Panel.Ai, Panel.History],
     rightBottom: [],
     bottom: [],
   },

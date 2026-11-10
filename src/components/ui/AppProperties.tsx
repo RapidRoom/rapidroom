@@ -205,6 +205,7 @@ export enum Panel {
   FolderTree = 'folderTree',
   Tethering = 'tethering',
   Terminal = 'terminal',
+  History = 'history',
 }
 
 export type SidebarRegion = 'leftTop' | 'leftBottom' | 'rightTop' | 'rightBottom';

@@ -51,6 +51,7 @@ mod dcp;
 mod denoise_quality;
 mod denoise_selective;
 mod denoising;
+mod edit_history;
 mod edit_in;
 mod effect_maps;
 mod exif_processing;
@@ -3547,9 +3548,11 @@ pub fn run() {
             file_management::delete_files_from_disk,
             file_management::delete_files_with_associated,
             file_management::save_metadata_and_update_thumbnail,
+            file_management::save_metadata_and_edit_history,
             file_management::import_xmp_adjustments_for_image,
             file_management::import_matching_xmp_sidecars_in_folder,
             file_management::apply_adjustments_to_paths,
+            edit_history::read_edit_history,
             file_management::load_metadata,
             file_management::read_compare_adjustments,
             file_management::get_default_raw_lens_adjustments,

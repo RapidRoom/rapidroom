@@ -1,3 +1,5 @@
+import { describeHistoryChange, sameAdjustmentValue } from '../utils/editHistory';
+import { debouncedSetHistory } from './useEditorActions';
 import { showInstagramExportComplete } from '../utils/instagramExportToast';
 import { showTransferSummary, type TransferSummary } from '../utils/fileTransfers';
 import { useEffect, useRef } from 'react';
@@ -29,6 +31,7 @@ import { useLibraryStore } from '../store/useLibraryStore';
 import type { ExternalEditSession } from '../store/useProcessStore';
 
 interface TauriEventPayloads {
+  'edit-history-warning': { path: string; warning: string };
   'ai-denoise-error': { path: string; error: string };
   'ai-denoise-progress': { path: string; progress: number };
   'ai-denoise-ready': string;
@@ -544,6 +547,11 @@ export function useTauriListeners({
           });
         }
       }),
+      listen('edit-history-warning', (event) => {
+        if (isEffectActive && useEditorStore.getState().historyPath === event.payload.path)
+          useEditorStore.getState().setEditor({ historyWarning: event.payload.warning });
+        toast.warning(event.payload.warning, { autoClose: false });
+      }),
       listen('ai-job-result', (event) => {
         const { path, subMasks, maps, noResults } = event.payload;
         const { selectedImage, patchesSentToBackend, setEditor } = useEditorStore.getState();
@@ -551,6 +559,8 @@ export function useTauriListeners({
 
         noResults.forEach((noResult) => toast.error(`AI Mask: ${noResult}`));
         Object.keys(subMasks).forEach((id) => patchesSentToBackend.delete(id));
+        debouncedSetHistory.flush();
+        const before = useEditorStore.getState().adjustments;
         setEditor((state) => ({
           adjustments: {
             ...state.adjustments,
@@ -565,6 +575,14 @@ export function useTauriListeners({
             })),
           },
         }));
+        const after = useEditorStore.getState().adjustments;
+        if (!sameAdjustmentValue(before, after))
+          useEditorStore
+            .getState()
+            .pushHistory(after, {
+              ...describeHistoryChange(before, after, 'assistant'),
+              label: 'AI: Background completion',
+            });
       }),
       listen('viewer-closed', () => {
         if (isEffectActive) {

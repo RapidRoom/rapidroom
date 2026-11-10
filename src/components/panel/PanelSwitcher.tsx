@@ -6,6 +6,7 @@ import clsx from 'clsx';
 import { useDraggable, useDroppable, useDndMonitor } from '@dnd-kit/core';
 import {
   SlidersHorizontal,
+  History,
   Info,
   Crop,
   Layers,
@@ -31,6 +32,7 @@ export const PANEL_ICONS: Record<Panel, LucideIcon> = {
   [Panel.FolderTree]: FolderIcon,
   [Panel.Tethering]: Camera,
   [Panel.Terminal]: TerminalIcon,
+  [Panel.History]: History,
 };
 
 const PANEL_TITLES: Record<Panel, ParseKeys> = {
@@ -44,6 +46,7 @@ const PANEL_TITLES: Record<Panel, ParseKeys> = {
   [Panel.FolderTree]: 'library.folders.sourcesTitle',
   [Panel.Tethering]: 'editor.switcher.tooltips.tethering',
   [Panel.Terminal]: 'terminal.title',
+  [Panel.History]: 'history.title',
 };
 
 function PanelTab({
@@ -277,6 +280,7 @@ export function MobilePanelSwitcher({
     Panel.Ai,
     Panel.Presets,
     Panel.Export,
+    Panel.History,
   ];
 
   const isVertical = placement === 'right';

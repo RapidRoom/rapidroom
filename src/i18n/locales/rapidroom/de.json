@@ -432,5 +432,27 @@
     "restored_one": "Restored metadata for {{count}} file.",
     "restored_other": "Restored metadata for {{count}} files.",
     "failed": "Metadata write failed: {{error}}"
+  },
+  "history": {
+    "title": "History",
+    "system": "System",
+    "user": "User",
+    "addSnapshot": "+ Snapshot",
+    "close": "Close History",
+    "selectPhoto": "Open a photo in the Editor to view its history.",
+    "snapshots": "Snapshots",
+    "snapshotActions": "Snapshot actions",
+    "rename": "Rename snapshot",
+    "delete": "Delete snapshot",
+    "steps": "Edit steps",
+    "initial": "Initial state",
+    "snapshotName": "Snapshot name",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirmDelete": "Delete this named snapshot? Its saved state will be removed.",
+    "branch_one": "New edits replace {{count}} later step",
+    "compacted_one": "+{{count}} earlier step compacted",
+    "branch_other": "New edits replace {{count}} later steps",
+    "compacted_other": "+{{count}} earlier steps compacted"
   }
 }

@@ -71,3 +71,41 @@ describe('per-photo edit history', () => {
     expect(useEditorStore.getState().historyIndex).toBe(0);
   });
 });
+
+describe('portable saved History', () => {
+  it('round-trips exact-path history, stable IDs and snapshots across restart and branches', async () => {
+    const { serializeHistory } = await import('../utils/savedHistory');
+    const path = '/photos/a.NEF?vc=0f8fad5b-d9cb-469f-a165-70867728950e';
+    openPhoto(path, INITIAL_ADJUSTMENTS);
+    const first = { ...INITIAL_ADJUSTMENTS, exposure: 0.3 };
+    useEditorStore.getState().pushHistory(first);
+    useEditorStore.getState().setEditor({ adjustments: first });
+    useEditorStore.getState().createHistorySnapshot('Before contrast');
+    const second = { ...first, contrast: 12 };
+    useEditorStore.getState().pushHistory(second);
+    useEditorStore.getState().setEditor({ adjustments: second });
+    const saved = serializeHistory(useEditorStore.getState(), second)!;
+    expect(serializeHistory(useEditorStore.getState(), second)?.steps.map((step) => step.id)).toEqual(
+      saved.steps.map((step) => step.id),
+    );
+    useEditorStore.setState(initialEditorState, true);
+    openPhoto(path, second);
+    useEditorStore.getState().loadSavedHistory(path, JSON.parse(JSON.stringify(saved)));
+    expect(useEditorStore.getState().history).toHaveLength(3);
+    expect(useEditorStore.getState().historySnapshots[0].adjustments).toEqual(first);
+    useEditorStore.getState().undo();
+    const branch = { ...first, contrast: -10 };
+    useEditorStore.getState().pushHistory(branch);
+    useEditorStore.getState().setEditor({ adjustments: branch });
+    const branched = serializeHistory(useEditorStore.getState(), branch)!;
+    expect(branched.steps.map((step) => step.id)).not.toContain(saved.steps[2].id);
+    expect(branched.steps[0].id).toBe(saved.steps[0].id);
+    useEditorStore.getState().restoreHistorySnapshot(branched.snapshots[0].id);
+    expect(useEditorStore.getState().adjustments).toEqual(first);
+    expect(useEditorStore.getState().history).toHaveLength(4);
+    expect(useEditorStore.getState().historySnapshots[0].adjustments).toEqual(first);
+    openPhoto('/photos/a.NEF', INITIAL_ADJUSTMENTS);
+    useEditorStore.getState().loadSavedHistory(path, saved);
+    expect(useEditorStore.getState().history).toHaveLength(1);
+  });
+});

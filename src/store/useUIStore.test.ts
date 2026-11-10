@@ -122,7 +122,13 @@ describe('reconcileWorkspace', () => {
       false,
     );
     expect(workspace.panelLayout.leftTop).toEqual([Panel.Metadata, Panel.FolderTree, Panel.Export, Panel.Presets]);
-    expect(workspace.panelLayout.rightTop).toEqual([Panel.Adjustments, Panel.Crop, Panel.Masks, Panel.Ai]);
+    expect(workspace.panelLayout.rightTop).toEqual([
+      Panel.Adjustments,
+      Panel.Crop,
+      Panel.Masks,
+      Panel.Ai,
+      Panel.History,
+    ]);
     expect(workspace.activePanels.rightTop).toBe(Panel.Adjustments);
     expect(workspace.layoutVersion).toBe(WORKSPACE_LAYOUT_VERSION);
   });
@@ -148,7 +154,7 @@ describe('reconcileWorkspace', () => {
     expect(workspace.panelLayout).toEqual({
       leftTop: [Panel.FolderTree, Panel.Presets],
       leftBottom: [Panel.Metadata],
-      rightTop: [Panel.Adjustments, Panel.Masks],
+      rightTop: [Panel.Adjustments, Panel.Masks, Panel.History],
       rightBottom: [Panel.Crop, Panel.Ai, Panel.Export],
       bottom: [],
     });
@@ -194,6 +200,7 @@ describe('reconcileWorkspace', () => {
       Panel.Masks,
       Panel.Ai,
       Panel.Presets,
+      Panel.History,
     ]);
     expect(workspace.panelLayout.leftTop).not.toContain(Panel.Presets);
   });

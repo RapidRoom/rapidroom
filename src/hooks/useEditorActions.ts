@@ -1,3 +1,4 @@
+import { type SavedHistory, serializeHistory } from '../utils/savedHistory';
 import { rememberAppliedStyleStack } from '../utils/appliedPreset';
 import { createResetAdjustmentsWithLensDefaults } from '../utils/rawLensDefaults';
 import { captureAdjustments } from '../utils/adjustmentCapture';
@@ -83,9 +84,26 @@ const saveDebounce = debounce((path: string, adjustmentsToSave: Adjustments) => 
     }
     return;
   }
-  const save = queuePhotoWrite(path, () =>
-    invoke(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: adjustmentsToSave }),
-  );
+  const editor = useEditorStore.getState();
+  if (editor.historyPath === path) debouncedSetHistory.flush();
+  const current = useEditorStore.getState();
+  const history =
+    current.historyPath === path && current.historyWritable ? serializeHistory(current, adjustmentsToSave) : null;
+  const save = queuePhotoWrite(path, async () => {
+    if (!history) return invoke(Invokes.SaveMetadataAndUpdateThumbnail, { path, adjustments: adjustmentsToSave });
+    const result = await invoke<{
+      adjustments: Adjustments;
+      historyWarning: string | null;
+      history: SavedHistory | null;
+    }>('save_metadata_and_edit_history', { path, adjustments: adjustmentsToSave, history });
+    const latest = useEditorStore.getState();
+    if (latest.historyPath === path) {
+      latest.setEditor({ historyWarning: result.historyWarning });
+      if (latest.historyRevision === current.historyRevision && result.history)
+        latest.loadSavedHistory(path, result.history, result.historyWarning, true);
+    }
+    return result;
+  });
   pendingEditorSaves.add(save);
   void save.then(
     () => pendingEditorSaves.delete(save),
@@ -99,10 +117,10 @@ const saveDebounce = debounce((path: string, adjustmentsToSave: Adjustments) => 
 }, 300);
 
 export const debouncedSave = Object.assign(
-  (path: string, adjustments: Adjustments) => {
+  (path: string, adjustments: Adjustments, forceHistory = false) => {
     const draft = { path, adjustments };
     if (persistedEditorDraft?.path === path) {
-      if (persistedEditorDraft.adjustments === adjustments) return;
+      if (persistedEditorDraft.adjustments === adjustments && !forceHistory) return;
       persistedEditorDraft = undefined;
     }
     if (importSavePause) {

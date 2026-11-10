@@ -1,4 +1,7 @@
 import { RefObject } from 'react';
+import { v4 as uuid } from 'uuid';
+import type { SavedHistory, HistorySnapshot } from '../utils/savedHistory';
+import { normalizeLoadedAdjustments } from '../utils/adjustments';
 import { describeHistoryChange, sameAdjustmentValue, type HistoryDetails } from '../utils/editHistory';
 import { create } from 'zustand';
 import {
@@ -52,6 +55,16 @@ interface EditorState {
   historyDetails: Array<HistoryDetails | null>;
   historyIndex: number;
   historyPath: string | null;
+  historyRevision: number;
+  historySnapshots: HistorySnapshot[];
+  historyCompacted: number;
+  historyWarning: string | null;
+  historyWritable: boolean;
+  loadSavedHistory: (path: string, history: SavedHistory | null, warning?: string | null, writable?: boolean) => void;
+  createHistorySnapshot: (name: string) => void;
+  renameHistorySnapshot: (id: string, name: string) => void;
+  deleteHistorySnapshot: (id: string) => void;
+  restoreHistorySnapshot: (id: string) => void;
   photoHistories: ReadonlyMap<string, PhotoHistory>;
 
   // Previews & Overlays
@@ -132,6 +145,8 @@ interface EditorState {
 }
 
 interface PhotoHistory {
+  historySnapshots: HistorySnapshot[];
+  historyCompacted: number;
   history: Adjustments[];
   historyDetails: Array<HistoryDetails | null>;
   historyIndex: number;
@@ -171,9 +186,14 @@ export const useEditorStore = create<EditorState>((set) => ({
   adjustments: INITIAL_ADJUSTMENTS,
   previewOverride: null,
   history: [INITIAL_ADJUSTMENTS],
-  historyDetails: [null],
+  historyDetails: [{ id: uuid(), actor: 'system', label: 'Initial state', changedKeys: [], timestamp: Date.now() }],
   historyIndex: 0,
   historyPath: null,
+  historyRevision: 0,
+  historySnapshots: [],
+  historyCompacted: 0,
+  historyWarning: null,
+  historyWritable: false,
   photoHistories: new Map(),
 
   finalPreviewUrl: null,
@@ -256,26 +276,33 @@ export const useEditorStore = create<EditorState>((set) => ({
         details && typeof details === 'object'
           ? details
           : {
-              ...describeHistoryChange(
-                state.history[state.historyIndex] ?? INITIAL_ADJUSTMENTS,
-                newAdj,
-                typeof details === 'string' && details.startsWith('AI:') ? 'assistant' : 'user',
-              ),
-              ...(typeof details === 'string' && details.trim() ? { label: details } : {}),
+              ...describeHistoryChange(state.history[state.historyIndex] ?? INITIAL_ADJUSTMENTS, newAdj, 'user'),
+              ...(typeof details === 'string' && details.trim() ? { label: details, display: undefined } : {}),
             };
-      historyDetails.push(recorded);
-      if (newHistory.length > 50) {
-        newHistory.shift();
-        historyDetails.shift();
+      historyDetails.push({ ...recorded, id: uuid() });
+      const trimmed = newHistory.length > 50;
+      if (trimmed) {
+        const removable = 1;
+        newHistory.splice(removable, 1);
+        historyDetails.splice(removable, 1);
       }
-      return { history: newHistory, historyDetails, historyIndex: newHistory.length - 1 };
+      return {
+        historyRevision: state.historyRevision + 1,
+        history: newHistory,
+        historyDetails,
+        historyIndex: newHistory.length - 1,
+        historyCompacted: state.historyCompacted + (trimmed ? 1 : 0),
+      };
     }),
 
   undo: () =>
     set((state) => {
       if (state.historyIndex > 0) {
-        const newIndex = state.historyIndex - 1;
-        return { historyIndex: newIndex, adjustments: state.history[newIndex] };
+        let newIndex = state.historyIndex - 1;
+        while (newIndex >= 0 && state.historyDetails[newIndex]?.actor === 'imported') newIndex--;
+        return newIndex >= 0
+          ? { historyIndex: newIndex, adjustments: state.history[newIndex], historyRevision: state.historyRevision + 1 }
+          : state;
       }
       return state;
     }),
@@ -283,8 +310,11 @@ export const useEditorStore = create<EditorState>((set) => ({
   redo: () =>
     set((state) => {
       if (state.historyIndex < state.history.length - 1) {
-        const newIndex = state.historyIndex + 1;
-        return { historyIndex: newIndex, adjustments: state.history[newIndex] };
+        let newIndex = state.historyIndex + 1;
+        while (newIndex < state.history.length && state.historyDetails[newIndex]?.actor === 'imported') newIndex++;
+        return newIndex < state.history.length
+          ? { historyIndex: newIndex, adjustments: state.history[newIndex], historyRevision: state.historyRevision + 1 }
+          : state;
       }
       return state;
     }),
@@ -294,8 +324,13 @@ export const useEditorStore = create<EditorState>((set) => ({
       const photoHistories = new Map(state.photoHistories);
       if (state.selectedImage) photoHistories.delete(state.selectedImage.path);
       return {
+        historyRevision: state.historyRevision + 1,
         history: [initialState],
-        historyDetails: [null],
+        historyDetails: [
+          { id: uuid(), actor: 'system', label: 'Initial state', changedKeys: [], timestamp: Date.now() },
+        ],
+        historySnapshots: [],
+        historyCompacted: 0,
         historyIndex: 0,
         historyPath: state.selectedImage?.path ?? null,
         adjustments: initialState,
@@ -320,6 +355,8 @@ export const useEditorStore = create<EditorState>((set) => ({
           history: [...state.history],
           historyDetails: [...state.historyDetails],
           historyIndex: state.historyIndex,
+          historySnapshots: state.historySnapshots,
+          historyCompacted: state.historyCompacted,
         }),
       };
     }),
@@ -336,7 +373,15 @@ export const useEditorStore = create<EditorState>((set) => ({
           photoHistories: rememberPhotoHistory(state.photoHistories, path, saved),
         };
       }
-      const fresh = { history: [initialState], historyDetails: [null], historyIndex: 0 };
+      const fresh: PhotoHistory = {
+        history: [initialState],
+        historyDetails: [
+          { id: uuid(), actor: 'system', label: 'Initial state', changedKeys: [], timestamp: Date.now() },
+        ],
+        historyIndex: 0,
+        historySnapshots: [],
+        historyCompacted: 0,
+      };
       return {
         ...fresh,
         historyPath: path ?? null,
@@ -346,10 +391,77 @@ export const useEditorStore = create<EditorState>((set) => ({
       };
     }),
 
+  loadSavedHistory: (path, history, warning = null, writable = true) =>
+    set((state) => {
+      if (state.selectedImage?.path !== path || state.historyPath !== path) return state;
+      const base = { historyWarning: warning, historyWritable: writable };
+      if (!history) return base;
+      const index = history.steps.findIndex((step) => step.id === history.currentStepId);
+      if (
+        index < 0 ||
+        !sameAdjustmentValue(normalizeLoadedAdjustments(history.steps[index].adjustments), state.adjustments)
+      )
+        return base;
+      return {
+        ...base,
+        history: history.steps.map((step) => normalizeLoadedAdjustments(step.adjustments)),
+        historyDetails: history.steps.map(({ id, label, actor, timestamp, changedKeys, display, source }) => ({
+          id,
+          label,
+          actor,
+          timestamp,
+          changedKeys,
+          ...(display ? { display } : {}),
+          ...(source ? { source } : {}),
+        })),
+        historyIndex: index,
+        historySnapshots: history.snapshots,
+        historyCompacted: history.compactedSteps,
+      };
+    }),
+
+  createHistorySnapshot: (name) =>
+    set((state) => {
+      name = [...name.trim()].slice(0, 120).join('');
+      if (!name || state.historySnapshots.length >= 20) return state;
+      return {
+        historyRevision: state.historyRevision + 1,
+        historySnapshots: [
+          ...state.historySnapshots,
+          { id: uuid(), name, createdAt: Date.now(), adjustments: structuredClone(state.adjustments) },
+        ],
+      };
+    }),
+  renameHistorySnapshot: (id, name) =>
+    set((state) => {
+      name = [...name.trim()].slice(0, 120).join('');
+      return name
+        ? {
+            historyRevision: state.historyRevision + 1,
+            historySnapshots: state.historySnapshots.map((snapshot) =>
+              snapshot.id === id ? { ...snapshot, name } : snapshot,
+            ),
+          }
+        : state;
+    }),
+  deleteHistorySnapshot: (id) =>
+    set((state) => ({
+      historyRevision: state.historyRevision + 1,
+      historySnapshots: state.historySnapshots.filter((snapshot) => snapshot.id !== id),
+    })),
+  restoreHistorySnapshot: (id) => {
+    const state = useEditorStore.getState();
+    const snapshot = state.historySnapshots.find((snapshot) => snapshot.id === id);
+    if (!snapshot) return;
+    const adjustments = normalizeLoadedAdjustments(structuredClone(snapshot.adjustments));
+    state.pushHistory(adjustments, `Snapshot: ${snapshot.name}`);
+    state.setEditor({ adjustments });
+  },
+
   goToHistoryIndex: (index) =>
     set((state) => {
-      if (index >= 0 && index < state.history.length) {
-        return { historyIndex: index, adjustments: state.history[index] };
+      if (index >= 0 && index < state.history.length && state.historyDetails[index]?.actor !== 'imported') {
+        return { historyIndex: index, adjustments: state.history[index], historyRevision: state.historyRevision + 1 };
       }
       return state;
     }),

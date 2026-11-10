@@ -127,7 +127,7 @@ pub fn save_applied_preset(
     path: String,
     record: Option<AppliedPreset>,
     adjustments: Option<Value>,
-) -> Result<(), String> {
+) -> Result<Option<String>, String> {
     if record.as_ref().is_some_and(|record| !record.valid())
         || adjustments.as_ref().is_some_and(|value| !value.is_object())
     {

@@ -1096,12 +1096,22 @@ fn commit_results(
     source_id: &str,
     results: JobResults,
 ) -> Result<(), String> {
-    let (source_path, sidecar_path) = parse_virtual_path(path);
+    let (_, sidecar_path) = parse_virtual_path(path);
     let mut committed = Default::default();
-    crate::exif_processing::update_sidecar(&sidecar_path, &source_path, |metadata| {
-        committed = apply_results(&mut metadata.adjustments, source_id, &results);
-    })
-    .map_err(|e| e.to_string())?;
+    let (_, warning) = crate::file_management::update_sidecar_recorded(
+        &sidecar_path,
+        "AI: Background completion",
+        crate::edit_history::Actor::Assistant,
+        |metadata| {
+            committed = apply_results(&mut metadata.adjustments, source_id, &results);
+        },
+    )?;
+    if let Some(warning) = warning {
+        let _ = app_handle.emit(
+            "edit-history-warning",
+            json!({ "path": path, "warning": warning }),
+        );
+    }
 
     let (sub_masks, maps) = committed;
     let no_results: Vec<&String> = results

@@ -172,7 +172,10 @@ async function applyEdit(
   const previousRenderVersion = editor.previewRenderVersion;
   editor.setEditor({ adjustments: nextAdjustments });
   const details = describeHistoryChange(editor.adjustments, nextAdjustments, 'assistant');
-  if (label) details.label = label;
+  if (label) {
+    details.label = label;
+    details.display = undefined;
+  }
   editor.pushHistory(nextAdjustments, details);
   toast.info(details.label, { autoClose: 2500 });
   return pixelsChanged ? waitForAdjustmentRender(path, previousRenderVersion, nextAdjustments) : true;

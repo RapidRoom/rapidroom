@@ -21,9 +21,25 @@ describe('labelled editor history', () => {
   it('records values and names for sliders, crop, curves, HSL and local masks', () => {
     const base = INITIAL_ADJUSTMENTS;
     expect(describeHistoryChange({ ...base, exposure: 1 }, { ...base, exposure: 0.35 }, 'user').label).toBe(
-      'Exposure +0.35',
+      'Exposure +1 → +0.35',
     );
-    expect(describeHistoryChange(base, { ...base, contrast: -12 }, 'user').label).toBe('Contrast -12');
+    expect(describeHistoryChange(base, { ...base, contrast: -12 }, 'user').label).toBe('Contrast 0 → -12');
+    expect(describeHistoryChange(base, { ...base, highlights: 25 }, 'user').label).toBe('Highlights 0 → +25');
+    expect(
+      describeHistoryChange(
+        base,
+        { ...base, colorGrading: { ...base.colorGrading, shadows: { ...base.colorGrading.shadows, saturation: 18 } } },
+        'user',
+      ).label,
+    ).toBe('Color Grading: Shadows: Saturation 0 → +18');
+    expect(describeHistoryChange(base, { ...base, flipHorizontal: true }, 'user').label).toBe('Flip Horizontal on');
+    const many = describeHistoryChange(
+      base,
+      { ...base, exposure: 1, contrast: 2, saturation: 3, highlights: 4, shadows: 5, blacks: 6, whites: 7 },
+      'assistant',
+    );
+    expect(many.label).toMatch(/^AI: .* \(\+1 more\)$/);
+
     expect(
       describeHistoryChange(
         base,
@@ -48,7 +64,7 @@ describe('labelled editor history', () => {
       ).label,
     ).toBe('Tone curve (Luma)');
     const hsl = { ...base.hsl, oranges: { ...base.hsl.oranges, saturation: 15 } };
-    expect(describeHistoryChange(base, { ...base, hsl }, 'user').label).toBe('HSL: Orange: Saturation +15');
+    expect(describeHistoryChange(base, { ...base, hsl }, 'user').label).toBe('HSL: Orange: Saturation 0 → +15');
     const masks = [
       {
         id: 'face',
@@ -65,7 +81,7 @@ describe('labelled editor history', () => {
       ...base,
       masks: [{ ...masks[0], adjustments: { ...INITIAL_MASK_ADJUSTMENTS, exposure: 0.4 } }],
     });
-    expect(describeHistoryChange(previous, next, 'assistant').label).toBe('AI: Face & neck: Exposure +0.4');
+    expect(describeHistoryChange(previous, next, 'assistant').label).toBe('AI: Face & neck: Exposure 0 → +0.4');
   });
 
   it('keeps a readable history menu inside narrow and bottom-edge viewports', () => {
@@ -108,20 +124,21 @@ describe('labelled editor history', () => {
     const first = { ...INITIAL_ADJUSTMENTS, exposure: 0.4, highlights: -30 };
     const second = { ...first, contrast: 10 };
     const details = describeHistoryChange(INITIAL_ADJUSTMENTS, first, 'assistant');
-    expect(details.label).toBe('AI: Exposure +0.4, Highlights -30');
+    expect(details.label).toBe('AI: Exposure 0 → +0.4, Highlights 0 → -30');
     const store = useEditorStore.getState();
     store.pushHistory(first, details);
     store.pushHistory(second, describeHistoryChange(first, second, 'assistant'));
     store.undo();
     expect(useEditorStore.getState().adjustments).toEqual(first);
     store.redo();
-    expect(useEditorStore.getState().historyDetails[1]).toEqual(details);
+    expect(useEditorStore.getState().historyDetails[1]).toMatchObject(details);
     store.undo();
     store.pushHistory({ ...first, contrast: 20 });
-    expect(useEditorStore.getState().historyDetails.slice(0, 2)).toEqual([null, details]);
+    expect(useEditorStore.getState().historyDetails[0]).toMatchObject({ actor: 'system', label: 'Initial state' });
+    expect(useEditorStore.getState().historyDetails[1]).toMatchObject(details);
     expect(useEditorStore.getState().historyDetails[2]).toMatchObject({
       actor: 'user',
-      label: 'Contrast +20',
+      label: 'Contrast 0 → +20',
       changedKeys: ['contrast'],
     });
     expect(useEditorStore.getState().history).toHaveLength(3);
@@ -136,9 +153,10 @@ describe('labelled editor history', () => {
     const store = useEditorStore.getState();
     expect(store.history).toHaveLength(50);
     expect(store.historyDetails).toHaveLength(50);
-    expect(store.history[0].exposure).toBe(0.11);
-    expect(store.historyDetails.every((details) => details?.changedKeys.includes('exposure'))).toBe(true);
+    expect(store.history[0].exposure).toBe(INITIAL_ADJUSTMENTS.exposure);
+    expect(store.history[1].exposure).toBe(0.12);
+    expect(store.historyDetails.slice(1).every((details) => details?.changedKeys.includes('exposure'))).toBe(true);
     store.resetHistory(INITIAL_ADJUSTMENTS);
-    expect(useEditorStore.getState().historyDetails).toEqual([null]);
+    expect(useEditorStore.getState().historyDetails).toMatchObject([{ actor: 'system', label: 'Initial state' }]);
   });
 });
