@@ -1,0 +1,13 @@
+{
+  "id": "133-negative-dehaze-import",
+  "title": "Calibrate negative Lightroom Dehaze imports",
+  "category": "fix",
+  "landed": "2026-10-31",
+  "authors": ["yojen7"],
+  "source": "rapidroom (original implementation)",
+  "commits": [],
+  "upstream_issues": [],
+  "upstream_prs": [],
+  "rendering_change": true,
+  "notes": "Provisional: RAW Lightroom sidecars now import negative Dehaze at 0.125 strength, calibrated on two effective night photos with Dehaze -15 and -23; values beyond -23 are extrapolated. Zeroing was nearly as good (mean-luma error 3.224 versus 3.474), and the original-night black fraction remains far off (3.560% versus Lightroom 11.655%). The third photo was a positive-Dehaze unchanged control, not a calibration point. Clarity, Texture, positive Dehaze, rendered sources, and default renders are unchanged. Reusable .xmp presets applied to RAW and mask-local LocalDehaze remain unscaled exceptions."
+}
