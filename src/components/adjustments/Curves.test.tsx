@@ -8,6 +8,9 @@ import CurveGraph from './Curves';
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('../../context/ContextMenuContext', () => ({ useContextMenu: () => ({ showContextMenu: vi.fn() }) }));
 vi.mock('../ui/Slider', () => ({ default: () => null }));
+vi.mock('./CurvePresetControl', () => ({
+  default: () => createElement('div', { 'data-testid': 'curve-preset-control' }),
+}));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 let root: ReturnType<typeof createRoot> | undefined;
@@ -16,6 +19,23 @@ afterEach(async () => {
   root = undefined;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+it.each([false, true])('shows the curve preset control only outside masks (isForMask=%s)', async (isForMask) => {
+  const container = document.createElement('div');
+  root = createRoot(container);
+  await act(async () =>
+    root!.render(
+      createElement(CurveGraph, {
+        adjustments: INITIAL_ADJUSTMENTS,
+        setAdjustments: vi.fn(),
+        histogram: null,
+        isForMask,
+        theme: 'dark',
+      }),
+    ),
+  );
+  expect(container.querySelector('[data-testid="curve-preset-control"]') !== null).toBe(!isForMask);
 });
 
 it('keeps refused point insertion idle and releases the next accepted drag', async () => {

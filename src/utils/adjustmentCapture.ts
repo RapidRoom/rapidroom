@@ -1,4 +1,4 @@
-import { ADJUSTMENT_GROUPS, type Adjustments } from './adjustments';
+import { ADJUSTMENT_GROUPS, CURVE_ADJUSTMENT_KEYS, type Adjustments } from './adjustments';
 import { copyLensPolicyVersion } from './lensPolicyVersion';
 
 const owns = (value: Partial<Adjustments>, key: string) => Object.prototype.hasOwnProperty.call(value, key);
@@ -14,6 +14,12 @@ export function captureAdjustments(
   for (const key of keys) {
     if (owns(source, key) && (!defaults || JSON.stringify(source[key]) !== JSON.stringify(defaults[key]))) {
       patch[key] = structuredClone(source[key]);
+    }
+  }
+
+  if (defaults && CURVE_ADJUSTMENT_KEYS.some((key) => owns(patch, key))) {
+    for (const key of CURVE_ADJUSTMENT_KEYS) {
+      if (keys.includes(key) && owns(source, key)) patch[key] = structuredClone(source[key]);
     }
   }
 

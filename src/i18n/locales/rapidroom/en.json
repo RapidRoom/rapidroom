@@ -8,6 +8,18 @@
       "mixerPickerTooltip": "Color Mixer Picker: click and drag up or down on the photo",
       "toggleMixerExpanded": "Expanded Color Mixer"
     },
+    "curves": {
+      "presets": {
+        "delete": "Delete curve preset",
+        "empty": "Curve is at defaults",
+        "namePlaceholder": "Curve preset name",
+        "rename": "Rename curve preset",
+        "renameTitle": "Rename Curve Preset",
+        "save": "Save curve preset",
+        "saveTitle": "Save Curve Preset",
+        "select": "Apply curve preset…"
+      }
+    },
     "details": {
       "aiDenoiseHint": "For high-ISO RAW photos, use AI Denoise from the photo menu. These sliders are for light touch-ups.",
       "quickNoiseReduction": "Quick noise reduction (basic)"
