@@ -342,6 +342,7 @@ pub(super) fn adjustments_schema() -> Value {
         curves_schema("Saved point-curve channels restored when curveMode is point."),
     );
     properties.insert("parametricCurve".to_string(), parametric_curve_schema());
+    properties.insert("nestedLookCurves".to_string(), nested_look_curves_schema());
     for key in ["vignetteCenterX", "vignetteCenterY", "centréX", "centréY"] {
         properties.insert(
             key.to_string(),
@@ -612,6 +613,35 @@ fn parametric_curve_schema() -> Value {
     )
 }
 
+fn nested_look_curves_schema() -> Value {
+    json!({
+        "type": "array",
+        "description": "Imported Lightroom profile-look tone curves composed before parametric and point curves.",
+        "readOnly": true,
+        "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["amount", "points"],
+            "properties": {
+                "amount": ranged_number_schema(0.0, 2.0, "Look curve blend amount."),
+                "points": {
+                    "type": "array",
+                    "minItems": 2,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["x", "y"],
+                        "properties": {
+                            "x": ranged_number_schema(0.0, 255.0, "Input coordinate."),
+                            "y": ranged_number_schema(0.0, 255.0, "Output coordinate."),
+                        }
+                    }
+                }
+            }
+        }
+    })
+}
+
 fn hue_sat_lum_schema(
     hue_minimum: f64,
     hue_maximum: f64,
@@ -714,6 +744,7 @@ fn adjustment_keys() -> Vec<String> {
                 "aiDenoiseAmount",
                 "aiDenoiseDetail",
                 "aiPatches",
+                "nestedLookCurves",
                 "sectionVisibility",
                 "activeTools",
                 "showClipping",
@@ -771,6 +802,7 @@ pub(super) fn validate_adjustments(adjustments: &Value) -> Result<(), String> {
             match key.as_str() {
                 "curves" | "pointCurves" => validate_curves(value, key)?,
                 "parametricCurve" => validate_parametric_curve(value)?,
+                "nestedLookCurves" => validate_nested_look_curves(value)?,
                 "hsl" => validate_hsl(value)?,
                 "colorGrading" => validate_color_grading(value)?,
                 "colorCalibration" => validate_color_calibration(value)?,
@@ -1069,6 +1101,52 @@ fn validate_curves(value: &Value, key: &str) -> Result<(), String> {
                 return Err(format!(
                     "adjustment {key}.{channel} points must be ordered by x"
                 ));
+            }
+            previous_x = x;
+        }
+    }
+    Ok(())
+}
+
+fn validate_nested_look_curves(value: &Value) -> Result<(), String> {
+    let looks = value
+        .as_array()
+        .ok_or_else(|| "adjustment nestedLookCurves must be an array".to_string())?;
+    for (index, look) in looks.iter().enumerate() {
+        let key = format!("nestedLookCurves[{index}]");
+        let look = validate_nested_object(look, &key)?;
+        validate_nested_keys(look, &key, &["amount", "points"])?;
+        let amount = look
+            .get("amount")
+            .ok_or_else(|| format!("adjustment {key}.amount is required"))?;
+        validate_number(amount, &format!("{key}.amount"), 0.0, 2.0)?;
+        let points = look
+            .get("points")
+            .ok_or_else(|| format!("adjustment {key}.points is required"))?;
+        let points = points
+            .as_array()
+            .ok_or_else(|| format!("adjustment {key}.points must be an array"))?;
+        if points.len() < 2 {
+            return Err(format!(
+                "adjustment {key}.points must contain at least two points"
+            ));
+        }
+        let mut previous_x = -1.0;
+        for (point_index, point) in points.iter().enumerate() {
+            let point_key = format!("{key}.points[{point_index}]");
+            let point = validate_nested_object(point, &point_key)?;
+            validate_nested_keys(point, &point_key, &["x", "y"])?;
+            let x = point
+                .get("x")
+                .ok_or_else(|| format!("adjustment {point_key}.x is required"))?;
+            let y = point
+                .get("y")
+                .ok_or_else(|| format!("adjustment {point_key}.y is required"))?;
+            validate_number(x, &format!("{point_key}.x"), 0.0, 255.0)?;
+            validate_number(y, &format!("{point_key}.y"), 0.0, 255.0)?;
+            let x = x.as_f64().unwrap_or_default();
+            if x < previous_x {
+                return Err(format!("adjustment {key}.points must be ordered by x"));
             }
             previous_x = x;
         }
@@ -1610,6 +1688,7 @@ mod tests {
                 "toneMapper": "agx",
                 "exposure": 0.5,
                 "curves": { "red": [{ "x": 0, "y": 0 }, { "x": 255, "y": 255 }] },
+                "nestedLookCurves": [{ "amount": 1, "points": [{ "x": 0, "y": 12 }, { "x": 255, "y": 255 }] }],
                 "parametricCurve": { "luma": { "whiteLevel": -25, "split2": 50 } },
                 "colorGrading": { "shadows": { "hue": 220, "saturation": 35, "luminance": -10 } }
             }))
