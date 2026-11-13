@@ -949,9 +949,18 @@ fn transform_full_mask(
         }
     });
 
-    let taps = (tf.scale.recip() - 1.0e-3).ceil().max(1.0) as u32;
+    let mut taps = (tf.scale.recip() - 1.0e-3).ceil().max(1.0) as u32;
     if taps == 1 {
-        return final_mask;
+        // RapidRoom (#241): full-size renders and exports still need graded edges when the
+        // transform leaves pixel centres between source pixels (fine rotation or a
+        // fractional crop offset). Axis-aligned integer transforms stay exact.
+        let off_grid = tf.rotation % 90.0 != 0.0
+            || tf.crop_offset.0.fract() != 0.0
+            || tf.crop_offset.1.fract() != 0.0;
+        if !off_grid {
+            return final_mask;
+        }
+        taps = 2;
     }
 
     let origin = to_source(0.0, 0.0);
@@ -2064,6 +2073,26 @@ mod ai_transform_sampling_tests {
         let values = output.as_raw();
         assert!(values.contains(&0) && values.contains(&255));
         assert!(values.iter().filter(|v| **v > 0 && **v < 255).count() > 40);
+    }
+
+    #[test]
+    fn rotated_full_scale_edge_has_intermediate_coverage() {
+        let source = GrayImage::from_fn(128, 128, |x, _| Luma([if x < 64 { 0 } else { 255 }]));
+        let mut tf = transform(128, 128, 1.0);
+        tf.rotation = 3.0;
+        let output = generate_ai_bitmap_from_full_mask(&source, &tf);
+        let values = output.as_raw();
+        assert!(values.contains(&0) && values.contains(&255));
+        assert!(values.iter().filter(|v| **v > 0 && **v < 255).count() > 40);
+    }
+
+    #[test]
+    fn fractional_crop_offset_full_scale_edge_has_intermediate_coverage() {
+        let source = GrayImage::from_fn(64, 64, |x, _| Luma([if x < 32 { 0 } else { 255 }]));
+        let mut tf = transform(32, 64, 1.0);
+        tf.crop_offset = (16.5, 0.0);
+        let output = generate_ai_bitmap_from_full_mask(&source, &tf);
+        assert!(output.as_raw().iter().any(|v| *v > 0 && *v < 255));
     }
 
     #[test]
