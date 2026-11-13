@@ -927,23 +927,7 @@ fn transform_full_mask(
         (x_unrotated_coarse / tf.scale, y_unrotated_coarse / tf.scale)
     };
 
-    // Filter before minification so thin edges and fine patterns keep their
-    // coverage; point sampling alone cannot see pixels a reduced preview skips.
-    let filtered = (tf.scale < 1.0).then(|| {
-        image::imageops::resize(
-            full_mask_image,
-            (full_mask_w as f32 * tf.scale).round().max(1.0) as u32,
-            (full_mask_h as f32 * tf.scale).round().max(1.0) as u32,
-            image::imageops::FilterType::Triangle,
-        )
-    });
-    let sampled = filtered.as_ref().unwrap_or(full_mask_image);
-    let (sampled_w, sampled_h) = sampled.dimensions();
-    let (fx, fy) = (
-        sampled_w as f32 / full_mask_w as f32,
-        sampled_h as f32 / full_mask_h as f32,
-    );
-    let raw = sampled.as_raw();
+    let raw = full_mask_image.as_raw();
     let sample = |(x_src, y_src): (f32, f32)| {
         if clamp_edges
             || (x_src >= 0.0
@@ -951,9 +935,9 @@ fn transform_full_mask(
                 && y_src >= 0.0
                 && y_src < full_mask_h as f32)
         {
-            let x = ((x_src.max(0.0) * fx) as usize).min(sampled_w as usize - 1);
-            let y = ((y_src.max(0.0) * fy) as usize).min(sampled_h as usize - 1);
-            raw[y * sampled_w as usize + x] as u32
+            let x = (x_src.max(0.0) as usize).min(full_mask_w as usize - 1);
+            let y = (y_src.max(0.0) as usize).min(full_mask_h as usize - 1);
+            raw[y * full_mask_w as usize + x] as u32
         } else {
             0
         }
@@ -2059,24 +2043,16 @@ mod ai_transform_sampling_tests {
         }
     }
 
+    fn edge_at_three() -> GrayImage {
+        GrayImage::from_fn(8, 8, |x, _| Luma([if x < 3 { 0 } else { 255 }]))
+    }
+
     #[test]
-    fn reduced_checkerboard_preserves_coverage_instead_of_aliasing_to_one_colour() {
-        let source =
-            GrayImage::from_fn(8, 8, |x, y| Luma([if (x + y) % 2 == 0 { 0 } else { 255 }]));
-        let output = generate_ai_bitmap_from_full_mask(&source, &transform(4, 4, 0.5));
-        assert!(
-            output
-                .as_raw()
-                .iter()
-                .all(|pixel| (110..=145).contains(pixel))
-        );
-        let average = output
-            .as_raw()
-            .iter()
-            .map(|pixel| *pixel as f32)
-            .sum::<f32>()
-            / 16.0;
-        assert!((average - 127.5).abs() < 2.0);
+    fn reduced_edge_inside_a_preview_pixel_gets_its_coverage() {
+        let output = generate_ai_bitmap_from_full_mask(&edge_at_three(), &transform(4, 4, 0.5));
+        for row in output.as_raw().chunks(4) {
+            assert_eq!(row, [0, 128, 255, 255]);
+        }
     }
 
     #[test]
@@ -2085,15 +2061,9 @@ mod ai_transform_sampling_tests {
         let mut tf = transform(64, 64, 0.5);
         tf.rotation = 17.0;
         let output = generate_ai_bitmap_from_full_mask(&source, &tf);
-        let values: std::collections::HashSet<_> = output.as_raw().iter().copied().collect();
+        let values = output.as_raw();
         assert!(values.contains(&0) && values.contains(&255));
-        assert!(
-            values
-                .iter()
-                .filter(|value| **value > 0 && **value < 255)
-                .count()
-                > 10
-        );
+        assert!(values.iter().filter(|v| **v > 0 && **v < 255).count() > 40);
     }
 
     #[test]
@@ -2142,10 +2112,8 @@ mod ai_transform_sampling_tests {
     }
 
     fn depth_parameters(min: f32, max: f32) -> Value {
-        let source =
-            GrayImage::from_fn(8, 8, |x, y| Luma([if (x + y) % 2 == 0 { 0 } else { 255 }]));
         let mut png = Cursor::new(Vec::new());
-        DynamicImage::ImageLuma8(source)
+        DynamicImage::ImageLuma8(edge_at_three())
             .write_to(&mut png, ImageFormat::Png)
             .unwrap();
         serde_json::json!({"maskDataBase64":base64::Engine::encode(&general_purpose::STANDARD,png.into_inner()),
@@ -2171,14 +2139,11 @@ mod ai_transform_sampling_tests {
                 .iter()
                 .filter(|value| **value == 255)
                 .count(),
-            32
+            40
         );
         let reduced = generate_ai_depth_bitmap(&params, 4, 4, 0.5, (0.0, 0.0)).unwrap();
-        assert!(
-            reduced
-                .as_raw()
-                .iter()
-                .all(|value| (110..=145).contains(value))
-        );
+        for row in reduced.as_raw().chunks(4) {
+            assert_eq!(row, [0, 128, 255, 255]);
+        }
     }
 }
