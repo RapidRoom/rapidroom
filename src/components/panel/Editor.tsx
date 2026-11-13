@@ -923,7 +923,15 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   }, [adjustments.masks, adjustments.aiPatches, activeMaskId, activeAiSubMaskId, isMasking, isAiEditing]);
 
   const isBrushActive = useMemo(() => {
-    return (isMasking || isAiEditing) && (activeSubMask?.type === Mask.Brush || activeSubMask?.type === Mask.Flow);
+    return (
+      (isMasking || isAiEditing) &&
+      (activeSubMask?.type === Mask.Brush ||
+        activeSubMask?.type === Mask.Flow ||
+        activeSubMask?.type === Mask.Clone ||
+        activeSubMask?.type === Mask.Heal ||
+        activeSubMask?.type === Mask.Liquify ||
+        activeSubMask?.type === Mask.Retouch)
+    );
   }, [isMasking, isAiEditing, activeSubMask?.type]);
 
   const isPanningDisabled =
@@ -2590,7 +2598,7 @@ export default function Editor({ onBackToLibrary, onContextMenu, onImageSelect, 
   const isMaxZoom = isAtMaxZoom(transformState.scale, maxScaleRef.current);
 
   let cursorStyle = 'default';
-  if ((isShiftPressed && !isCropping) || straightenDragLine) {
+  if ((isShiftPressed && !isBrushActive && !isCropping) || straightenDragLine) {
     cursorStyle = 'crosshair';
   } else if (isCtrlPressed && !isBrushActive && !isCropping) {
     cursorStyle = isCropPanningRef.current ? 'grabbing' : 'move';

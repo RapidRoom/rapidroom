@@ -100,6 +100,7 @@ export enum Invokes {
   ImportFiles = 'import_files',
   InvokeGenerativeReplaseWithMaskDef = 'invoke_generative_replace_with_mask_def',
   IsTetheringSupported = 'is_tethering_supported',
+  IsWgpuRendererSupported = 'is_wgpu_renderer_supported',
   ListImagesInDir = 'list_images_in_dir',
   CountUnshownVideos = 'count_unshown_videos',
   ListImagesRecursive = 'list_images_recursive',

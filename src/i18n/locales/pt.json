@@ -222,7 +222,25 @@
       "roundness": "Arredondamento",
       "size": "Tamanho",
       "spatial": "Espacial",
-      "vignette": "Vinheta"
+      "vignette": "Vinheta",
+      "motionBlur": "Desfoque de movimento",
+      "motionBlurAngle": "Ângulo",
+      "motionBlurDepth": "Profundidade",
+      "motionBlurHighlights": "Realces",
+      "motionBlurLayer": "Movimento",
+      "motionBlurLayers": {
+        "auto": "Automático",
+        "panning": "Panning",
+        "subject": "Sujeito em movimento",
+        "uniform": "Uniforme"
+      },
+      "motionBlurType": "Tipo",
+      "motionBlurTypes": {
+        "linear": "Linear",
+        "zoom": "Zoom",
+        "spin": "Rotação",
+        "smooth": "Suave"
+      }
     }
   },
   "contextMenus": {
@@ -479,6 +497,15 @@
         "erase": "Apagar",
         "feather": "Difusão do Pincel",
         "size": "Tamanho do Pincel"
+      },
+      "cloneHeal": {
+        "cloneTooltip": "Copia a origem exatamente, incluindo brilho e cor",
+        "dragSource": "Arraste para mover a origem",
+        "healTooltip": "Copia a textura da origem e a adapta ao brilho e à cor ao redor",
+        "hintActive": "Arraste o contorno da origem para escolher de onde vêm os pixels. Cada novo traço torna-se uma área própria. Mantenha Shift pressionado para adicionar a esta.",
+        "hintEmpty": "Pinte sobre uma mancha, um fio ou uma distração. Uma origem adequada é encontrada automaticamente.",
+        "mode": "Modo",
+        "newSource": "Encontrar outra origem"
       },
       "comingSoon": "Em Breve",
       "connection": {
@@ -817,8 +844,7 @@
       "toggleAnalyticsTooltip": "Alternar Exibição de Análises",
       "tooltips": {
         "addToCurrent": "Adicionar {{name}} à Máscara Atual ou Criar Nova (Botão Direito)",
-        "createNew": "Criar Nova Máscara de {{name}}",
-        "selectNewSourcePoint": "{{modifier}} + Clique para selecionar um novo ponto de origem"
+        "createNew": "Criar Nova Máscara de {{name}}"
       }
     },
     "metadata": {
@@ -1568,6 +1594,7 @@
         "halationGlow": "Halo e Brilho",
         "hueShift": "Deslocamento de matiz global",
         "lensBlur": "Desfoque de lente",
+        "motionBlur": "Desfoque de movimento",
         "lensCorrection": "Correção de Lente",
         "lut": "LUT",
         "masks": "Máscaras",
@@ -1817,7 +1844,7 @@
           "fine": "Shift para ajuste fino"
         },
         "keys": {
-          "hold": "Segurar",
+          "hold": "Tocar / Segurar",
           "previousImage": "Imagem ant.",
           "nextImage": "Próxima imagem",
           "reset": "Redefinir",
@@ -2221,7 +2248,8 @@
       "title": "Motor de Processamento",
       "wgpu": "Renderização Direta WGPU",
       "wgpuDescAndroid": "Ignora a codificação do navegador para visualizações ao vivo instantaneamente responsivas. (Desativado no Android: A criação de superfície WGPU nativa atualmente não é suportada junto com o webview móvel.)",
-      "wgpuDescLinux": "Ignora a codificação do navegador para visualizações ao vivo instantaneamente responsivas. (Desativado no Linux: O Tauri usa GTK para webviews, o que entra em conflito com o WGPU na mesma superfície X11 e causa cintilação.)",
+      "wgpuDescLinuxExperimental": "Experimental no Linux e pode ser instável.",
+      "wgpuDescLinuxX11": "Não disponível no X11.",
       "wgpuDescRecommended": "Ignora a codificação do navegador para visualizações ao vivo instantaneamente responsivas. Altamente recomendado para desempenho.",
       "wgpuLabel": "Ativar Renderização Direta WGPU",
       "workerThreads": "Threads de Processamento de Miniaturas",

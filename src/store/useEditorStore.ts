@@ -76,7 +76,7 @@ interface EditorState {
   // Interaction State
   isSliderDragging: boolean;
   speedEditTarget: RefObject<SpeedEditTarget | null> | null;
-  isSpeedEditHeld: boolean;
+  isSpeedEditActive: boolean;
   zoom: number;
   zoomRequest: { imagePath: string; percent: number | null; resetPosition?: boolean } | null;
   displaySize: ImageDimensions;
@@ -193,7 +193,7 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   isSliderDragging: false,
   speedEditTarget: null,
-  isSpeedEditHeld: false,
+  isSpeedEditActive: false,
   interactivePatch: null,
   activeMaskContainerId: null,
   activeMaskId: null,

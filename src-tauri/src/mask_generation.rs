@@ -859,26 +859,23 @@ fn generate_ai_bitmap_from_full_mask(
     full_mask_image: &GrayImage,
     tf: &TransformParams,
 ) -> GrayImage {
+    transform_full_mask(full_mask_image, tf, false)
+}
+
+pub fn generate_edge_clamped_bitmap(full_map: &GrayImage, tf: &TransformParams) -> GrayImage {
+    transform_full_mask(full_map, tf, true)
+}
+
+fn transform_full_mask(
+    full_mask_image: &GrayImage,
+    tf: &TransformParams,
+    clamp_edges: bool,
+) -> GrayImage {
     let (full_mask_w, full_mask_h) = full_mask_image.dimensions();
     let mut final_mask = GrayImage::new(tf.width, tf.height);
     if full_mask_w == 0 || full_mask_h == 0 || !tf.scale.is_finite() || tf.scale <= 0.0 {
         return final_mask;
     }
-
-    // Filter before minification so thin edges retain their pixel coverage.
-    // Interpolation alone cannot average pixels skipped by a reduced preview.
-    let sampled_mask = if tf.scale < 1.0 {
-        Cow::Owned(image::imageops::resize(
-            full_mask_image,
-            (full_mask_w as f32 * tf.scale).round().max(1.0) as u32,
-            (full_mask_h as f32 * tf.scale).round().max(1.0) as u32,
-            image::imageops::FilterType::Triangle,
-        ))
-    } else {
-        Cow::Borrowed(full_mask_image)
-    };
-    let sample_scale_x = sampled_mask.width() as f32 / full_mask_w as f32;
-    let sample_scale_y = sampled_mask.height() as f32 / full_mask_h as f32;
 
     let angle_rad = tf.rotation.to_radians();
     let cos_a = angle_rad.cos();
@@ -895,68 +892,118 @@ fn generate_ai_bitmap_from_full_mask(
     let center_x = scaled_coarse_rotated_w / 2.0;
     let center_y = scaled_coarse_rotated_h / 2.0;
 
+    let to_source = |x_out: f32, y_out: f32| {
+        let x_uncrop = x_out + tf.crop_offset.0;
+        let y_uncrop = y_out + tf.crop_offset.1;
+
+        let x_centered = x_uncrop - center_x;
+        let y_centered = y_uncrop - center_y;
+
+        let x_unrotated = x_centered * cos_a + y_centered * sin_a + center_x;
+        let y_unrotated = -x_centered * sin_a + y_centered * cos_a + center_y;
+
+        let x_unflipped = if tf.flip_horizontal {
+            scaled_coarse_rotated_w - x_unrotated
+        } else {
+            x_unrotated
+        };
+        let y_unflipped = if tf.flip_vertical {
+            scaled_coarse_rotated_h - y_unrotated
+        } else {
+            y_unrotated
+        };
+
+        let (x_unrotated_coarse, y_unrotated_coarse) = match tf.orientation_steps {
+            0 => (x_unflipped, y_unflipped),
+            1 => (y_unflipped, scaled_coarse_rotated_w - x_unflipped),
+            2 => (
+                scaled_coarse_rotated_w - x_unflipped,
+                scaled_coarse_rotated_h - y_unflipped,
+            ),
+            3 => (scaled_coarse_rotated_h - y_unflipped, x_unflipped),
+            _ => (x_unflipped, y_unflipped),
+        };
+
+        (x_unrotated_coarse / tf.scale, y_unrotated_coarse / tf.scale)
+    };
+
+    let raw = full_mask_image.as_raw();
+    let sample = |(x_src, y_src): (f32, f32)| {
+        if clamp_edges
+            || (x_src >= 0.0
+                && x_src < full_mask_w as f32
+                && y_src >= 0.0
+                && y_src < full_mask_h as f32)
+        {
+            let x = (x_src.max(0.0) as usize).min(full_mask_w as usize - 1);
+            let y = (y_src.max(0.0) as usize).min(full_mask_h as usize - 1);
+            raw[y * full_mask_w as usize + x] as u32
+        } else {
+            0
+        }
+    };
+
     for_each_mask_row(&mut final_mask, |y_out, row| {
         for (x_out, value) in row.iter_mut().enumerate() {
-            let x_uncrop = x_out as f32 + 0.5 + tf.crop_offset.0;
-            let y_uncrop = y_out as f32 + 0.5 + tf.crop_offset.1;
+            *value = sample(to_source(x_out as f32 + 0.5, y_out as f32 + 0.5)) as u8;
+        }
+    });
 
-            let x_centered = x_uncrop - center_x;
-            let y_centered = y_uncrop - center_y;
+    let mut taps = (tf.scale.recip() - 1.0e-3).ceil().max(1.0) as u32;
+    if taps == 1 {
+        // RapidRoom (#241): full-size renders and exports still need graded edges when the
+        // transform leaves pixel centres between source pixels (fine rotation or a
+        // fractional crop offset). Axis-aligned integer transforms stay exact.
+        let off_grid = tf.rotation % 90.0 != 0.0
+            || tf.crop_offset.0.fract() != 0.0
+            || tf.crop_offset.1.fract() != 0.0;
+        if !off_grid {
+            return final_mask;
+        }
+        taps = 2;
+    }
 
-            let x_unrotated = x_centered * cos_a + y_centered * sin_a + center_x;
-            let y_unrotated = -x_centered * sin_a + y_centered * cos_a + center_y;
+    let origin = to_source(0.0, 0.0);
+    let step_x = to_source(1.0, 0.0);
+    let step_y = to_source(0.0, 1.0);
+    let (step_x, step_y) = (
+        (step_x.0 - origin.0, step_x.1 - origin.1),
+        (step_y.0 - origin.0, step_y.1 - origin.1),
+    );
+    let offsets: Vec<(f32, f32)> = (0..taps * taps)
+        .map(|k| {
+            let u = ((k % taps) as f32 + 0.5) / taps as f32;
+            let v = ((k / taps) as f32 + 0.5) / taps as f32;
+            (u * step_x.0 + v * step_y.0, u * step_x.1 + v * step_y.1)
+        })
+        .collect();
+    let count = taps * taps;
 
-            let x_unflipped = if tf.flip_horizontal {
-                scaled_coarse_rotated_w - x_unrotated
-            } else {
-                x_unrotated
-            };
-            let y_unflipped = if tf.flip_vertical {
-                scaled_coarse_rotated_h - y_unrotated
-            } else {
-                y_unrotated
-            };
-
-            let (x_unrotated_coarse, y_unrotated_coarse) = match tf.orientation_steps {
-                0 => (x_unflipped, y_unflipped),
-                1 => (y_unflipped, scaled_coarse_rotated_w - x_unflipped),
-                2 => (
-                    scaled_coarse_rotated_w - x_unflipped,
-                    scaled_coarse_rotated_h - y_unflipped,
-                ),
-                3 => (scaled_coarse_rotated_h - y_unflipped, x_unflipped),
-                _ => (x_unflipped, y_unflipped),
-            };
-
-            // Transform pixel centers, then sample in the filtered bitmap's grid.
-            let x_src = x_unrotated_coarse / tf.scale * sample_scale_x - 0.5;
-            let y_src = y_unrotated_coarse / tf.scale * sample_scale_y - 0.5;
-            *value = sample_ai_mask_bilinear(&sampled_mask, x_src, y_src);
+    let nearest = final_mask.clone();
+    let (width, height) = (tf.width as usize, tf.height as usize);
+    let near = nearest.as_raw();
+    for_each_mask_row(&mut final_mask, |y_out, row| {
+        let y = y_out as usize;
+        for (x, value) in row.iter_mut().enumerate() {
+            let v = *value;
+            let at = |nx: usize, ny: usize| near[ny * width + nx];
+            let edge = (v != 0 && v != 255)
+                || (x > 0 && at(x - 1, y) != v)
+                || (x + 1 < width && at(x + 1, y) != v)
+                || (y > 0 && at(x, y - 1) != v)
+                || (y + 1 < height && at(x, y + 1) != v);
+            if edge {
+                let corner = to_source(x as f32, y_out as f32);
+                let sum: u32 = offsets
+                    .iter()
+                    .map(|&(dx, dy)| sample((corner.0 + dx, corner.1 + dy)))
+                    .sum();
+                *value = ((sum + count / 2) / count) as u8;
+            }
         }
     });
 
     final_mask
-}
-
-fn sample_ai_mask_bilinear(mask: &GrayImage, x: f32, y: f32) -> u8 {
-    let (width, height) = mask.dimensions();
-    if x < -0.5 || x >= width as f32 - 0.5 || y < -0.5 || y >= height as f32 - 0.5 {
-        return 0;
-    }
-    // Clamp to the frame edge rather than adding an artificial fade where a
-    // subject extends beyond the photo; pixels outside the frame remain zero.
-    let x = x.clamp(0.0, (width - 1) as f32);
-    let y = y.clamp(0.0, (height - 1) as f32);
-    let x0 = x.floor() as u32;
-    let y0 = y.floor() as u32;
-    let x1 = (x0 + 1).min(width - 1);
-    let y1 = (y0 + 1).min(height - 1);
-    let dx = x - x0 as f32;
-    let dy = y - y0 as f32;
-    let top = mask.get_pixel(x0, y0)[0] as f32 * (1.0 - dx) + mask.get_pixel(x1, y0)[0] as f32 * dx;
-    let bottom =
-        mask.get_pixel(x0, y1)[0] as f32 * (1.0 - dx) + mask.get_pixel(x1, y1)[0] as f32 * dx;
-    (top * (1.0 - dy) + bottom * dy).round() as u8
 }
 
 pub fn generate_ai_bitmap_from_base64(data_url: &str, tf: &TransformParams) -> Option<GrayImage> {
@@ -2005,24 +2052,16 @@ mod ai_transform_sampling_tests {
         }
     }
 
+    fn edge_at_three() -> GrayImage {
+        GrayImage::from_fn(8, 8, |x, _| Luma([if x < 3 { 0 } else { 255 }]))
+    }
+
     #[test]
-    fn reduced_checkerboard_preserves_coverage_instead_of_aliasing_to_one_colour() {
-        let source =
-            GrayImage::from_fn(8, 8, |x, y| Luma([if (x + y) % 2 == 0 { 0 } else { 255 }]));
-        let output = generate_ai_bitmap_from_full_mask(&source, &transform(4, 4, 0.5));
-        assert!(
-            output
-                .as_raw()
-                .iter()
-                .all(|pixel| (110..=145).contains(pixel))
-        );
-        let average = output
-            .as_raw()
-            .iter()
-            .map(|pixel| *pixel as f32)
-            .sum::<f32>()
-            / 16.0;
-        assert!((average - 127.5).abs() < 2.0);
+    fn reduced_edge_inside_a_preview_pixel_gets_its_coverage() {
+        let output = generate_ai_bitmap_from_full_mask(&edge_at_three(), &transform(4, 4, 0.5));
+        for row in output.as_raw().chunks(4) {
+            assert_eq!(row, [0, 128, 255, 255]);
+        }
     }
 
     #[test]
@@ -2031,15 +2070,29 @@ mod ai_transform_sampling_tests {
         let mut tf = transform(64, 64, 0.5);
         tf.rotation = 17.0;
         let output = generate_ai_bitmap_from_full_mask(&source, &tf);
-        let values: std::collections::HashSet<_> = output.as_raw().iter().copied().collect();
+        let values = output.as_raw();
         assert!(values.contains(&0) && values.contains(&255));
-        assert!(
-            values
-                .iter()
-                .filter(|value| **value > 0 && **value < 255)
-                .count()
-                > 10
-        );
+        assert!(values.iter().filter(|v| **v > 0 && **v < 255).count() > 40);
+    }
+
+    #[test]
+    fn rotated_full_scale_edge_has_intermediate_coverage() {
+        let source = GrayImage::from_fn(128, 128, |x, _| Luma([if x < 64 { 0 } else { 255 }]));
+        let mut tf = transform(128, 128, 1.0);
+        tf.rotation = 3.0;
+        let output = generate_ai_bitmap_from_full_mask(&source, &tf);
+        let values = output.as_raw();
+        assert!(values.contains(&0) && values.contains(&255));
+        assert!(values.iter().filter(|v| **v > 0 && **v < 255).count() > 40);
+    }
+
+    #[test]
+    fn fractional_crop_offset_full_scale_edge_has_intermediate_coverage() {
+        let source = GrayImage::from_fn(64, 64, |x, _| Luma([if x < 32 { 0 } else { 255 }]));
+        let mut tf = transform(32, 64, 1.0);
+        tf.crop_offset = (16.5, 0.0);
+        let output = generate_ai_bitmap_from_full_mask(&source, &tf);
+        assert!(output.as_raw().iter().any(|v| *v > 0 && *v < 255));
     }
 
     #[test]
@@ -2088,10 +2141,8 @@ mod ai_transform_sampling_tests {
     }
 
     fn depth_parameters(min: f32, max: f32) -> Value {
-        let source =
-            GrayImage::from_fn(8, 8, |x, y| Luma([if (x + y) % 2 == 0 { 0 } else { 255 }]));
         let mut png = Cursor::new(Vec::new());
-        DynamicImage::ImageLuma8(source)
+        DynamicImage::ImageLuma8(edge_at_three())
             .write_to(&mut png, ImageFormat::Png)
             .unwrap();
         serde_json::json!({"maskDataBase64":base64::Engine::encode(&general_purpose::STANDARD,png.into_inner()),
@@ -2117,14 +2168,11 @@ mod ai_transform_sampling_tests {
                 .iter()
                 .filter(|value| **value == 255)
                 .count(),
-            32
+            40
         );
         let reduced = generate_ai_depth_bitmap(&params, 4, 4, 0.5, (0.0, 0.0)).unwrap();
-        assert!(
-            reduced
-                .as_raw()
-                .iter()
-                .all(|value| (110..=145).contains(value))
-        );
+        for row in reduced.as_raw().chunks(4) {
+            assert_eq!(row, [0, 128, 255, 255]);
+        }
     }
 }

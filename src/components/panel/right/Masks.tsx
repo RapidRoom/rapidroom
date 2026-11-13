@@ -102,6 +102,7 @@ export interface MaskParameters {
   radiusY?: number;
   range?: number;
   rotation?: number;
+  sourceVariant?: number;
   sourceX?: number;
   sourceY?: number;
   startX?: number;
@@ -127,6 +128,8 @@ export interface SubMaskConfig {
   parameters?: MaskParameterConfig[];
   showBrushTools?: boolean;
   showFlowControl?: boolean;
+  hideToolSwitch?: boolean;
+  defaultFeather?: number;
 }
 
 export interface SubMask {

@@ -222,7 +222,25 @@
       "roundness": "Rodonesa",
       "size": "Mida",
       "spatial": "Espacial",
-      "vignette": "Vinyetatge"
+      "vignette": "Vinyetatge",
+      "motionBlur": "Desenfocament de moviment",
+      "motionBlurAngle": "Angle",
+      "motionBlurDepth": "Profunditat",
+      "motionBlurHighlights": "Llums",
+      "motionBlurLayer": "Moviment",
+      "motionBlurLayers": {
+        "auto": "Automàtic",
+        "panning": "Escombratge",
+        "subject": "Subjecte en moviment",
+        "uniform": "Uniforme"
+      },
+      "motionBlurType": "Tipus",
+      "motionBlurTypes": {
+        "linear": "Lineal",
+        "zoom": "Zoom",
+        "spin": "Gir",
+        "smooth": "Suau"
+      }
     }
   },
   "contextMenus": {
@@ -479,6 +497,15 @@
         "erase": "Esborrar",
         "feather": "Esvaïment del pinzell",
         "size": "Mida del pinzell"
+      },
+      "cloneHeal": {
+        "cloneTooltip": "Copia l'origen exactament, inclosos la brillantor i el color",
+        "dragSource": "Arrossega per moure l'origen",
+        "healTooltip": "Copia la textura de l'origen i l'adapta a la brillantor i el color de l'entorn",
+        "hintActive": "Arrossega el contorn de l'origen per triar d'on provenen els píxels. Cada traç nou esdevé una zona pròpia. Mantén Maj premut per afegir-hi.",
+        "hintEmpty": "Pinta sobre una taca, un cable o una distracció. Es troba automàticament un origen adequat.",
+        "mode": "Mode",
+        "newSource": "Cerca un altre origen"
       },
       "comingSoon": "Aviat disponible",
       "connection": {
@@ -817,8 +844,7 @@
       "toggleAnalyticsTooltip": "Alternar visualització d'anàlisi",
       "tooltips": {
         "addToCurrent": "Afegir {{name}} a la màscara actual o crear-ne una de nova (Clic dret)",
-        "createNew": "Crear nova màscara de {{name}}",
-        "selectNewSourcePoint": "{{modifier}} + Clic per seleccionar un nou punt d'origen"
+        "createNew": "Crear nova màscara de {{name}}"
       }
     },
     "metadata": {
@@ -1568,6 +1594,7 @@
         "halationGlow": "Halació i Resplendor",
         "hueShift": "Canvi de to global",
         "lensBlur": "Desenfocament d'objectiu",
+        "motionBlur": "Desenfocament de moviment",
         "lensCorrection": "Correcció de l'objectiu",
         "lut": "LUT",
         "masks": "Màscares",
@@ -1817,7 +1844,7 @@
           "fine": "Maj per afinar"
         },
         "keys": {
-          "hold": "Mantenir",
+          "hold": "Prémer / Mantenir",
           "previousImage": "Imatge ant.",
           "nextImage": "Imatge seg.",
           "reset": "Restablir",
@@ -2221,7 +2248,8 @@
       "title": "Motor de processament",
       "wgpu": "Renderització directa WGPU",
       "wgpuDescAndroid": "Omet la codificació del navegador per a unes vistes prèvies en directe que responen a l'instant. (Desactivat a Android: La creació de la superfície nativa WGPU actualment no és compatible juntament amb la vista web mòbil.)",
-      "wgpuDescLinux": "Omet la codificació del navegador per a unes vistes prèvies en directe que responen a l'instant. (Desactivat a Linux: Tauri utilitza GTK per a les vistes web, la qual cosa entra en conflicte amb WGPU a la mateixa superfície X11 i causa parpellejos.)",
+      "wgpuDescLinuxExperimental": "Experimental a Linux i pot ser inestable.",
+      "wgpuDescLinuxX11": "No disponible a X11.",
       "wgpuDescRecommended": "Omet la codificació del navegador per a unes vistes prèvies en directe que responen a l'instant. Molt recomanat pel seu rendiment.",
       "wgpuLabel": "Activar la renderització directa WGPU",
       "workerThreads": "Fils de treball per a les miniatures",

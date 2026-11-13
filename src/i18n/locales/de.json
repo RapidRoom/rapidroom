@@ -194,6 +194,24 @@
       "lightFlares": "Blendenflecke",
       "lut": "LUT",
       "midpoint": "Mittelpunkt",
+      "motionBlur": "Bewegungsunschärfe",
+      "motionBlurAngle": "Winkel",
+      "motionBlurDepth": "Tiefe",
+      "motionBlurHighlights": "Lichter",
+      "motionBlurLayer": "Bewegung",
+      "motionBlurLayers": {
+        "auto": "Automatisch",
+        "panning": "Mitziehen",
+        "subject": "Bewegtes Motiv",
+        "uniform": "Gleichmäßig"
+      },
+      "motionBlurType": "Typ",
+      "motionBlurTypes": {
+        "linear": "Linear",
+        "zoom": "Zoom",
+        "spin": "Drehung",
+        "smooth": "Weich"
+      },
       "relight": "Neu beleuchten",
       "relightAddLight": "Licht hinzufügen",
       "relightAmbient": "Umgebungslicht",
@@ -462,6 +480,15 @@
         "erase": "Löschen",
         "feather": "Weiche Kante",
         "size": "Pinselgröße"
+      },
+      "cloneHeal": {
+        "cloneTooltip": "Kopiert die Quelle exakt, inklusive Helligkeit und Farbe",
+        "dragSource": "Ziehen, um die Quelle zu verschieben",
+        "healTooltip": "Kopiert die Struktur der Quelle und passt sie an Helligkeit und Farbe der Umgebung an",
+        "hintActive": "Ziehe den Quellumriss, um festzulegen, woher die Pixel kommen. Jeder neue Strich wird zu einem eigenen Bereich. Halte Shift gedrückt, um diesen zu erweitern.",
+        "hintEmpty": "Male über einen Fleck, ein Kabel oder eine Störung. Eine passende Quelle wird automatisch gefunden.",
+        "mode": "Modus",
+        "newSource": "Andere Quelle suchen"
       },
       "comingSoon": "Demnächst",
       "connection": {
@@ -793,8 +820,7 @@
       "toggleAnalyticsTooltip": "Analyseanzeige umschalten",
       "tooltips": {
         "addToCurrent": "{{name}} zur aktuellen Maske hinzufügen oder neu erstellen (Rechtsklick)",
-        "createNew": "Neue {{name}}-Maske erstellen",
-        "selectNewSourcePoint": "{{modifier}} + Klicken, um einen neuen Quellpunkt auszuwählen"
+        "createNew": "Neue {{name}}-Maske erstellen"
       }
     },
     "metadata": {
@@ -1536,6 +1562,7 @@
         "halationGlow": "Lichthof & Glühen",
         "hueShift": "Globaler Farbton-Shift",
         "lensBlur": "Objektivunschärfe",
+        "motionBlur": "Bewegungsunschärfe",
         "lensCorrection": "Objektivkorrektur",
         "lut": "LUT",
         "masks": "Masken",
@@ -1779,7 +1806,7 @@
           "fine": "Umschalt für fein"
         },
         "keys": {
-          "hold": "Halten",
+          "hold": "Tippen / Halten",
           "previousImage": "Vorh. Bild",
           "nextImage": "Nächstes Bild",
           "reset": "Zurücksetzen",
@@ -2180,7 +2207,8 @@
       "title": "Verarbeitungs-Engine",
       "wgpu": "WGPU Direkt-Rendering",
       "wgpuDescAndroid": "Umgeht die Browser-Kodierung für sofort reagierende Live-Vorschauen. (Auf Android deaktiviert: Native WGPU-Erstellung wird neben dem mobilen Webview nicht unterstützt.)",
-      "wgpuDescLinux": "Umgeht die Browser-Kodierung für sofort reagierende Live-Vorschauen. (Auf Linux deaktiviert: Tauri nutzt GTK, was mit WGPU kollidiert.)",
+      "wgpuDescLinuxExperimental": "Experimentell unter Linux und möglicherweise instabil.",
+      "wgpuDescLinuxX11": "Unter X11 nicht verfügbar.",
       "wgpuDescRecommended": "Umgeht die Browser-Kodierung für sofort reagierende Live-Vorschauen. Sehr empfehlenswert für die Leistung.",
       "wgpuLabel": "Direktes WGPU-Rendern aktivieren",
       "workerThreads": "Miniaturbild-Worker-Threads",
